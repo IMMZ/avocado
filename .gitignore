@@ -1,0 +1,19 @@
+# MS VC
+.vs
+*.vcxproj*
+Debug
+Release
+*.sln
+
+# CMake
+CMakeFiles
+CMakeCache
+CMakeCache.txt
+.cache
+*.cmake
+
+# Generated
+*.spv
+*.json
+*.session
+
