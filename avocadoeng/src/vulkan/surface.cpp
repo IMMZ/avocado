@@ -5,6 +5,8 @@
 #include <SDL.h>
 #include <SDL_vulkan.h>
 
+using namespace std::string_literals;
+
 namespace avocado::vulkan {
 
 Surface::Surface(VkSurfaceKHR surface, VkInstance instance, PhysicalDevice &physDev):
@@ -27,20 +29,18 @@ const std::vector<VkSurfaceFormatKHR> Surface::getSurfaceFormats() const {
     std::vector<VkSurfaceFormatKHR> surfaceFormats;
     uint32_t formatCount = 0;
     const VkResult result1 = vkGetPhysicalDeviceSurfaceFormatsKHR(_physicalDevice, _surface, &formatCount, nullptr);
-    if (result1 != VK_SUCCESS) {
-        setHasError(true);
-        // todo fix
-        // setErrorMessage("vkGetPhysicalDeviceSurfaceFormatsKHR() returned "s + internal::getVkResultString(result1));
+    setHasError(result1 != VK_SUCCESS);
+    if (hasError()) {
+        setErrorMessage("vkGetPhysicalDeviceSurfaceFormatsKHR returned "s + getVkResultString(result1));
         return surfaceFormats;
     }
 
     if (formatCount > 0) {
         surfaceFormats.resize(formatCount);
         const VkResult result2 = vkGetPhysicalDeviceSurfaceFormatsKHR(_physicalDevice, _surface, &formatCount, surfaceFormats.data());
-        if (result2 != VK_SUCCESS) {
-            setHasError(true);
-            // todo fix
-            // setErrorMessage("vkGetPhysicalDeviceSurfaceFormatsKHR() returned "s + internal::getVkResultString(result2));
+        setHasError(result2 != VK_SUCCESS);
+        if (hasError()) {
+            setErrorMessage("vkGetPhysicalDeviceSurfaceFormatsKHR returned "s + getVkResultString(result2));
             return surfaceFormats;
         }
     }
@@ -53,20 +53,18 @@ const std::vector<VkPresentModeKHR> Surface::getPresentModes() const {
     std::vector<VkPresentModeKHR> presentModes;
     uint32_t presentModeCount = 0;
     const VkResult result1 = vkGetPhysicalDeviceSurfacePresentModesKHR(_physicalDevice, _surface, &presentModeCount, nullptr);
-    if (result1 != VK_SUCCESS) {
-        setHasError(true);
-        // todo fix
-        //setErrorMessage("vkGetPhysicalDeviceSurfacePresentModesKHR() returned "s + internal::getVkResultString(result1));
+    setHasError(result1 != VK_SUCCESS);
+    if (hasError()) {
+        setErrorMessage("vkGetPhysicalDeviceSurfacePresentModesKHR returned "s + getVkResultString(result1));
         return presentModes;
     }
 
     if (presentModeCount > 0) {
         presentModes.resize(presentModeCount);
         const VkResult result2 = vkGetPhysicalDeviceSurfacePresentModesKHR(_physicalDevice, _surface, &presentModeCount, presentModes.data());
-        if (result2 != VK_SUCCESS) {
-            setHasError(true);
-            //todo fix
-            //setErrorMessage("vkGetPhysicalDeviceSurfacePresentModesKHR() returned "s + internal::getVkResultString(result2));
+        setHasError(result2 != VK_SUCCESS);
+        if (hasError()) {
+            setErrorMessage("vkGetPhysicalDeviceSurfacePresentModesKHR(returned "s + getVkResultString(result2));
             return presentModes;
         }
     }
@@ -78,10 +76,9 @@ const uint32_t Surface::getPresentQueueFamilyIndex(const std::vector<VkQueueFami
     VkBool32 presentSupport = VK_FALSE;
     for (uint32_t i = 0; i < queueFamilies.size(); ++i) {
         const VkResult surfSupportResult = vkGetPhysicalDeviceSurfaceSupportKHR(_physicalDevice, i, _surface, &presentSupport);
-        if (surfSupportResult != VK_SUCCESS) {
-            setHasError(true);
-            // todo fix
-            // setErrorMessage("vkGetPhysicalDeviceSurfaceSupportKHR returned "s + internal::getVkResultString(surfSupportResult));
+        setHasError(surfSupportResult != VK_SUCCESS);
+        if (hasError()) {
+            setErrorMessage("vkGetPhysicalDeviceSurfaceSupportKHR returned "s + getVkResultString(surfSupportResult));
             return std::numeric_limits<uint32_t>::max();
         }
 
@@ -97,7 +94,8 @@ VkExtent2D Surface::getCapabilities(SDL_Window *sdlWindow) {
 
     VkSurfaceCapabilitiesKHR surfaceCapabilities{};
     const VkResult result = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(_physicalDevice, _surface, &surfaceCapabilities);
-    if (result == VK_SUCCESS) {
+    setHasError(result != VK_SUCCESS);
+    if (!hasError()) {
         extent = surfaceCapabilities.currentExtent;
         _minImageCount = surfaceCapabilities.minImageCount;
         _maxImageCount = surfaceCapabilities.maxImageCount;
@@ -107,9 +105,7 @@ VkExtent2D Surface::getCapabilities(SDL_Window *sdlWindow) {
         _maxExtentW = surfaceCapabilities.maxImageExtent.width;
         _currentTransform = surfaceCapabilities.currentTransform;
     } else {
-        setHasError(true);
-        // todo fix
-        // setErrorMessage("vkGetPhysicalDeviceSurfaceCapabilitiesKHR returned"s + internal::getVkResultString(result));
+        setErrorMessage("vkGetPhysicalDeviceSurfaceCapabilitiesKHR returned"s + getVkResultString(result));
         int width = 0, height = 0;
         SDL_Vulkan_GetDrawableSize(sdlWindow, &width, &height);
         extent = { static_cast<uint32_t>(width), static_cast<uint32_t>(height)};
@@ -130,12 +126,10 @@ VkSurfaceFormatKHR Surface::findFormat(SurfaceFormat sf, ColorSpace cs) const {
         [sf, cs] (VkSurfaceFormatKHR surfaceFormat) {
         return (surfaceFormat.format == static_cast<VkFormat>(sf) && surfaceFormat.colorSpace == static_cast<VkColorSpaceKHR>(cs));
     });
-
-    if (findResult != surfaceFormats.cend()) {
+    setHasError(findResult == surfaceFormats.cend());
+    if (!hasError()) {
         resultFormat = *findResult;
-    }
-    else {
-        setHasError(true);
+    } else {
         setErrorMessage("No suitable surface found");
     }
 

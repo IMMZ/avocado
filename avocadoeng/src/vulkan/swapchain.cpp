@@ -5,6 +5,8 @@
 
 #include <cassert>
 
+using namespace std::string_literals;
+
 namespace avocado::vulkan {
 
 Swapchain::Swapchain(LogicalDevice &logicalDevice):
@@ -53,11 +55,10 @@ void Swapchain::create(Surface &surface, VkSurfaceFormatKHR surfaceFormat, VkExt
     } else {
         swapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
     }
-
-    if (vkCreateSwapchainKHR(_device, &swapchainCreateInfo, nullptr, &_swapchain) != VK_SUCCESS) {
-        setHasError(true);
-        // todo fix
-        // setErrorMessage() std::cout << "Can't create swapchain." << std::endl;
+    const VkResult result = vkCreateSwapchainKHR(_device, &swapchainCreateInfo, nullptr, &_swapchain); 
+    setHasError(result != VK_SUCCESS);
+    if (hasError()) {
+        setErrorMessage("vkCreateSwapchainKHR returned "s + getVkResultString(result));
     }
 }
 
@@ -65,18 +66,19 @@ void Swapchain::getImages() {
     assert(_swapchain != VK_NULL_HANDLE);
 
     uint32_t imageCount = std::numeric_limits<uint32_t>::max();
-    if (vkGetSwapchainImagesKHR(_device, _swapchain, &imageCount, nullptr) != VK_SUCCESS) {
-        setHasError(true);
-        // todo fix
-        // setErrorMessage("vkGetSwapchainImagesKHR returned "s + ...);
+    const VkResult result = vkGetSwapchainImagesKHR(_device, _swapchain, &imageCount, nullptr);
+    setHasError(result != VK_SUCCESS);
+    if (hasError()) {
+        setErrorMessage("vkGetSwapchainImagesKHR returned "s + getVkResultString(result));
         return;
     }
 
     _images.resize(imageCount);
-    if (vkGetSwapchainImagesKHR(_device, _swapchain, &imageCount, _images.data()) != VK_SUCCESS) {
-        setHasError(true);
-        // todo fix
-        // setErrorMessage std::cout << "Can't get swapchain images." << std::endl;
+    const VkResult result2 = vkGetSwapchainImagesKHR(_device, _swapchain, &imageCount, _images.data());
+    setHasError(result2 != VK_SUCCESS);
+    
+    if (hasError()) {
+        setErrorMessage("vkGetSwapchainImagesKHR returned "s + getVkResultString(result2));
         return;
     }
 }
@@ -98,10 +100,10 @@ void Swapchain::createImageViews(VkSurfaceFormatKHR surfaceFormat) {
         createInfo.subresourceRange.levelCount = 1;
         createInfo.subresourceRange.baseArrayLayer = 0;
         createInfo.subresourceRange.layerCount = 1;
-        if (vkCreateImageView(_device, &createInfo, nullptr, &_imageViews[i]) != VK_SUCCESS) {
-            setHasError(true);
-            // todo fix
-            // setErrorMessage("Can't create image view." << std::endl;
+        const VkResult result = vkCreateImageView(_device, &createInfo, nullptr, &_imageViews[i]);
+        setHasError(result != VK_SUCCESS);
+        if (hasError()) {
+            setErrorMessage("vkCreateImageView returned "s + getVkResultString(result));
             return;
         }
     }
@@ -121,11 +123,10 @@ void Swapchain::createFramebuffers(VkRenderPass renderPass, VkExtent2D extent) {
         framebufferInfo.width = extent.width;
         framebufferInfo.height = extent.height;
         framebufferInfo.layers = 1;
-
-        if (vkCreateFramebuffer(_device, &framebufferInfo, nullptr, &_framebuffers[i]) != VK_SUCCESS) {
-            setHasError(true);
-            // todo fix
-            //setErrorMessage("vkCreateFramebuffer returned "s +  << std::endl;
+        const VkResult result = vkCreateFramebuffer(_device, &framebufferInfo, nullptr, &_framebuffers[i]); 
+        setHasError(result != VK_SUCCESS);
+        if (hasError()) {
+            setErrorMessage("vkCreateFramebuffer returned "s +  getVkResultString(result));
         }
     }
 }
@@ -133,10 +134,9 @@ void Swapchain::createFramebuffers(VkRenderPass renderPass, VkExtent2D extent) {
 uint32_t Swapchain::acquireNextImage(VkSemaphore semaphore) {
     uint32_t imageIndex = std::numeric_limits<decltype(imageIndex)>::max();
     const VkResult result = vkAcquireNextImageKHR(_device, _swapchain, UINT64_MAX, semaphore, VK_NULL_HANDLE, &imageIndex);
-    if (result != VK_SUCCESS) {
-        setHasError(true);
-        // todo fix
-        // setErrorMessage("vkAcquireNextImageKHR returned "s + ...)
+    setHasError(result != VK_SUCCESS);
+    if (hasError()) {
+        setErrorMessage("vkAcquireNextImageKHR returned "s + getVkResultString(result));
     }
     return imageIndex;
 }

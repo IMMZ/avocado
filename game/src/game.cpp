@@ -282,9 +282,6 @@ int SDL_main(int argc, char ** argv) {
     commandBuffer.bindPipeline(graphicsPipeline, avocado::vulkan::CommandBuffer::PipelineBindPoint::Graphics);
     commandBuffer.setViewport(pipelineBuilder.getViewport());
     commandBuffer.setScissor(pipelineBuilder.getScissor());
-    // todo add to CommandBuffer:
-    //vkCmdSetViewport(commandBuffer, 0, 1, &viewPort);
-    //vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
     commandBuffer.draw(3, 1, 0, 0);
     commandBuffer.endRenderPass();
     commandBuffer.end();

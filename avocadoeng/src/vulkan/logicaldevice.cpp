@@ -1,5 +1,7 @@
 #include "logicaldevice.hpp"
 
+using namespace std::string_literals;
+
 namespace avocado::vulkan {
 
 LogicalDevice::LogicalDevice():
@@ -43,9 +45,7 @@ VkFence LogicalDevice::createFence() {
     const VkResult result = vkCreateFence(_dev.get(), &fenceCI, nullptr, &fence);
     setHasError(result != VK_SUCCESS);
     if (hasError()) {
-        // todo fix
-        // setErrorMessage
-        ;
+        setErrorMessage("vkCreateFence returned "s + getVkResultString(result));
     }
     return fence;
 }
@@ -54,9 +54,7 @@ void LogicalDevice::waitForFences(const std::vector<VkFence> &fences, const bool
     const VkResult result = vkWaitForFences(_dev.get(), static_cast<uint32_t>(fences.size()), fences.data(), waitAll ? VK_TRUE : VK_FALSE, timeout);
     setHasError(result != VK_SUCCESS);
     if (hasError()) {
-        // todo fix
-        // setErrorMessage
-        ;
+        setErrorMessage("vkWaitForFences returned "s + getVkResultString(result));
     }
 }
 
@@ -64,9 +62,7 @@ void LogicalDevice::resetFences(const std::vector<VkFence> &fences) {
     const VkResult result = vkResetFences(_dev.get(), static_cast<uint32_t>(fences.size()), fences.data());
     setHasError(result != VK_SUCCESS);
     if (hasError()) {
-        // todo fix
-        // setErrorMessage
-        ;
+        setErrorMessage("vkResetFences returned "s + getVkResultString(result));
     }
 }
 
@@ -77,9 +73,7 @@ VkSemaphore LogicalDevice::createSemaphore() {
     const VkResult result = vkCreateSemaphore(_dev.get(), &semaphoreCI, nullptr, &semaphore);
     setHasError(result != VK_SUCCESS);
     if (hasError()) {
-        // todo fix
-        // setErrorMessage,
-        ;
+        setErrorMessage("vkCreateSemaphore returned "s + getVkResultString(result));
     }
     return semaphore;
 }
@@ -88,9 +82,7 @@ void LogicalDevice::waitIdle() {
     const VkResult result = vkDeviceWaitIdle(_dev.get());
     setHasError(result != VK_SUCCESS);
     if (hasError()) {
-        ;
-        // todo fix
-        // setErrorMessage
+        setErrorMessage("vkDeviceWaitIdle returned "s + getVkResultString(result));
     }
 }
 
@@ -105,10 +97,9 @@ VkPipelineShaderStageCreateInfo LogicalDevice::createShaderModule(ShaderType shT
     VkShaderModule shaderModule;
     const VkResult result = vkCreateShaderModule(_dev.get(), &shaderModuleCreateInfo, nullptr, &shaderModule);
 
-    if (result != VK_SUCCESS) {
-        setHasError(true);
-        // todo: uncomment and fix the code. 
-        // setErrorMessage("vkCreateShaderModule returned "s + internal::getVkResultString(result));
+    setHasError(result != VK_SUCCESS);
+    if (hasError()) {
+        setErrorMessage("vkCreateShaderModule returned "s + getVkResultString(result));
         return shaderStageCreateInfo;
     }
 
@@ -150,9 +141,10 @@ LogicalDevice::RenderPassUniquePtr LogicalDevice::createRenderPass(VkFormat form
     renderPassCreateInfo.pSubpasses = &subpassDescription;
     VkRenderPass renderPass;
     const auto &renderPassDestroyer = std::bind(vkDestroyRenderPass, _dev.get(), std::placeholders::_1, nullptr);
-    if (vkCreateRenderPass(_dev.get(), &renderPassCreateInfo, nullptr, &renderPass) != VK_SUCCESS) {
-        setHasError(true);
-        //std::cout << "Can't create render pass" << std::endl;
+    const VkResult result = vkCreateRenderPass(_dev.get(), &renderPassCreateInfo, nullptr, &renderPass);
+    setHasError(result != VK_SUCCESS);
+    if (hasError()) {
+        setErrorMessage("vkCreateRenderPass returned "s + getVkResultString(result));
         return RenderPassUniquePtr(VK_NULL_HANDLE, renderPassDestroyer);
     }
     

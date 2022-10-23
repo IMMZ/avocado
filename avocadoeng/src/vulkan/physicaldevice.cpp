@@ -2,8 +2,6 @@
 
 #include <cstring>
 
-#include <iostream> // todo remove
-
 using namespace std::literals::string_literals;
 
 namespace avocado::vulkan {
@@ -69,10 +67,6 @@ LogicalDevice PhysicalDevice::createLogicalDevice(
     devCreateInfo.enabledExtensionCount = static_cast<decltype(devCreateInfo.enabledExtensionCount)>(extensions.size());
     devCreateInfo.ppEnabledExtensionNames = extensions.data();
 
-    std::cout << "devCI" << std::endl
-        << "count: " << devCreateInfo.enabledExtensionCount << std::endl
-        << "Names: " << devCreateInfo.ppEnabledExtensionNames << std::endl;
-
     if (!instanceLayers.empty()) {
         devCreateInfo.enabledLayerCount = static_cast<uint32_t>(instanceLayers.size());
         devCreateInfo.ppEnabledLayerNames = instanceLayers.data();
@@ -118,14 +112,11 @@ std::vector<std::string> PhysicalDevice::getPhysicalDeviceExtensions() const {
 
 bool PhysicalDevice::areExtensionsSupported(const std::vector<const char*> &extNames) const {
     std::vector<std::string> deviceExtensions = getPhysicalDeviceExtensions(); 
-    std::cout << "dd size: " << deviceExtensions.size() << std::endl;
-    std::cout << "1" << std::endl;
     if (hasError()) {
         setErrorMessage("getDeviceExtensions() returned Error ("s + getErrorMessage() + ')');
         return false;
     }
 
-    std::cout << "5" << std::endl;
     bool extFound = false;
     for (const char *extName: extNames) {
         extFound = false;
@@ -139,11 +130,10 @@ bool PhysicalDevice::areExtensionsSupported(const std::vector<const char*> &extN
         if (!extFound) {
             setHasError(true);
             setErrorMessage("Physical extension '"s + extName + "' isn't supported");
-            std::cout << "2" << std::endl;
             return false;
         }
     }
-std::cout << "3" << std::endl;
+
     return true;
 }
 

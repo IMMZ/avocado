@@ -4,7 +4,7 @@
 
 #include <cassert>
 
-#include <iostream> // todo remove
+using namespace std::string_literals;
 
 namespace avocado::vulkan {
 
@@ -23,19 +23,18 @@ bool CommandBuffer::isValid() const {
 void CommandBuffer::begin() {
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    if (VK_SUCCESS != vkBeginCommandBuffer(_buf, &beginInfo)) {
-
-        setHasError(true);
-        // todo fix
-        // setErrorMessage("")
+    const VkResult result = vkBeginCommandBuffer(_buf, &beginInfo);
+    setHasError(result != VK_SUCCESS);
+    if (hasError()) {
+        setErrorMessage("vkBeginCommandBuffer returned "s + getVkResultString(result));
     }
 }
 
 void CommandBuffer::end() {
-    if (vkEndCommandBuffer(_buf) != VK_SUCCESS) {
-        setHasError(true);
-        // todo fix
-        // setErrorMessage
+    const VkResult result = vkEndCommandBuffer(_buf);
+    setHasError(result != VK_SUCCESS);
+    if (hasError()) {
+        setErrorMessage("vkEndCommandBuffer returned "s + getVkResultString(result));
     }
 }
 
@@ -69,14 +68,12 @@ void CommandBuffer::reset(const CommandBuffer::ResetFlags flags) {
     const VkResult result = vkResetCommandBuffer(_buf, static_cast<uint32_t>(flags));
     setHasError(result != VK_SUCCESS);
     if (hasError()) {
-        ; // todo fix
-          // setErrorMessage()
+        setErrorMessage("vkResetCommandBuffer returned "s + getVkResultString(result));
     }
 }
 
 // todo make setViewportS (many ones). The same is for scissor.
 void CommandBuffer::setViewport(VkViewport vp) {
-    std::cout << "VIEW PORT IS SET" << std::endl;
     vkCmdSetViewport(_buf, 0, 1, &vp);
 }
 

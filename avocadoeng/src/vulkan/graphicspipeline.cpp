@@ -5,6 +5,8 @@
 
 #include <cassert>
 
+using namespace std::string_literals;
+
 namespace avocado::vulkan {
 
 GraphicsPipelineBuilder::GraphicsPipelineBuilder(VkDevice device):
@@ -193,10 +195,9 @@ GraphicsPipelineBuilder::PipelineUniquePtr GraphicsPipelineBuilder::buildPipelin
     VkPipelineLayout pipelineLayout; // todo need to destroy.
     const VkResult pipelineCreationResult = vkCreatePipelineLayout(_device, &pipelineLayoutCreateInfo, nullptr, &pipelineLayout);
     auto pipelineDestroyer = std::bind(vkDestroyPipeline, _device, std::placeholders::_1, nullptr);
-    if (pipelineCreationResult != VK_SUCCESS) {
-        setHasError(true);
-        // todo uncomment and fix
-        // setErrorMessage("vkCreatePipelineLayout() returned "s + internal::getVkResultString(pipelineCreationResult));
+    setHasError(pipelineCreationResult != VK_SUCCESS);
+    if (hasError()) {
+        setErrorMessage("vkCreatePipelineLayout returned "s + getVkResultString(pipelineCreationResult));
         return PipelineUniquePtr(VK_NULL_HANDLE, pipelineDestroyer);
     }
 
@@ -208,10 +209,9 @@ GraphicsPipelineBuilder::PipelineUniquePtr GraphicsPipelineBuilder::buildPipelin
     // Create the pipeline.
     VkPipeline pipeline = VK_NULL_HANDLE;
     const VkResult result = vkCreateGraphicsPipelines(_device, VK_NULL_HANDLE, 1, &pipelineCI, nullptr, &pipeline);
-    if (result != VK_SUCCESS) {
-        setHasError(true);
-        // todo uncomment and fix
-        // setErrorMessage("vkCreateGraphicsPipelines returned "s + internal::getVkResultString(result));
+    setHasError(result != VK_SUCCESS);
+    if (hasError()) {
+        setErrorMessage("vkCreateGraphicsPipelines returned "s + getVkResultString(result));
         return PipelineUniquePtr(VK_NULL_HANDLE, pipelineDestroyer);
     }
 
