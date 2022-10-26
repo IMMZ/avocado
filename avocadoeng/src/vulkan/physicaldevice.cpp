@@ -48,8 +48,8 @@ uint32_t PhysicalDevice::getGraphicsQueueFamilyIndex(const std::vector<VkQueueFa
 
 LogicalDevice PhysicalDevice::createLogicalDevice(
     const std::vector<uint32_t> &uniqueQueueFamilyIndices,
-    const std::vector<const char*> &extensions,
-    const std::vector<const char*> &instanceLayers,
+    const std::vector<std::string> &extensions,
+    const std::vector<std::string> &instanceLayers,
     const uint32_t queueCount, const float queuePriority) {
     // Creating queuecreateinfos for graphics family.
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos(uniqueQueueFamilyIndices.size());
@@ -60,16 +60,27 @@ LogicalDevice PhysicalDevice::createLogicalDevice(
         queueCreateInfos[i].pQueuePriorities = &queuePriority;
     }
 
+    std::vector<const char*> extensionsCString(extensions.size(), nullptr);
+    for (size_t i = 0; i < extensionsCString.size(); ++i) {
+        extensionsCString[i] = extensions[i].c_str();
+    }
+
     VkDeviceCreateInfo devCreateInfo{};
     devCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     devCreateInfo.queueCreateInfoCount = static_cast<decltype(devCreateInfo.queueCreateInfoCount)>(queueCreateInfos.size());
     devCreateInfo.pQueueCreateInfos = queueCreateInfos.data();
-    devCreateInfo.enabledExtensionCount = static_cast<decltype(devCreateInfo.enabledExtensionCount)>(extensions.size());
-    devCreateInfo.ppEnabledExtensionNames = extensions.data();
+    devCreateInfo.enabledExtensionCount = static_cast<decltype(devCreateInfo.enabledExtensionCount)>(extensionsCString.size());
+    devCreateInfo.ppEnabledExtensionNames = extensionsCString.data();
+
+    std::vector<const char*> layerNamesCString(instanceLayers.size(), nullptr);
+    for (size_t i = 0; i < layerNamesCString.size(); ++i) {
+        layerNamesCString[i] = instanceLayers[i].c_str();
+    }
+
 
     if (!instanceLayers.empty()) {
-        devCreateInfo.enabledLayerCount = static_cast<uint32_t>(instanceLayers.size());
-        devCreateInfo.ppEnabledLayerNames = instanceLayers.data();
+        devCreateInfo.enabledLayerCount = static_cast<uint32_t>(layerNamesCString.size());
+        devCreateInfo.ppEnabledLayerNames = layerNamesCString.data();
     }
 
     VkDevice logicDevHandle;
@@ -110,7 +121,7 @@ std::vector<std::string> PhysicalDevice::getPhysicalDeviceExtensions() const {
     return extensions;
 }
 
-bool PhysicalDevice::areExtensionsSupported(const std::vector<const char*> &extNames) const {
+bool PhysicalDevice::areExtensionsSupported(const std::vector<std::string> &extNames) const {
     std::vector<std::string> deviceExtensions = getPhysicalDeviceExtensions(); 
     if (hasError()) {
         setErrorMessage("getDeviceExtensions() returned Error ("s + getErrorMessage() + ')');
@@ -118,7 +129,7 @@ bool PhysicalDevice::areExtensionsSupported(const std::vector<const char*> &extN
     }
 
     bool extFound = false;
-    for (const char *extName: extNames) {
+    for (const std::string &extName: extNames) {
         extFound = false;
         for (const std::string &devExt: deviceExtensions) {
             if (devExt == extName) {

@@ -52,19 +52,18 @@ int SDL_main(int argc, char ** argv) {
         SDL_SetWindowIcon(sdlWindow.get(), iconSurface);
 
     avocado::vulkan::Vulkan vlk;
-    const std::vector instanceLayers {"VK_LAYER_KHRONOS_validation"};
+    const std::vector<std::string> instanceLayers {"VK_LAYER_KHRONOS_validation"};
     const bool areLayersSupported = vlk.areLayersSupported(instanceLayers);
     if (!areLayersSupported) {
         std::cerr << vlk.getErrorMessage() << std::endl;
         return 1;
     }
     
-    std::vector<const char*> instanceExtensions { };
+    std::vector<std::string> instanceExtensions = vlk.getExtensionNamesForSDLSurface(sdlWindow.get());
     if constexpr (avocado::core::isDebugBuild())
         instanceExtensions.push_back("VK_EXT_debug_utils");
 
-    // Add SDL extensions.
-    if (!vlk.getExtensionNamesForSDLSurface(sdlWindow.get(), instanceExtensions)) {
+    if (vlk.hasError()) {
         std::cerr << vlk.getErrorMessage() << std::endl;
         return 1;
     }
@@ -73,6 +72,7 @@ int SDL_main(int argc, char ** argv) {
     avocado::vulkan::VulkanInstanceInfo vii;
     vii.appName = Config::GAME_NAME;
     vii.appMajorVersion = 0; vii.appMinorVersion = 1; vii.appPatchVersion = 0;
+    vii.apiMajorVersion = 1; vii.apiMinorVersion = 2;
     vlk.createInstance(instanceExtensions, instanceLayers, vii);
     if (vlk.hasError()) {
         std::cerr << vlk.getErrorMessage() << std::endl;
@@ -112,11 +112,7 @@ int SDL_main(int argc, char ** argv) {
     const std::vector<decltype(_uniqueQueueFamilyIndices)::value_type> uniqueQueueFamilyIndices(
         _uniqueQueueFamilyIndices.cbegin(), _uniqueQueueFamilyIndices.cend());
 
-    std::vector<const char*> physExtensions;// = instanceExtensions;//physicalDevice.getPhysicalDeviceExtensions();
-                    physExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
-                    //physExtensions.push_back("VK_KHR_win32_surface");
-                    //physExtensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
-                    //#include <iostream> // todo remove
+    std::vector<std::string> physExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
     physicalDevice.areExtensionsSupported(physExtensions);
     if (physicalDevice.hasError()) {
@@ -246,31 +242,19 @@ int SDL_main(int argc, char ** argv) {
 
     swapChain.createFramebuffers(renderPassPtr.get(), extent);
 
-    // Command pools.
-    VkCommandPool commandPool;
-    VkCommandPoolCreateInfo poolCreateInfo{};
-    poolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-    poolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-    poolCreateInfo.queueFamilyIndex = graphicsQueueFamilyI;
-    if (vkCreateCommandPool(logicalDevice.getHandle(), &poolCreateInfo, nullptr, &commandPool) != VK_SUCCESS) {
-        std::cout << "Can't create command pool." << std::endl;
+    VkCommandPool commandPool = logicalDevice.createCommandPool(avocado::vulkan::LogicalDevice::CommandPoolCreationFlags::Reset, graphicsQueueFamilyI);
+    if (logicalDevice.hasError()) {
+        std::cout << "Can't create command pool: " << logicalDevice.getErrorMessage() << std::endl;
         return 1;
     }
 
-    // Command buffer allocation.
-    VkCommandBufferAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocInfo.commandPool = commandPool;
-    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocInfo.commandBufferCount = 1;
-
-    VkCommandBuffer _commandBuffer;
-    if (vkAllocateCommandBuffers(logicalDevice.getHandle(), &allocInfo, &_commandBuffer) != VK_SUCCESS) {
-        std::cout << "Can't allocate command buffers." << std::endl;
+    const std::vector<avocado::vulkan::CommandBuffer> &cmdBuffers = logicalDevice.allocateCommandBuffers(1, commandPool, avocado::vulkan::LogicalDevice::CommandBufferLevel::Primary);
+    if (logicalDevice.hasError()) {
+        std::cout << "Can't allocate command buffers (" << logicalDevice.getErrorMessage() << ")." << std::endl;
         return 1;
     }
 
-    avocado::vulkan::CommandBuffer commandBuffer(_commandBuffer);
+    avocado::vulkan::CommandBuffer commandBuffer = cmdBuffers.front();
     commandBuffer.begin();
     if (commandBuffer.hasError()) {
         std::cout << "Can't begin recording command buffer." << std::endl;
@@ -337,11 +321,9 @@ int SDL_main(int argc, char ** argv) {
         renderPassInfo.clearValueCount = 1;
         renderPassInfo.pClearValues = &clearColor;
 
-        vkCmdBeginRenderPass(_commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+        vkCmdBeginRenderPass(commandBuffer.getHandle(), &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
         commandBuffer.setViewport(pipelineBuilder.getViewport());
         commandBuffer.setScissor(pipelineBuilder.getScissor());
-        //vkCmdSetViewport(commandBuffer, 0, 1, &viewPort);
-        //vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
         
         commandBuffer.bindPipeline(graphicsPipeline, avocado::vulkan::CommandBuffer::PipelineBindPoint::Graphics);
         commandBuffer.draw(3, 1, 0, 0);
@@ -358,7 +340,8 @@ int SDL_main(int argc, char ** argv) {
         submitInfo.pWaitDstStageMask = waitStages;
 
         submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = &_commandBuffer;
+        auto cmdBufHandle = commandBuffer.getHandle();
+        submitInfo.pCommandBuffers = &cmdBufHandle;
 
         VkSemaphore signalSemaphores[] = {renderFinishedSemaphore};
         submitInfo.signalSemaphoreCount = 1;
@@ -382,7 +365,6 @@ int SDL_main(int argc, char ** argv) {
         presentInfo.pImageIndices = &imageIndex;
 
         vkQueuePresentKHR(presentQueue, &presentInfo);
-
     }
 
     logicalDevice.waitIdle();

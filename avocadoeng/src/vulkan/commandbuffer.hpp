@@ -11,6 +11,7 @@ class Swapchain;
 
 class CommandBuffer: public core::ErrorStorage {
 public:
+    CommandBuffer() = default;
     explicit CommandBuffer(VkCommandBuffer buf);
 
     VkCommandBuffer getHandle();
@@ -43,7 +44,7 @@ public:
     void bindPipeline(VkPipeline pipeline, const PipelineBindPoint bindPoint);
 
 private:
-    VkCommandBuffer _buf;
+    VkCommandBuffer _buf = VK_NULL_HANDLE;
 };
 
 }

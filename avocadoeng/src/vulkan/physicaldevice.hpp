@@ -28,10 +28,10 @@ public:
     uint32_t getGraphicsQueueFamilyIndex(const std::vector<VkQueueFamilyProperties> &queueFamilies) const;
     LogicalDevice createLogicalDevice(
         const std::vector<uint32_t> &uniqueQueueFamilyIndices,
-        const std::vector<const char*> &extensions,
-        const std::vector<const char*> &instanceLayers,
+        const std::vector<std::string> &extensions,
+        const std::vector<std::string> &instanceLayers,
         const uint32_t queueCount, const float queuePriority);
-    bool areExtensionsSupported(const std::vector<const char*> &extNames) const;
+    bool areExtensionsSupported(const std::vector<std::string> &extNames) const;
 
 private:
     NON_COPYABLE(PhysicalDevice);

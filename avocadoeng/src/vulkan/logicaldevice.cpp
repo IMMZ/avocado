@@ -78,6 +78,44 @@ VkSemaphore LogicalDevice::createSemaphore() {
     return semaphore;
 }
 
+VkCommandPool LogicalDevice::createCommandPool(const LogicalDevice::CommandPoolCreationFlags flags, const uint32_t queueFamilyIndex) {
+    VkCommandPoolCreateInfo poolCreateInfo{};
+    poolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    poolCreateInfo.flags = static_cast<VkCommandPoolCreateFlags>(flags);
+    poolCreateInfo.queueFamilyIndex = queueFamilyIndex;
+
+    VkCommandPool commandPool = VK_NULL_HANDLE;
+    const VkResult result = vkCreateCommandPool(_dev.get(), &poolCreateInfo, nullptr, &commandPool);
+    setHasError(result != VK_SUCCESS);
+    if (hasError()) {
+        setErrorMessage("vkCreateCommandPool returned "s + getVkResultString(result));
+    }
+
+    return commandPool;
+}
+
+
+std::vector<CommandBuffer> LogicalDevice::allocateCommandBuffers(const uint32_t count, VkCommandPool cmdPool, const CommandBufferLevel bufLevel) {
+    assert(count > 0);
+
+    VkCommandBufferAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.commandPool = cmdPool;
+    allocInfo.level = static_cast<VkCommandBufferLevel>(bufLevel);
+    allocInfo.commandBufferCount = count;
+
+    std::vector<VkCommandBuffer> dataToFill(count, VK_NULL_HANDLE);
+    const VkResult callResult = vkAllocateCommandBuffers(_dev.get(), &allocInfo, dataToFill.data());
+    setHasError(callResult != VK_SUCCESS);
+    setErrorMessage("vkAllocateCommandBuffers returned "s + getVkResultString(callResult));
+
+    std::vector<CommandBuffer> result(count);
+    for (size_t i = 0; i < count; ++i)
+        result[i] = CommandBuffer(dataToFill[i]);
+
+    return result;
+}
+
 void LogicalDevice::waitIdle() {
     const VkResult result = vkDeviceWaitIdle(_dev.get());
     setHasError(result != VK_SUCCESS);

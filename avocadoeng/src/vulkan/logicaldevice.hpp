@@ -1,6 +1,8 @@
 #ifndef AVOCADO_VULKAN_LOGICAL_DEVICE
 #define AVOCADO_VULKAN_LOGICAL_DEVICE
 
+#include "commandbuffer.hpp"
+
 #include "../errorstorage.hpp"
 
 #include <vulkan/vulkan.h>
@@ -51,6 +53,20 @@ public:
     void waitForFences(const std::vector<VkFence> &fences, const bool waitAll, uint64_t timeout);
     void resetFences(const std::vector<VkFence> &fences);
     VkSemaphore createSemaphore();
+
+
+    enum class CommandPoolCreationFlags {
+        Transient = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
+        Reset = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+        Protected = VK_COMMAND_POOL_CREATE_PROTECTED_BIT,
+    };
+    VkCommandPool createCommandPool(const CommandPoolCreationFlags flags, const uint32_t queueFamilyIndex);
+
+    enum class CommandBufferLevel {
+        Primary = VK_COMMAND_BUFFER_LEVEL_PRIMARY
+        , Secondary = VK_COMMAND_BUFFER_LEVEL_SECONDARY
+    };
+    std::vector<CommandBuffer> allocateCommandBuffers(const uint32_t count, VkCommandPool cmdPool, const CommandBufferLevel bufLevel);
 
     void waitIdle();
 
