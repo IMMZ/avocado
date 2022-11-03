@@ -5,6 +5,8 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <vector>
+
 namespace avocado::vulkan {
 
 class Swapchain;
@@ -19,7 +21,7 @@ public:
 
     void begin();
     void end();
-    void beginRenderPass(Swapchain &swapchain, VkRenderPass renderPass, const VkExtent2D extent, const VkOffset2D offset);
+    void beginRenderPass(Swapchain &swapchain, VkRenderPass renderPass, const VkExtent2D extent, const VkOffset2D offset, const uint32_t imageIndex);
     void endRenderPass();
 
     void draw(const uint32_t vertexCount, const uint32_t instanceCount,
@@ -31,8 +33,15 @@ public:
     };
     void reset(const ResetFlags flags);
 
-    void setViewport(VkViewport vp);
-    void setScissor(VkRect2D scissor);
+    void setViewports(const std::vector<VkViewport> &vps, const uint32_t firstIndex, const uint32_t count);
+    inline void setViewports(const std::vector<VkViewport> &vps) {
+        setViewports(vps, 0, static_cast<uint32_t>(vps.size()));
+    }
+
+    void setScissors(const std::vector<VkRect2D> &scissors, const uint32_t firstIndex, const uint32_t count);
+    inline void setScissors(const std::vector<VkRect2D> &scissors) {
+        setScissors(scissors, 0, static_cast<uint32_t>(scissors.size()));
+    }
 
     enum class PipelineBindPoint {
         Graphics = VK_PIPELINE_BIND_POINT_GRAPHICS,

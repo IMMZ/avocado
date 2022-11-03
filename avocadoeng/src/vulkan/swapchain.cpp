@@ -2,6 +2,7 @@
 
 #include "logicaldevice.hpp"
 #include "surface.hpp"
+#include "vkutils.hpp"
 
 #include <cassert>
 
@@ -34,8 +35,7 @@ bool Swapchain::isValid() const {
 }
 
 void Swapchain::create(Surface &surface, VkSurfaceFormatKHR surfaceFormat, VkExtent2D extent, const uint32_t minImageCount, const std::vector<uint32_t> &queueFamilyIndices) {
-    VkSwapchainCreateInfoKHR swapchainCreateInfo{};
-    swapchainCreateInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+    auto swapchainCreateInfo = createStruct<VkSwapchainCreateInfoKHR>();
     swapchainCreateInfo.surface = surface.getHandle();
     swapchainCreateInfo.minImageCount = minImageCount;
     swapchainCreateInfo.imageFormat = surfaceFormat.format;
@@ -88,8 +88,7 @@ void Swapchain::createImageViews(VkSurfaceFormatKHR surfaceFormat) {
 
     _imageViews.resize(_images.size());
     for (size_t i = 0; i < _images.size(); ++i) {
-        VkImageViewCreateInfo createInfo{};
-        createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        auto createInfo = createStruct<VkImageViewCreateInfo>();
         createInfo.image = _images[i];
         createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
         createInfo.format = surfaceFormat.format;
@@ -115,8 +114,7 @@ void Swapchain::createFramebuffers(VkRenderPass renderPass, VkExtent2D extent) {
     _framebuffers.resize(_images.size());
     for (size_t i = 0; i < _imageViews.size(); i++) {
         VkImageView attachments[] = {_imageViews[i]};
-        VkFramebufferCreateInfo framebufferInfo{};
-        framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        auto framebufferInfo = createStruct<VkFramebufferCreateInfo>();
         framebufferInfo.renderPass = renderPass;
         framebufferInfo.attachmentCount = 1;
         framebufferInfo.pAttachments = attachments;

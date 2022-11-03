@@ -1,5 +1,7 @@
 #include "graphicspipeline.hpp"
 
+#include "vkutils.hpp"
+
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_core.h>
 
@@ -25,29 +27,6 @@ void GraphicsPipelineBuilder::addDynamicState(DynamicState dynState) {
 
 void GraphicsPipelineBuilder::setPrimitiveTopology(const PrimitiveTopology primTop) {
     _primitiveTopology = primTop;
-}
-
-// todo Should it be in this class?
-VkViewport GraphicsPipelineBuilder::getViewport() const {
-    static VkViewport viewPort{}; // todo remove static
-    viewPort.width = static_cast<float>(_viewPortWidth);
-    viewPort.height = static_cast<float>(_viewPortHeight);
-    viewPort.maxDepth = _viewPortMaxDepth;
-    return viewPort;
-}
-
-VkRect2D GraphicsPipelineBuilder::getScissor() const {
-    static VkRect2D scissor{};
-    scissor.extent = {_viewPortWidth, _viewPortHeight};
-    return scissor;
-}
-
-void GraphicsPipelineBuilder::setViewPortSize(const uint32_t w, const uint32_t h) {
-    _viewPortWidth = w; _viewPortHeight = h;
-}
-
-void GraphicsPipelineBuilder::setViewPortMaxDepth(const float maxDepth) {
-    _viewPortMaxDepth = maxDepth;
 }
 
 void GraphicsPipelineBuilder::setPolygonMode(const PolygonMode polyMode) {
@@ -103,50 +82,39 @@ void GraphicsPipelineBuilder::addColorAttachment(ColorAttachment &&ca) {
     _colorAttachments.emplace_back(std::move(ca));
 }
 
-
-GraphicsPipelineBuilder::PipelineUniquePtr GraphicsPipelineBuilder::buildPipeline(const std::vector<VkPipelineShaderStageCreateInfo> &shaderStageCIs, VkFormat format, VkRenderPass renderPass) {
-    VkGraphicsPipelineCreateInfo pipelineCI{};
-    pipelineCI.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+// todo Looks like heavy function. Refactor?
+GraphicsPipelineBuilder::PipelineUniquePtr GraphicsPipelineBuilder::buildPipeline(const std::vector<VkPipelineShaderStageCreateInfo> &shaderStageCIs, VkFormat format, VkRenderPass renderPass, const std::vector<VkViewport> &viewports, const std::vector<VkRect2D> &scissors) {
+    auto pipelineCI = createStruct<VkGraphicsPipelineCreateInfo>();
 
     // Shader modules.
     pipelineCI.stageCount = static_cast<uint32_t>(shaderStageCIs.size());
     pipelineCI.pStages = shaderStageCIs.data();
 
     // Dynamic states.
-    VkPipelineDynamicStateCreateInfo dynamicStateCI{};
-    dynamicStateCI.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    auto dynamicStateCI = createStruct<VkPipelineDynamicStateCreateInfo>();
     dynamicStateCI.dynamicStateCount = static_cast<uint32_t>(_dynamicStates.size());
     dynamicStateCI.pDynamicStates = _dynamicStates.data();
     pipelineCI.pDynamicState = &dynamicStateCI;
 
     // Vertex input.
-    VkPipelineVertexInputStateCreateInfo vertexInStateCreateInfo{};
-    vertexInStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    auto vertexInStateCreateInfo = createStruct<VkPipelineVertexInputStateCreateInfo>();
     pipelineCI.pVertexInputState = &vertexInStateCreateInfo;
 
     // Input assembly.
-    VkPipelineInputAssemblyStateCreateInfo inputAsmStateCI{};
-    inputAsmStateCI.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO; 
+    auto inputAsmStateCI = createStruct<VkPipelineInputAssemblyStateCreateInfo>();
     inputAsmStateCI.topology = static_cast<VkPrimitiveTopology>(_primitiveTopology); 
     pipelineCI.pInputAssemblyState = &inputAsmStateCI;
 
-    // Viewport.
-    //VkViewport viewPort = getViewport();
-    //VkRect2D scissor = getScissor();
-    auto viewPort = new VkViewport(getViewport());
-    auto scissor = new VkRect2D(getScissor());
-
-    VkPipelineViewportStateCreateInfo viewportStateCreateInfo{};
-    viewportStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-    viewportStateCreateInfo.viewportCount = 1; 
-    viewportStateCreateInfo.scissorCount = 1;
-    viewportStateCreateInfo.pViewports = viewPort;
-    viewportStateCreateInfo.pScissors = scissor;
+    // Clipping.
+    auto viewportStateCreateInfo = createStruct<VkPipelineViewportStateCreateInfo>();
+    viewportStateCreateInfo.viewportCount = static_cast<uint32_t>(viewports.size());
+    viewportStateCreateInfo.scissorCount = static_cast<uint32_t>(scissors.size());
+    viewportStateCreateInfo.pViewports = viewports.data();
+    viewportStateCreateInfo.pScissors = scissors.data();
     pipelineCI.pViewportState = &viewportStateCreateInfo;
     
     // Rasterizer.
-    VkPipelineRasterizationStateCreateInfo rasterizerCreateInfo{};
-    rasterizerCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    auto rasterizerCreateInfo = createStruct<VkPipelineRasterizationStateCreateInfo>();
     rasterizerCreateInfo.depthClampEnable = static_cast<VkBool32>(_depthClamEnable);
     rasterizerCreateInfo.rasterizerDiscardEnable = static_cast<VkBool32>(_rasterizerDiscardEnable);
     rasterizerCreateInfo.polygonMode = static_cast<VkPolygonMode>(_polygonMode);
@@ -157,8 +125,7 @@ GraphicsPipelineBuilder::PipelineUniquePtr GraphicsPipelineBuilder::buildPipelin
     pipelineCI.pRasterizationState = &rasterizerCreateInfo;
 
     // Multisampling.
-    VkPipelineMultisampleStateCreateInfo multisamplingCI{};
-    multisamplingCI.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    auto multisamplingCI = createStruct<VkPipelineMultisampleStateCreateInfo>();
     multisamplingCI.rasterizationSamples = static_cast<VkSampleCountFlagBits>(_sampleCount);
     multisamplingCI.minSampleShading = _minSampleShading;
     pipelineCI.pMultisampleState = &multisamplingCI;
@@ -180,8 +147,7 @@ GraphicsPipelineBuilder::PipelineUniquePtr GraphicsPipelineBuilder::buildPipelin
         colorAttachments[i] = std::move(colorBlendAttachment);
     }
 
-    VkPipelineColorBlendStateCreateInfo colorBlendStateCI{};
-    colorBlendStateCI.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    auto colorBlendStateCI = createStruct<VkPipelineColorBlendStateCreateInfo>();
     colorBlendStateCI.logicOpEnable = static_cast<VkBool32>(_logicOperationEnable);
     colorBlendStateCI.logicOp = static_cast<VkLogicOp>(_logicOperation);
     colorBlendStateCI.attachmentCount = static_cast<decltype(colorBlendStateCI.attachmentCount)>(colorAttachments.size());
@@ -190,8 +156,7 @@ GraphicsPipelineBuilder::PipelineUniquePtr GraphicsPipelineBuilder::buildPipelin
 
     // Pipeline layout.
 
-    VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo{};
-    pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    auto pipelineLayoutCreateInfo = createStruct<VkPipelineLayoutCreateInfo>();
     VkPipelineLayout pipelineLayout; // todo need to destroy.
     const VkResult pipelineCreationResult = vkCreatePipelineLayout(_device, &pipelineLayoutCreateInfo, nullptr, &pipelineLayout);
     auto pipelineDestroyer = std::bind(vkDestroyPipeline, _device, std::placeholders::_1, nullptr);

@@ -92,13 +92,6 @@ public:
     };
     void setPrimitiveTopology(const PrimitiveTopology primTop);
 
-    // Viewport.
-    VkViewport getViewport() const;
-    VkRect2D getScissor() const;
-    void setViewPortSize(const uint32_t w, const uint32_t h);
-    
-    void setViewPortMaxDepth(const float maxDepth);
-
     // Rasterizer.
     enum class PolygonMode {
         Fill = VK_POLYGON_MODE_FILL,
@@ -198,7 +191,8 @@ private:
 public:
     using PipelineDestroyer = decltype(std::bind(vkDestroyPipeline, _device, std::placeholders::_1, nullptr));
     using PipelineUniquePtr = std::unique_ptr<std::remove_pointer_t<VkPipeline>, PipelineDestroyer>;
-    PipelineUniquePtr buildPipeline(const std::vector<VkPipelineShaderStageCreateInfo> &shaderStageCIs, VkFormat format, VkRenderPass renderPass);
+    PipelineUniquePtr buildPipeline(const std::vector<VkPipelineShaderStageCreateInfo> &shaderStageCIs, VkFormat format, VkRenderPass renderPass,
+        const std::vector<VkViewport> &viewports, const std::vector<VkRect2D> &scissors);
 
 };
 

@@ -1,5 +1,7 @@
 #include "physicaldevice.hpp"
 
+#include "vkutils.hpp"
+
 #include <cstring>
 
 using namespace std::literals::string_literals;
@@ -52,9 +54,9 @@ LogicalDevice PhysicalDevice::createLogicalDevice(
     const std::vector<std::string> &instanceLayers,
     const uint32_t queueCount, const float queuePriority) {
     // Creating queuecreateinfos for graphics family.
-    std::vector<VkDeviceQueueCreateInfo> queueCreateInfos(uniqueQueueFamilyIndices.size());
+    std::vector<VkDeviceQueueCreateInfo> queueCreateInfos(
+        uniqueQueueFamilyIndices.size(), createStruct<VkDeviceQueueCreateInfo>());
     for (size_t i = 0; i < uniqueQueueFamilyIndices.size(); ++i) {
-        queueCreateInfos[i].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
         queueCreateInfos[i].queueFamilyIndex = uniqueQueueFamilyIndices[i];
         queueCreateInfos[i].queueCount = queueCount;
         queueCreateInfos[i].pQueuePriorities = &queuePriority;
@@ -65,8 +67,7 @@ LogicalDevice PhysicalDevice::createLogicalDevice(
         extensionsCString[i] = extensions[i].c_str();
     }
 
-    VkDeviceCreateInfo devCreateInfo{};
-    devCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    auto devCreateInfo = createStruct<VkDeviceCreateInfo>();
     devCreateInfo.queueCreateInfoCount = static_cast<decltype(devCreateInfo.queueCreateInfoCount)>(queueCreateInfos.size());
     devCreateInfo.pQueueCreateInfos = queueCreateInfos.data();
     devCreateInfo.enabledExtensionCount = static_cast<decltype(devCreateInfo.enabledExtensionCount)>(extensionsCString.size());

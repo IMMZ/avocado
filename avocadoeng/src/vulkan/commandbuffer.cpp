@@ -1,6 +1,7 @@
 #include "commandbuffer.hpp"
 
 #include "swapchain.hpp"
+#include "vkutils.hpp"
 
 #include <cassert>
 
@@ -21,8 +22,7 @@ bool CommandBuffer::isValid() const {
 }
 
 void CommandBuffer::begin() {
-    VkCommandBufferBeginInfo beginInfo{};
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    auto beginInfo = createStruct<VkCommandBufferBeginInfo>();
     const VkResult result = vkBeginCommandBuffer(_buf, &beginInfo);
     setHasError(result != VK_SUCCESS);
     if (hasError()) {
@@ -38,15 +38,14 @@ void CommandBuffer::end() {
     }
 }
 
-void CommandBuffer::beginRenderPass(Swapchain &swapchain, VkRenderPass renderPass, const VkExtent2D extent, const VkOffset2D offset) {
-    VkRenderPassBeginInfo renderPassInfo{};
-    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+void CommandBuffer::beginRenderPass(Swapchain &swapchain, VkRenderPass renderPass, const VkExtent2D extent, const VkOffset2D offset, const uint32_t imageIndex) {
+    auto renderPassInfo = createStruct<VkRenderPassBeginInfo>();
     renderPassInfo.renderPass = renderPass;
-    renderPassInfo.framebuffer = swapchain.getFramebuffer(0); // todo what's the 0? Change this hack.
+    renderPassInfo.framebuffer = swapchain.getFramebuffer(imageIndex);
     renderPassInfo.renderArea.offset = offset;
     renderPassInfo.renderArea.extent = extent;
 
-    VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
+    VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}}; // todo extract as parameter?
     renderPassInfo.clearValueCount = 1;
     renderPassInfo.pClearValues = &clearColor;
     vkCmdBeginRenderPass(_buf, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
@@ -72,16 +71,13 @@ void CommandBuffer::reset(const CommandBuffer::ResetFlags flags) {
     }
 }
 
-// todo make setViewportS (many ones). The same is for scissor.
-void CommandBuffer::setViewport(VkViewport vp) {
-    vkCmdSetViewport(_buf, 0, 1, &vp);
+void CommandBuffer::setViewports(const std::vector<VkViewport> &vps, const uint32_t firstIndex, const uint32_t count) {
+    vkCmdSetViewport(_buf, firstIndex, count, vps.data());
 }
 
-void CommandBuffer::setScissor(VkRect2D scissor) {
-    vkCmdSetScissor(_buf, 0, 1, &scissor);
+void CommandBuffer::setScissors(const std::vector<VkRect2D> &scissors, const uint32_t firstIndex, const uint32_t count) {
+    vkCmdSetScissor(_buf, firstIndex, count, scissors.data());
 }
-
-
 
 void CommandBuffer::bindPipeline(VkPipeline pipeline, const CommandBuffer::PipelineBindPoint bindPoint) {
     vkCmdBindPipeline(_buf, static_cast<VkPipelineBindPoint>(bindPoint), pipeline);

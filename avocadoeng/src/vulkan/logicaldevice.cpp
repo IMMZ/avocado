@@ -1,5 +1,7 @@
 #include "logicaldevice.hpp"
 
+#include "vkutils.hpp"
+
 using namespace std::string_literals;
 
 namespace avocado::vulkan {
@@ -37,8 +39,7 @@ VkQueue LogicalDevice::getQueue(const uint32_t queueFamilyIndex, const uint32_t 
 }
 
 VkFence LogicalDevice::createFence() {
-    VkFenceCreateInfo fenceCI{};
-    fenceCI.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    auto fenceCI = createStruct<VkFenceCreateInfo>();
     fenceCI.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
     VkFence fence;
@@ -68,8 +69,7 @@ void LogicalDevice::resetFences(const std::vector<VkFence> &fences) {
 
 VkSemaphore LogicalDevice::createSemaphore() {
     VkSemaphore semaphore;
-    VkSemaphoreCreateInfo semaphoreCI{};
-    semaphoreCI.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+    auto semaphoreCI = createStruct<VkSemaphoreCreateInfo>();
     const VkResult result = vkCreateSemaphore(_dev.get(), &semaphoreCI, nullptr, &semaphore);
     setHasError(result != VK_SUCCESS);
     if (hasError()) {
@@ -79,8 +79,7 @@ VkSemaphore LogicalDevice::createSemaphore() {
 }
 
 VkCommandPool LogicalDevice::createCommandPool(const LogicalDevice::CommandPoolCreationFlags flags, const uint32_t queueFamilyIndex) {
-    VkCommandPoolCreateInfo poolCreateInfo{};
-    poolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    auto poolCreateInfo = createStruct<VkCommandPoolCreateInfo>();
     poolCreateInfo.flags = static_cast<VkCommandPoolCreateFlags>(flags);
     poolCreateInfo.queueFamilyIndex = queueFamilyIndex;
 
@@ -98,8 +97,7 @@ VkCommandPool LogicalDevice::createCommandPool(const LogicalDevice::CommandPoolC
 std::vector<CommandBuffer> LogicalDevice::allocateCommandBuffers(const uint32_t count, VkCommandPool cmdPool, const CommandBufferLevel bufLevel) {
     assert(count > 0);
 
-    VkCommandBufferAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    auto allocInfo = createStruct<VkCommandBufferAllocateInfo>();
     allocInfo.commandPool = cmdPool;
     allocInfo.level = static_cast<VkCommandBufferLevel>(bufLevel);
     allocInfo.commandBufferCount = count;
@@ -125,10 +123,9 @@ void LogicalDevice::waitIdle() {
 }
 
 VkPipelineShaderStageCreateInfo LogicalDevice::createShaderModule(ShaderType shType) {
-    VkPipelineShaderStageCreateInfo shaderStageCreateInfo{};
+    auto shaderStageCreateInfo = createStruct<VkPipelineShaderStageCreateInfo>();
 
-    VkShaderModuleCreateInfo shaderModuleCreateInfo{};
-    shaderModuleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    auto shaderModuleCreateInfo = createStruct<VkShaderModuleCreateInfo>();
     shaderModuleCreateInfo.codeSize = _shaderCodes.back().size();
     shaderModuleCreateInfo.pCode = reinterpret_cast<const uint32_t*>(_shaderCodes.back().data());
 
@@ -144,7 +141,6 @@ VkPipelineShaderStageCreateInfo LogicalDevice::createShaderModule(ShaderType shT
     _shaderModules.emplace_back(shaderModule,
         std::bind(vkDestroyShaderModule, _dev.get(), std::placeholders::_1, nullptr));
 
-    shaderStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO; 
     shaderStageCreateInfo.stage = static_cast<VkShaderStageFlagBits>(shType); 
     shaderStageCreateInfo.module = shaderModule; 
     shaderStageCreateInfo.pName = "main"; // Entry point. 
@@ -171,8 +167,7 @@ LogicalDevice::RenderPassUniquePtr LogicalDevice::createRenderPass(VkFormat form
     attachmentDescription.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     attachmentDescription.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
-    VkRenderPassCreateInfo renderPassCreateInfo{};
-    renderPassCreateInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    auto renderPassCreateInfo = createStruct<VkRenderPassCreateInfo>();
     renderPassCreateInfo.attachmentCount = 1;
     renderPassCreateInfo.pAttachments = &attachmentDescription;
     renderPassCreateInfo.subpassCount = 1;

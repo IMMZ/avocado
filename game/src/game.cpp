@@ -1,12 +1,14 @@
 #include "gameconfig.hpp"
 
+#include "vulkan/clipping.hpp"
 #include "vulkan/colorattachment.hpp"
 #include "vulkan/commandbuffer.hpp"
 #include "vulkan/logicaldevice.hpp"
 #include "vulkan/graphicspipeline.hpp"
 #include "vulkan/surface.hpp"
 #include "vulkan/swapchain.hpp"
-#include "vulkantools.hpp"
+#include "vulkan/vkutils.hpp"
+#include "vulkantools.hpp" // todo get rid of this header file
 
 #include "utils.hpp"
 
@@ -191,10 +193,6 @@ int SDL_main(int argc, char ** argv) {
     pipelineBuilder.setPrimitiveTopology(
         avocado::vulkan::GraphicsPipelineBuilder::PrimitiveTopology::TriangleList);
 
-    // Viewport.
-    pipelineBuilder.setViewPortSize(extent.width, extent.height);
-    pipelineBuilder.setViewPortMaxDepth(1.0f);
-
     // Rasterizer.
     pipelineBuilder.setPolygonMode(
         avocado::vulkan::GraphicsPipelineBuilder::PolygonMode::Fill);
@@ -232,7 +230,10 @@ int SDL_main(int argc, char ** argv) {
         avocado::vulkan::GraphicsPipelineBuilder::LogicOperation::Copy);
 
     auto renderPassPtr = logicalDevice.createRenderPass(surfaceFormat.format);
-    avocado::vulkan::GraphicsPipelineBuilder::PipelineUniquePtr grPip = pipelineBuilder.buildPipeline(pipelineShaderStageCIs, surfaceFormat.format, renderPassPtr.get());
+
+    const std::vector<VkViewport> viewPorts { avocado::vulkan::Clipping::createViewport(0.f, 0.f, extent) };
+    const std::vector<VkRect2D> scissors { avocado::vulkan::Clipping::createScissor(viewPorts.front()) };
+    avocado::vulkan::GraphicsPipelineBuilder::PipelineUniquePtr grPip = pipelineBuilder.buildPipeline(pipelineShaderStageCIs, surfaceFormat.format, renderPassPtr.get(), viewPorts, scissors);
 
     if (grPip == nullptr) {
         std::cout << "INVALID PIPELINE" << std::endl;
@@ -261,11 +262,13 @@ int SDL_main(int argc, char ** argv) {
         return 1;
     }
     
-    commandBuffer.beginRenderPass(swapChain, renderPassPtr.get(), extent, {0, 0});
+    commandBuffer.beginRenderPass(swapChain, renderPassPtr.get(), extent, {0, 0}, 0);
 
     commandBuffer.bindPipeline(graphicsPipeline, avocado::vulkan::CommandBuffer::PipelineBindPoint::Graphics);
-    commandBuffer.setViewport(pipelineBuilder.getViewport());
-    commandBuffer.setScissor(pipelineBuilder.getScissor());
+
+    commandBuffer.setViewports(viewPorts);
+    commandBuffer.setScissors(scissors);
+
     commandBuffer.draw(3, 1, 0, 0);
     commandBuffer.endRenderPass();
     commandBuffer.end();
@@ -275,7 +278,6 @@ int SDL_main(int argc, char ** argv) {
     }
 
     // Synchronization objects.
-
     VkSemaphore imageAvailableSemaphore = logicalDevice.createSemaphore();
     if (logicalDevice.hasError()) {
         std::cout << "Can't create semaphore: " << logicalDevice.getErrorMessage() << std::endl;
@@ -310,28 +312,17 @@ int SDL_main(int argc, char ** argv) {
         commandBuffer.reset(avocado::vulkan::CommandBuffer::ResetFlags::NoFlags);
         commandBuffer.begin();
 
-        VkRenderPassBeginInfo renderPassInfo{};
-        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        renderPassInfo.renderPass = renderPassPtr.get();
-        renderPassInfo.framebuffer = swapChain.getFramebuffer(imageIndex);
-        renderPassInfo.renderArea.offset = {0, 0};
-        renderPassInfo.renderArea.extent = extent;
+        commandBuffer.beginRenderPass(swapChain, renderPassPtr.get(), extent, {0, 0}, imageIndex);
 
-        VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
-        renderPassInfo.clearValueCount = 1;
-        renderPassInfo.pClearValues = &clearColor;
-
-        vkCmdBeginRenderPass(commandBuffer.getHandle(), &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-        commandBuffer.setViewport(pipelineBuilder.getViewport());
-        commandBuffer.setScissor(pipelineBuilder.getScissor());
+        commandBuffer.setViewports(viewPorts);
+        commandBuffer.setScissors(scissors);
         
         commandBuffer.bindPipeline(graphicsPipeline, avocado::vulkan::CommandBuffer::PipelineBindPoint::Graphics);
         commandBuffer.draw(3, 1, 0, 0);
         commandBuffer.endRenderPass();
         commandBuffer.end();
 
-        VkSubmitInfo submitInfo{};
-        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        auto submitInfo = avocado::vulkan::createStruct<VkSubmitInfo>();
 
         VkSemaphore waitSemaphores[] = {imageAvailableSemaphore};
         VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
@@ -352,8 +343,7 @@ int SDL_main(int argc, char ** argv) {
             return 1;
         }
 
-        VkPresentInfoKHR presentInfo{};
-        presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+        auto presentInfo = avocado::vulkan::createStruct<VkPresentInfoKHR>();
 
         presentInfo.waitSemaphoreCount = 1;
         presentInfo.pWaitSemaphores = signalSemaphores;

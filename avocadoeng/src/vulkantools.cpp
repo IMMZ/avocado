@@ -2,15 +2,15 @@
 
 #include "config.hpp"
 
+#include "vulkan/vkutils.hpp"
+
 #include <SDL.h>
 #include <SDL_vulkan.h>
 #include <SDL_syswm.h>
 
-#include <Windows.h>
+#include <vulkan/vulkan.h>
 
-#include <iostream>
-
-#define VK_USE_PLATFORM_WIN32_KHR
+#define VK_USE_PLATFORM_WIN32_KHR // todo need this?
 #include <vulkan/vulkan_win32.h>
 
 #define VKRESULT_TO_STRING(VKRES) #VKRES // todo need this?
@@ -21,11 +21,9 @@ namespace avocado::vulkan {
 
 void Vulkan::createInstance(const std::vector<std::string> &extensions,
     const std::vector<std::string> &layers, const VulkanInstanceInfo &vii) {
-    VkInstanceCreateInfo instanceCreateInfo{};
-    instanceCreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+    auto instanceCreateInfo = createStruct<VkInstanceCreateInfo>();
     
-    VkApplicationInfo appInfo{};
-    appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+    auto appInfo = createStruct<VkApplicationInfo>();
     appInfo.pApplicationName = vii.appName;
     appInfo.applicationVersion = VK_MAKE_VERSION(vii.appMajorVersion, vii.appMinorVersion, vii.appPatchVersion);
     appInfo.pEngineName = avocado::core::Config::ENGINE_NAME;
@@ -195,11 +193,6 @@ Surface Vulkan::createSurface(SDL_Window *window, PhysicalDevice &physicalDevice
         return Surface(VK_NULL_HANDLE, _instance, physicalDevice);
     }
 
-    VkWin32SurfaceCreateInfoKHR win32surfaceCreateInfo{};
-    win32surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-    win32surfaceCreateInfo.hwnd = wmInfo.info.win.window;
-    win32surfaceCreateInfo.hinstance = wmInfo.info.win.hinstance;
-   
     VkSurfaceKHR surface;
     result = SDL_Vulkan_CreateSurface(window, _instance, &surface);
     setHasError(result != SDL_TRUE);
