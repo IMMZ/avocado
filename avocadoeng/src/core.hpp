@@ -3,8 +3,6 @@
 
 namespace avocado::core {
 
-enum class Result { Ok, Error };
-
 constexpr bool isDebugBuild() {
 #ifdef NDEBUG
     return false;

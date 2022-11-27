@@ -155,10 +155,13 @@ GraphicsPipelineBuilder::PipelineUniquePtr GraphicsPipelineBuilder::buildPipelin
     pipelineCI.pColorBlendState = &colorBlendStateCI;
 
     // Pipeline layout.
+    using PipelineLayoutDestroyer = decltype(std::bind(vkDestroyPipelineLayout, _device, std::placeholders::_1, nullptr));
+    using PipelineLayoutUniquePtr =
+        std::unique_ptr<std::remove_pointer_t<VkPipelineLayout>, PipelineLayoutDestroyer>;
 
     auto pipelineLayoutCreateInfo = createStruct<VkPipelineLayoutCreateInfo>();
-    VkPipelineLayout pipelineLayout; // todo need to destroy.
-    const VkResult pipelineCreationResult = vkCreatePipelineLayout(_device, &pipelineLayoutCreateInfo, nullptr, &pipelineLayout);
+    VkPipelineLayout _pipelineLayout = VK_NULL_HANDLE; // todo need to destroy.
+    const VkResult pipelineCreationResult = vkCreatePipelineLayout(_device, &pipelineLayoutCreateInfo, nullptr, &_pipelineLayout);
     auto pipelineDestroyer = std::bind(vkDestroyPipeline, _device, std::placeholders::_1, nullptr);
     setHasError(pipelineCreationResult != VK_SUCCESS);
     if (hasError()) {
@@ -166,9 +169,8 @@ GraphicsPipelineBuilder::PipelineUniquePtr GraphicsPipelineBuilder::buildPipelin
         return PipelineUniquePtr(VK_NULL_HANDLE, pipelineDestroyer);
     }
 
-    // todo PipelineLayoutUniquePtr pipelineLayoutPtr(pipelineLayout, pipelineLayoutDeleter);
-    pipelineCI.layout = pipelineLayout; //pipelineLayoutPtr.get();
-
+    PipelineLayoutUniquePtr pipelineLayout(_pipelineLayout, std::bind(vkDestroyPipelineLayout, _device, std::placeholders::_1, nullptr));
+    pipelineCI.layout = pipelineLayout.get();
     pipelineCI.renderPass = renderPass;
 
     // Create the pipeline.

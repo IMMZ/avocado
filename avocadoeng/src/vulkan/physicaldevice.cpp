@@ -1,5 +1,6 @@
 #include "physicaldevice.hpp"
 
+#include "surface.hpp"
 #include "vkutils.hpp"
 
 #include <cstring>
@@ -26,26 +27,38 @@ bool PhysicalDevice::isValid() const {
     return (_device != VK_NULL_HANDLE);
 }
 
-std::vector<VkQueueFamilyProperties> PhysicalDevice::getQueueFamilies() const {
+void PhysicalDevice::getQueueFamilies(Surface &surface) {
     uint32_t queueFamilyPropertiesCount = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(_device, &queueFamilyPropertiesCount, nullptr);
     if (queueFamilyPropertiesCount > 0) {
         std::vector<VkQueueFamilyProperties> result(queueFamilyPropertiesCount);
         vkGetPhysicalDeviceQueueFamilyProperties(_device, &queueFamilyPropertiesCount, result.data());
-        return result;
-    }
+        VkBool32 presentSupport = VK_FALSE;
+        for (size_t i = 0; i < result.size(); ++i) {
+            if (_graphicsQueueFamily == std::numeric_limits<QueueFamily>::max() && (result[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)) {
+                _graphicsQueueFamily = static_cast<uint32_t>(i);
+            }
 
-    return std::vector<VkQueueFamilyProperties>();
-}
+            if (_presentQueueFamily == std::numeric_limits<QueueFamily>::max()) {
+                const VkResult surfSupportResult = vkGetPhysicalDeviceSurfaceSupportKHR(_device, static_cast<uint32_t>(i), surface.getHandle(), &presentSupport);
+                setHasError(surfSupportResult != VK_SUCCESS);
+                if (hasError()) {
+                    setErrorMessage("vkGetPhysicalDeviceSurfaceSupportKHR returned "s + getVkResultString(surfSupportResult));
+                }
 
-uint32_t PhysicalDevice::getGraphicsQueueFamilyIndex(const std::vector<VkQueueFamilyProperties> &queueFamilies) const {
-    for (size_t i = 0; i < queueFamilies.size(); ++i) {
-        if (queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-            return static_cast<uint32_t>(i);
+                if (presentSupport == VK_TRUE)
+                    _presentQueueFamily = static_cast<uint32_t>(i);
+            }
         }
     }
+}
 
-    return std::numeric_limits<uint32_t>::max();
+QueueFamily PhysicalDevice::getGraphicsQueueFamily() const {
+    return _graphicsQueueFamily;
+}
+
+QueueFamily PhysicalDevice::getPresentQueueFamily() const {
+    return _presentQueueFamily;
 }
 
 LogicalDevice PhysicalDevice::createLogicalDevice(
@@ -53,7 +66,6 @@ LogicalDevice PhysicalDevice::createLogicalDevice(
     const std::vector<std::string> &extensions,
     const std::vector<std::string> &instanceLayers,
     const uint32_t queueCount, const float queuePriority) {
-    // Creating queuecreateinfos for graphics family.
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos(
         uniqueQueueFamilyIndices.size(), createStruct<VkDeviceQueueCreateInfo>());
     for (size_t i = 0; i < uniqueQueueFamilyIndices.size(); ++i) {
@@ -92,7 +104,9 @@ LogicalDevice PhysicalDevice::createLogicalDevice(
         return LogicalDevice();
     }
 
-    return LogicalDevice(logicDevHandle);
+    LogicalDevice logicalDevice(logicDevHandle);
+    logicalDevice.setQueueFamilies(getGraphicsQueueFamily(), getPresentQueueFamily());
+    return logicalDevice;
 }
 
 std::vector<std::string> PhysicalDevice::getPhysicalDeviceExtensions() const {

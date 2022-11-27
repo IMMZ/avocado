@@ -53,7 +53,7 @@ void CommandBuffer::beginRenderPass(Swapchain &swapchain, VkRenderPass renderPas
 }
 
 void CommandBuffer::endRenderPass() {
-    assert(_buf != VK_NULL_HANDLE);
+    assert(_buf != VK_NULL_HANDLE); // todo Spread all over the class.
 
     vkCmdEndRenderPass(_buf);
 }

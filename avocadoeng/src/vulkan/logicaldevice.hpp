@@ -2,6 +2,9 @@
 #define AVOCADO_VULKAN_LOGICAL_DEVICE
 
 #include "commandbuffer.hpp"
+#include "graphicsqueue.hpp"
+#include "presentqueue.hpp"
+#include "types.hpp"
 
 #include "../errorstorage.hpp"
 
@@ -14,7 +17,8 @@ namespace avocado::vulkan {
 
 class LogicalDevice: public avocado::core::ErrorStorage {
 public:
-    LogicalDevice();
+    // todo do we really need it public? Only physical device can create this.
+    explicit LogicalDevice();
     explicit LogicalDevice(VkDevice dev);
 
     VkDevice getHandle();
@@ -48,19 +52,24 @@ public:
 
     VkPipelineShaderStageCreateInfo addShaderModule(const std::vector<char> &shaderCode, ShaderType shType);
     VkPipelineShaderStageCreateInfo addShaderModule(std::vector<char> &&shaderCode, ShaderType shType);
-    VkQueue getQueue(const uint32_t queueFamilyIndex, const uint32_t queueIndex);
+
+    GraphicsQueue getGraphicsQueue(const uint32_t index);
+    PresentQueue getPresentQueue(const uint32_t index);
+
+    // todo this is supposed to be used by PhysicalDevice, not straightly.
+    void setQueueFamilies(const QueueFamily graphicsQueueFamily, const QueueFamily presentQueueFamily);
+
     VkFence createFence();
     void waitForFences(const std::vector<VkFence> &fences, const bool waitAll, uint64_t timeout);
     void resetFences(const std::vector<VkFence> &fences);
     VkSemaphore createSemaphore();
-
 
     enum class CommandPoolCreationFlags {
         Transient = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
         Reset = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
         Protected = VK_COMMAND_POOL_CREATE_PROTECTED_BIT,
     };
-    VkCommandPool createCommandPool(const CommandPoolCreationFlags flags, const uint32_t queueFamilyIndex);
+    VkCommandPool createCommandPool(const CommandPoolCreationFlags flags, const QueueFamily queueFamilyIndex);
 
     enum class CommandBufferLevel {
         Primary = VK_COMMAND_BUFFER_LEVEL_PRIMARY
@@ -80,6 +89,9 @@ private:
     using ShaderModuleDeleter = decltype(std::bind(vkDestroyShaderModule, _dev.get(), std::placeholders::_1, nullptr));
     std::vector<std::unique_ptr<VkShaderModule_T, ShaderModuleDeleter>> _shaderModules;
     std::vector<std::vector<char>> _shaderCodes;
+
+    // Queue families. Needed to return queues.
+    QueueFamily _graphicsQueueFamily = 0, _presentQueueFamily = 0;
 
 public:
     using RenderPassUniquePtr = std::unique_ptr<

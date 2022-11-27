@@ -346,7 +346,6 @@ public:
     bool isValid() const;
 
     const std::vector<VkPresentModeKHR> getPresentModes() const;
-    const uint32_t getPresentQueueFamilyIndex(const std::vector<VkQueueFamilyProperties> &queueFamilies) const;
     VkExtent2D getCapabilities(SDL_Window *sdlWindow);
     VkSurfaceFormatKHR findFormat(SurfaceFormat sf, ColorSpace cs) const;
     const uint32_t getMinImageCount() const;

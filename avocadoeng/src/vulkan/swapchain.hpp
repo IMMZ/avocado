@@ -1,6 +1,8 @@
 #ifndef AVOCADO_VULKAN_SWAPCHAIN
 #define AVOCADO_VULKAN_SWAPCHAIN
 
+#include "types.hpp"
+
 #include "../errorstorage.hpp"
 
 #include <vulkan/vulkan_core.h>
@@ -20,7 +22,7 @@ public:
     VkSwapchainKHR getHandle();
     bool isValid() const;
 
-    void create(Surface &surface, VkSurfaceFormatKHR surfaceFormat, VkExtent2D extent, const uint32_t minImageCount, const std::vector<uint32_t> &queueFamilyIndices);
+    void create(Surface &surface, VkSurfaceFormatKHR surfaceFormat, VkExtent2D extent, const uint32_t minImageCount, const std::vector<QueueFamily> &queueFamilies);
     void getImages();
     void createImageViews(VkSurfaceFormatKHR surfaceFormat);
     void createFramebuffers(VkRenderPass renderPass, VkExtent2D extent);

@@ -72,23 +72,6 @@ const std::vector<VkPresentModeKHR> Surface::getPresentModes() const {
     return presentModes; 
 }
 
-const uint32_t Surface::getPresentQueueFamilyIndex(const std::vector<VkQueueFamilyProperties> &queueFamilies) const {
-    VkBool32 presentSupport = VK_FALSE;
-    for (uint32_t i = 0; i < queueFamilies.size(); ++i) {
-        const VkResult surfSupportResult = vkGetPhysicalDeviceSurfaceSupportKHR(_physicalDevice, i, _surface, &presentSupport);
-        setHasError(surfSupportResult != VK_SUCCESS);
-        if (hasError()) {
-            setErrorMessage("vkGetPhysicalDeviceSurfaceSupportKHR returned "s + getVkResultString(surfSupportResult));
-            return std::numeric_limits<uint32_t>::max();
-        }
-
-        if (presentSupport == VK_TRUE)
-            return static_cast<uint32_t>(i);
-    }
-
-    return std::numeric_limits<uint32_t>::max();
-}
-
 VkExtent2D Surface::getCapabilities(SDL_Window *sdlWindow) {
     VkExtent2D extent{};
 

@@ -18,9 +18,13 @@ add_library(avocado
     src/vulkan/colorattachment.cpp
     src/vulkan/commandbuffer.cpp
     src/vulkan/graphicspipeline.cpp
+    src/vulkan/graphicsqueue.cpp
     src/vulkan/logicaldevice.cpp
     src/vulkan/physicaldevice.cpp
+    src/vulkan/presentqueue.cpp
+    src/vulkan/queue.cpp
     src/vulkan/renderpass.cpp
     src/vulkan/surface.cpp
-    src/vulkan/swapchain.cpp)
+    src/vulkan/swapchain.cpp
+    src/vulkan/vkutils.cpp)
 

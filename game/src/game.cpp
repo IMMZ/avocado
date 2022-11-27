@@ -5,6 +5,8 @@
 #include "vulkan/commandbuffer.hpp"
 #include "vulkan/logicaldevice.hpp"
 #include "vulkan/graphicspipeline.hpp"
+#include "vulkan/graphicsqueue.hpp"
+#include "vulkan/queue.hpp"
 #include "vulkan/surface.hpp"
 #include "vulkan/swapchain.hpp"
 #include "vulkan/vkutils.hpp"
@@ -46,7 +48,7 @@ int SDL_main(int argc, char ** argv) {
         std::cerr << "Can't create window." << std::endl;
         return 1;
     }
-   
+
     // Set window icon.
     const std::string &iconPath = std::filesystem::current_path().string() + "/icon.png";
     SDL_Surface * const iconSurface = IMG_Load(iconPath.c_str());
@@ -60,7 +62,7 @@ int SDL_main(int argc, char ** argv) {
         std::cerr << vlk.getErrorMessage() << std::endl;
         return 1;
     }
-    
+
     std::vector<std::string> instanceExtensions = vlk.getExtensionNamesForSDLSurface(sdlWindow.get());
     if constexpr (avocado::core::isDebugBuild())
         instanceExtensions.push_back("VK_EXT_debug_utils");
@@ -70,12 +72,13 @@ int SDL_main(int argc, char ** argv) {
         return 1;
     }
 
-    
-    avocado::vulkan::VulkanInstanceInfo vii;
-    vii.appName = Config::GAME_NAME;
-    vii.appMajorVersion = 0; vii.appMinorVersion = 1; vii.appPatchVersion = 0;
-    vii.apiMajorVersion = 1; vii.apiMinorVersion = 2;
-    vlk.createInstance(instanceExtensions, instanceLayers, vii);
+    constexpr avocado::vulkan::VulkanInstanceInfo vulkanInfo {
+        Config::GAME_NAME,
+        0, 1, 0, // App version.
+        1, 2 // Vulkan API version.
+    };
+
+    vlk.createInstance(instanceExtensions, instanceLayers, vulkanInfo);
     if (vlk.hasError()) {
         std::cerr << vlk.getErrorMessage() << std::endl;
         return 1;
@@ -91,9 +94,14 @@ int SDL_main(int argc, char ** argv) {
         std::cout << "No physical devices found." << std::endl;
         return 1;
     }
-    
-    // Get graphics queue family's index. 
+
     avocado::vulkan::PhysicalDevice &physicalDevice = physicalDevices.front();
+    const std::vector<std::string> physExtensions {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+    physicalDevice.areExtensionsSupported(physExtensions);
+    if (physicalDevice.hasError()) {
+        std::cerr << "Extensions error: " << physicalDevice.getErrorMessage() << std::endl;
+        return 1;
+    }
 
     avocado::vulkan::Surface surface = vlk.createSurface(sdlWindow.get(), physicalDevice);
     if (vlk.hasError()) {
@@ -101,36 +109,29 @@ int SDL_main(int argc, char ** argv) {
         return 1;
     }
 
-    const auto &queueFamilies = physicalDevice.getQueueFamilies();
-    const uint32_t graphicsQueueFamilyI = physicalDevice.getGraphicsQueueFamilyIndex(queueFamilies);
-    const uint32_t presentQueueFamilyI = surface.getPresentQueueFamilyIndex(queueFamilies);
+    physicalDevice.getQueueFamilies(surface);
+    if (physicalDevice.hasError()) {
+        std::cout << "Can't get queue families: " << physicalDevice.getErrorMessage() << std::endl;
+        return 1;
+    }
+    const avocado::vulkan::QueueFamily graphicsQueueFamily = physicalDevice.getGraphicsQueueFamily();
+    const avocado::vulkan::QueueFamily presentQueueFamily = physicalDevice.getPresentQueueFamily();
+
     if (surface.hasError()) {
         std::cout << "Can't get present queue family index: " << surface.getErrorMessage() << std::endl;
         return 1;
     }
 
-    // Don't forget - we must have a vector with unique queue family indices to create a logical device.
-    const std::set<uint32_t> _uniqueQueueFamilyIndices = {graphicsQueueFamilyI, presentQueueFamilyI};
-    const std::vector<decltype(_uniqueQueueFamilyIndices)::value_type> uniqueQueueFamilyIndices(
-        _uniqueQueueFamilyIndices.cbegin(), _uniqueQueueFamilyIndices.cend());
+    std::vector<avocado::vulkan::QueueFamily> queueFamilies {graphicsQueueFamily, presentQueueFamily};
+    avocado::utils::makeUniqueContainer(queueFamilies);
 
-    std::vector<std::string> physExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
-
-    physicalDevice.areExtensionsSupported(physExtensions);
-    if (physicalDevice.hasError()) {
-        std::cerr << "Extensions error: " << physicalDevice.getErrorMessage() << std::endl;
-        return 1;
-    }
-
-    avocado::vulkan::LogicalDevice logicalDevice = physicalDevice.createLogicalDevice(uniqueQueueFamilyIndices, physExtensions, instanceLayers, 1, 1.0f);
+    avocado::vulkan::LogicalDevice logicalDevice = physicalDevice.createLogicalDevice(queueFamilies, physExtensions, instanceLayers, 1, 1.0f);
     if (physicalDevice.hasError()) {
         std::cerr << "Can't create logical device: " << physicalDevice.getErrorMessage() << std::endl;
         return 1;
     }
 
-    // Retrieve graphics queue handle.
-    VkQueue graphicsQueue = logicalDevice.getQueue(graphicsQueueFamilyI, 0);
-    VkQueue presentQueue = logicalDevice.getQueue(presentQueueFamilyI, 0);
+    avocado::vulkan::PresentQueue presentQueue = logicalDevice.getPresentQueue(0);
 
     const bool isSwapChainSuppported = physicalDevice.areExtensionsSupported({ VK_KHR_SWAPCHAIN_EXTENSION_NAME });
     if (!isSwapChainSuppported) {
@@ -139,7 +140,7 @@ int SDL_main(int argc, char ** argv) {
     }
 
     VkExtent2D extent = surface.getCapabilities(sdlWindow.get());
-    
+
     // Clamp width and height to fit into capabilities.
     extent.width = std::clamp(extent.width, surface.getMinExtentW(), surface.getMaxExtentW());
     extent.height = std::clamp(extent.height, surface.getMinExtentH(), surface.getMaxExtentH());
@@ -159,9 +160,7 @@ int SDL_main(int argc, char ** argv) {
     }
 
     avocado::vulkan::Swapchain swapChain(logicalDevice);
-    std::vector<uint32_t> queueIndices {graphicsQueueFamilyI, presentQueueFamilyI};
-    avocado::utils::makeUniqueContainer(queueIndices);
-    swapChain.create(surface, surfaceFormat, extent, imageCount, queueIndices);
+    swapChain.create(surface, surfaceFormat, extent, imageCount, queueFamilies);
 
     swapChain.getImages();
     if (swapChain.hasError()) {
@@ -174,14 +173,16 @@ int SDL_main(int argc, char ** argv) {
         std::cout << "Can't get swapchain images: " << swapChain.getErrorMessage() << std::endl;
         return 1;
     }
-    
 
     // todo check for errors.
     const std::vector<char> &fragBuf = avocado::utils::readFile(Config::SHADERS_PATH + "/triangle.frag.spv");
     const std::vector<char> &vertBuf = avocado::utils::readFile(Config::SHADERS_PATH + "/triangle.vert.spv");
-    const VkPipelineShaderStageCreateInfo &fragShaderModule = 
+
+    // todo replace to pipeline class.
+    const VkPipelineShaderStageCreateInfo &fragShaderModule =
         logicalDevice.addShaderModule(fragBuf, avocado::vulkan::LogicalDevice::ShaderType::Fragment);
-    const VkPipelineShaderStageCreateInfo &vertShaderModule = logicalDevice.addShaderModule(vertBuf, avocado::vulkan::LogicalDevice::ShaderType::Vertex);
+    const VkPipelineShaderStageCreateInfo &vertShaderModule =
+        logicalDevice.addShaderModule(vertBuf, avocado::vulkan::LogicalDevice::ShaderType::Vertex);
     const std::vector<VkPipelineShaderStageCreateInfo> pipelineShaderStageCIs = {fragShaderModule, vertShaderModule};
 
     avocado::vulkan::GraphicsPipelineBuilder pipelineBuilder(logicalDevice.getHandle());
@@ -201,7 +202,6 @@ int SDL_main(int argc, char ** argv) {
     pipelineBuilder.setFrontFace(
         avocado::vulkan::GraphicsPipelineBuilder::FrontFace::Clockwise);
 
-    // Multisampling.
     pipelineBuilder.setSampleCount(
         avocado::vulkan::GraphicsPipelineBuilder::SampleCount::_1Bit);
 
@@ -243,13 +243,13 @@ int SDL_main(int argc, char ** argv) {
 
     swapChain.createFramebuffers(renderPassPtr.get(), extent);
 
-    VkCommandPool commandPool = logicalDevice.createCommandPool(avocado::vulkan::LogicalDevice::CommandPoolCreationFlags::Reset, graphicsQueueFamilyI);
+    VkCommandPool commandPool = logicalDevice.createCommandPool(avocado::vulkan::LogicalDevice::CommandPoolCreationFlags::Reset, graphicsQueueFamily);
     if (logicalDevice.hasError()) {
         std::cout << "Can't create command pool: " << logicalDevice.getErrorMessage() << std::endl;
         return 1;
     }
 
-    const std::vector<avocado::vulkan::CommandBuffer> &cmdBuffers = logicalDevice.allocateCommandBuffers(1, commandPool, avocado::vulkan::LogicalDevice::CommandBufferLevel::Primary);
+    std::vector<avocado::vulkan::CommandBuffer> cmdBuffers = logicalDevice.allocateCommandBuffers(1, commandPool, avocado::vulkan::LogicalDevice::CommandBufferLevel::Primary);
     if (logicalDevice.hasError()) {
         std::cout << "Can't allocate command buffers (" << logicalDevice.getErrorMessage() << ")." << std::endl;
         return 1;
@@ -261,16 +261,16 @@ int SDL_main(int argc, char ** argv) {
         std::cout << "Can't begin recording command buffer." << std::endl;
         return 1;
     }
-    
+
     commandBuffer.beginRenderPass(swapChain, renderPassPtr.get(), extent, {0, 0}, 0);
 
     commandBuffer.bindPipeline(graphicsPipeline, avocado::vulkan::CommandBuffer::PipelineBindPoint::Graphics);
-
     commandBuffer.setViewports(viewPorts);
     commandBuffer.setScissors(scissors);
-
     commandBuffer.draw(3, 1, 0, 0);
+
     commandBuffer.endRenderPass();
+
     commandBuffer.end();
     if (commandBuffer.hasError()) {
         std::cout << "Can't end command buffer." << std::endl;
@@ -289,7 +289,7 @@ int SDL_main(int argc, char ** argv) {
         std::cout << "Can't create semaphore: " << logicalDevice.getErrorMessage() << std::endl;
         return 1;
     }
-    
+
     std::vector<VkFence> fences {logicalDevice.createFence()};
     if (logicalDevice.hasError()) {
         std::cout << "Can't create fence: " << logicalDevice.getErrorMessage() << std::endl;
@@ -298,63 +298,51 @@ int SDL_main(int argc, char ** argv) {
 
     // Main event loop.
     SDL_Event event;
+
+    const std::vector<VkSemaphore> waitSemaphores {imageAvailableSemaphore};
+    const std::vector<VkSemaphore> signalSemaphores {renderFinishedSemaphore};
+
+    avocado::vulkan::GraphicsQueue graphicsQueue(logicalDevice.getGraphicsQueue(0));
+    graphicsQueue.setSemaphores(waitSemaphores, signalSemaphores);
+    graphicsQueue.setPipelineStageFlags({avocado::vulkan::GraphicsQueue::PipelineStageFlag::ColorAttachmentOutput});
+    graphicsQueue.setCommandBuffers(cmdBuffers);
+
+    std::vector<avocado::vulkan::Swapchain> swapchains {swapChain};
+    presentQueue.setSwapchains(swapchains);
+    presentQueue.setWaitSemaphores(signalSemaphores);
+
+    std::vector<uint32_t> imageIndices {swapChain.acquireNextImage(imageAvailableSemaphore)};
+
     while (true) {
         if (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT)
                 break;
         }
-        
-        // Draw procedure.
+
         logicalDevice.waitForFences(fences, true, std::numeric_limits<uint64_t>::max());
         logicalDevice.resetFences(fences);
 
-        const uint32_t imageIndex = swapChain.acquireNextImage(imageAvailableSemaphore);
         commandBuffer.reset(avocado::vulkan::CommandBuffer::ResetFlags::NoFlags);
-        commandBuffer.begin();
 
-        commandBuffer.beginRenderPass(swapChain, renderPassPtr.get(), extent, {0, 0}, imageIndex);
+        commandBuffer.begin();
+        commandBuffer.beginRenderPass(swapChain, renderPassPtr.get(), extent, {0, 0}, imageIndices.front());
 
         commandBuffer.setViewports(viewPorts);
         commandBuffer.setScissors(scissors);
-        
         commandBuffer.bindPipeline(graphicsPipeline, avocado::vulkan::CommandBuffer::PipelineBindPoint::Graphics);
         commandBuffer.draw(3, 1, 0, 0);
+
         commandBuffer.endRenderPass();
         commandBuffer.end();
 
-        auto submitInfo = avocado::vulkan::createStruct<VkSubmitInfo>();
-
-        VkSemaphore waitSemaphores[] = {imageAvailableSemaphore};
-        VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-        submitInfo.waitSemaphoreCount = 1;
-        submitInfo.pWaitSemaphores = waitSemaphores;
-        submitInfo.pWaitDstStageMask = waitStages;
-
-        submitInfo.commandBufferCount = 1;
-        auto cmdBufHandle = commandBuffer.getHandle();
-        submitInfo.pCommandBuffers = &cmdBufHandle;
-
-        VkSemaphore signalSemaphores[] = {renderFinishedSemaphore};
-        submitInfo.signalSemaphoreCount = 1;
-        submitInfo.pSignalSemaphores = signalSemaphores;
-
-        if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, fences.front()) != VK_SUCCESS) {
-            std::cout << "Can't submit draw command buffer" << std::endl;
-            return 1;
+        graphicsQueue.submit(fences.front());
+        if (graphicsQueue.hasError()) {
+            std::cout << "Can't submit graphics queue: " << graphicsQueue.getErrorMessage() << std::endl;
         }
 
-        auto presentInfo = avocado::vulkan::createStruct<VkPresentInfoKHR>();
-
-        presentInfo.waitSemaphoreCount = 1;
-        presentInfo.pWaitSemaphores = signalSemaphores;
-
-        VkSwapchainKHR swapChains[] = {swapChain.getHandle()};
-        presentInfo.swapchainCount = 1;
-        presentInfo.pSwapchains = swapChains;
-
-        presentInfo.pImageIndices = &imageIndex;
-
-        vkQueuePresentKHR(presentQueue, &presentInfo);
+        imageIndices[0] = swapChain.acquireNextImage(imageAvailableSemaphore);
+        presentQueue.setImageIndices(imageIndices);
+        presentQueue.present();
     }
 
     logicalDevice.waitIdle();
@@ -364,7 +352,7 @@ int SDL_main(int argc, char ** argv) {
     vkDestroySemaphore(logicalDevice.getHandle(), renderFinishedSemaphore, nullptr);
     vkDestroyFence(logicalDevice.getHandle(), fences.front(), nullptr);
     vkDestroyCommandPool(logicalDevice.getHandle(), commandPool, nullptr);
-    
+
     //vkDestroyPipeline(logicalDevice.getHandle(), graphicsPipeline, nullptr);
     //vkDestroyRenderPass(logicalDevice.getHandle(), renderPass, nullptr);
 

@@ -32,10 +32,21 @@ VkPipelineShaderStageCreateInfo LogicalDevice::addShaderModule(std::vector<char>
     return createShaderModule(shType);
 }
 
-VkQueue LogicalDevice::getQueue(const uint32_t queueFamilyIndex, const uint32_t queueIndex) {
-    VkQueue queue;
-    vkGetDeviceQueue(_dev.get(), queueFamilyIndex, queueIndex, &queue);
-    return queue;
+GraphicsQueue LogicalDevice::getGraphicsQueue(const uint32_t index) {
+    VkQueue queue = VK_NULL_HANDLE;
+    vkGetDeviceQueue(_dev.get(), _graphicsQueueFamily, index, &queue);
+    return GraphicsQueue(queue);
+}
+
+PresentQueue LogicalDevice::getPresentQueue(const uint32_t index) {
+    VkQueue queue = VK_NULL_HANDLE;
+    vkGetDeviceQueue(_dev.get(), _presentQueueFamily, index, &queue);
+    return PresentQueue(queue);
+}
+
+void LogicalDevice::setQueueFamilies(const QueueFamily graphicsQueueFamily, const QueueFamily presentQueueFamily) {
+    _graphicsQueueFamily = graphicsQueueFamily;
+    _presentQueueFamily = presentQueueFamily;
 }
 
 VkFence LogicalDevice::createFence() {
@@ -78,7 +89,7 @@ VkSemaphore LogicalDevice::createSemaphore() {
     return semaphore;
 }
 
-VkCommandPool LogicalDevice::createCommandPool(const LogicalDevice::CommandPoolCreationFlags flags, const uint32_t queueFamilyIndex) {
+VkCommandPool LogicalDevice::createCommandPool(const LogicalDevice::CommandPoolCreationFlags flags, const QueueFamily queueFamilyIndex) {
     auto poolCreateInfo = createStruct<VkCommandPoolCreateInfo>();
     poolCreateInfo.flags = static_cast<VkCommandPoolCreateFlags>(flags);
     poolCreateInfo.queueFamilyIndex = queueFamilyIndex;

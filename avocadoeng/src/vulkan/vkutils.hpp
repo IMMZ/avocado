@@ -3,10 +3,13 @@
 
 #include <vulkan/vulkan_core.h>
 
-
 #include "internal/structuretypes.hpp"
 
+#include <vector>
+
 namespace avocado::vulkan {
+
+class CommandBuffer;
 
 template <typename T>
 constexpr T createStruct() {
@@ -16,6 +19,8 @@ constexpr T createStruct() {
     t.sType = internal::StructureType<T>;
     return t;
 }
+
+std::vector<VkCommandBuffer> getCommandBufferHandles(std::vector<CommandBuffer> &cmdBuffers);
 
 }
 

@@ -20,6 +20,7 @@ Swapchain::~Swapchain() {
             vkDestroyFramebuffer(_device, fb, nullptr);
         for (VkImageView iv: _imageViews)
             vkDestroyImageView(_device, iv, nullptr);
+        // todo Do we need to remove images?
         //for (VkImage img: _images)
          //   vkDestroyImage(_device, img, nullptr);
         vkDestroySwapchainKHR(_device, _swapchain, nullptr);
@@ -34,7 +35,7 @@ bool Swapchain::isValid() const {
     return (_swapchain != VK_NULL_HANDLE);
 }
 
-void Swapchain::create(Surface &surface, VkSurfaceFormatKHR surfaceFormat, VkExtent2D extent, const uint32_t minImageCount, const std::vector<uint32_t> &queueFamilyIndices) {
+void Swapchain::create(Surface &surface, VkSurfaceFormatKHR surfaceFormat, VkExtent2D extent, const uint32_t minImageCount, const std::vector<QueueFamily> &queueFamilies) {
     auto swapchainCreateInfo = createStruct<VkSwapchainCreateInfoKHR>();
     swapchainCreateInfo.surface = surface.getHandle();
     swapchainCreateInfo.minImageCount = minImageCount;
@@ -47,10 +48,10 @@ void Swapchain::create(Surface &surface, VkSurfaceFormatKHR surfaceFormat, VkExt
     swapchainCreateInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
     swapchainCreateInfo.presentMode = VK_PRESENT_MODE_FIFO_KHR;
     swapchainCreateInfo.clipped = VK_TRUE;
-    swapchainCreateInfo.queueFamilyIndexCount = static_cast<uint32_t>(queueFamilyIndices.size());
-    swapchainCreateInfo.pQueueFamilyIndices = queueFamilyIndices.data();
+    swapchainCreateInfo.queueFamilyIndexCount = static_cast<uint32_t>(queueFamilies.size());
+    swapchainCreateInfo.pQueueFamilyIndices = queueFamilies.data();
 
-    if (queueFamilyIndices.size() > 1) {
+    if (queueFamilies.size() > 1) {
         swapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
     } else {
         swapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
