@@ -3,7 +3,7 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include "internal/structuretypes.hpp"
+#include "internal/structuretypes.hpp" // todo rename this file.
 
 #include <vector>
 
@@ -13,7 +13,7 @@ class CommandBuffer;
 
 template <typename T>
 constexpr T createStruct() {
-    static_assert(internal::StructureType<T> != VK_STRUCTURE_TYPE_MAX_ENUM, "No VkStructureType provided for type T.");
+    static_assert(internal::StructureType<T> != VK_STRUCTURE_TYPE_MAX_ENUM, "This type is not supported");
 
     T t{};
     t.sType = internal::StructureType<T>;

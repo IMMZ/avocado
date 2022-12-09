@@ -1,11 +1,14 @@
 #include "presentqueue.hpp"
 
+#include "vkutils.hpp"
+
 using namespace std::string_literals;
 
 namespace avocado::vulkan {
 
 PresentQueue::PresentQueue(VkQueue queue):
-    Queue(queue) {
+    Queue(queue),
+    _presentInfo(createStruct<VkPresentInfoKHR>()){
 }
 
 void PresentQueue::setWaitSemaphores(const std::vector<VkSemaphore> &waitSemaphores) {

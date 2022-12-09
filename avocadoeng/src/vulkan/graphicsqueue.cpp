@@ -7,7 +7,8 @@ using namespace std::string_literals;
 namespace avocado::vulkan {
 
 GraphicsQueue::GraphicsQueue(VkQueue queue):
-    Queue(queue) {
+    Queue(queue),
+    _submitInfo(createStruct<VkSubmitInfo>()) {
 }
 
 void GraphicsQueue::setSemaphores(const std::vector<VkSemaphore> &waitSemaphores, const std::vector<VkSemaphore> &signalSemaphores) {
@@ -18,10 +19,9 @@ void GraphicsQueue::setSemaphores(const std::vector<VkSemaphore> &waitSemaphores
 
 }
 
-void GraphicsQueue::setCommandBuffers(std::vector<CommandBuffer> &commandBuffers) {
-    const std::vector<VkCommandBuffer> cmdBufferHandles = getCommandBufferHandles(commandBuffers);
-    _submitInfo.commandBufferCount = static_cast<decltype(_submitInfo.commandBufferCount)>(cmdBufferHandles.size());
-    _submitInfo.pCommandBuffers = cmdBufferHandles.data();
+void GraphicsQueue::setCommandBuffers(std::vector<VkCommandBuffer> &commandBuffers) {
+    _submitInfo.commandBufferCount = static_cast<decltype(_submitInfo.commandBufferCount)>(commandBuffers.size());
+    _submitInfo.pCommandBuffers = commandBuffers.data();
 }
 
 void GraphicsQueue::setPipelineStageFlags(const std::vector<PipelineStageFlag> &flags) {

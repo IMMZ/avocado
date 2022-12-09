@@ -15,6 +15,7 @@ add_library(avocado
     src/vulkantools.cpp
     src/utils.cpp
 
+    src/vulkan/buffer.cpp
     src/vulkan/colorattachment.cpp
     src/vulkan/commandbuffer.cpp
     src/vulkan/graphicspipeline.cpp
@@ -26,5 +27,6 @@ add_library(avocado
     src/vulkan/renderpass.cpp
     src/vulkan/surface.cpp
     src/vulkan/swapchain.cpp
+    src/vulkan/vertexinputstate.cpp
     src/vulkan/vkutils.cpp)
 

@@ -16,8 +16,15 @@ class Surface;
 
 class Swapchain: public core::ErrorStorage {
 public:
+    Swapchain() = default;
     Swapchain(LogicalDevice &logicalDevice);
     ~Swapchain();
+
+    Swapchain(Swapchain &&other);
+    Swapchain& operator=(Swapchain &&other);
+
+    Swapchain(const Swapchain &swapchain) = delete;
+    Swapchain& operator=(const Swapchain &other) = delete;
 
     VkSwapchainKHR getHandle();
     bool isValid() const;
@@ -34,7 +41,7 @@ private:
     std::vector<VkImageView> _imageViews;
     std::vector<VkFramebuffer> _framebuffers;
     VkDevice _device = VK_NULL_HANDLE;
-    VkSwapchainKHR _swapchain = VK_NULL_HANDLE;
+    VkSwapchainKHR _swapchain = VK_NULL_HANDLE; //  todo What if we have two Swapchain objects with same handle?
 };
 
 }

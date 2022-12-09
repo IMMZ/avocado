@@ -49,7 +49,6 @@ void CommandBuffer::beginRenderPass(Swapchain &swapchain, VkRenderPass renderPas
     renderPassInfo.clearValueCount = 1;
     renderPassInfo.pClearValues = &clearColor;
     vkCmdBeginRenderPass(_buf, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-
 }
 
 void CommandBuffer::endRenderPass() {

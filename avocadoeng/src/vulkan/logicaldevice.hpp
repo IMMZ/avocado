@@ -5,6 +5,9 @@
 #include "graphicsqueue.hpp"
 #include "presentqueue.hpp"
 #include "types.hpp"
+#include "vkutils.hpp"
+
+#include "internal/structuretypes.hpp"
 
 #include "../errorstorage.hpp"
 
@@ -12,6 +15,8 @@
 
 #include <functional>
 #include <vector>
+
+using namespace std::string_literals;
 
 namespace avocado::vulkan {
 
@@ -60,6 +65,8 @@ public:
     void setQueueFamilies(const QueueFamily graphicsQueueFamily, const QueueFamily presentQueueFamily);
 
     VkFence createFence();
+
+    // todo make last arg with default value.
     void waitForFences(const std::vector<VkFence> &fences, const bool waitAll, uint64_t timeout);
     void resetFences(const std::vector<VkFence> &fences);
     VkSemaphore createSemaphore();
@@ -78,6 +85,44 @@ public:
     std::vector<CommandBuffer> allocateCommandBuffers(const uint32_t count, VkCommandPool cmdPool, const CommandBufferLevel bufLevel);
 
     void waitIdle();
+
+    // todo replace next 2 functions to the separate class.
+    template <typename T>
+    void setObjectName(T object, const char *objectName) {
+        static_assert(internal::ObjectType<T> != VK_DEBUG_REPORT_OBJECT_TYPE_MAX_ENUM_EXT, "This type is not supported");
+
+        assert(_dev.get() != VK_NULL_HANDLE);
+
+        auto objNameInfo = createStruct<VkDebugMarkerObjectNameInfoEXT>();
+        objNameInfo.objectType = internal::ObjectType<T>;
+        objNameInfo.object = reinterpret_cast<uint64_t>(object);
+        objNameInfo.pObjectName = objectName;
+
+        auto debugMarkerSetObjectName = reinterpret_cast<PFN_vkDebugMarkerSetObjectNameEXT>(vkGetDeviceProcAddr(_dev.get(), "vkDebugMarkerSetObjectNameEXT"));
+        if (debugMarkerSetObjectName != nullptr) {
+            const VkResult result = debugMarkerSetObjectName(_dev.get(), &objNameInfo);
+            setHasError(result != VK_SUCCESS);
+            if (hasError())
+                setErrorMessage("debugMarkerSetObjectName returned "s + getVkResultString(result));
+        }
+    }
+
+    template <typename T>
+    void setObjectTag(T object, const uint64_t tagName, const size_t tagSize, const void *tag) {
+        auto tagInfo = createStruct<VkDebugMarkerObjectTagInfoEXT>();
+        tagInfo.objectType = internal::ObjectType<T>;
+        tagInfo.object = reinterpret_cast<uint64_t>(object);
+        tagInfo.tagName = tagName;
+        tagInfo.tagSize = tagSize;
+        tagInfo.pTag = tag;
+        auto debugMarkerSetObjectTag = reinterpret_cast<PFN_vkDebugMarkerSetObjectTagEXT>(vkGetDeviceProcAddr(_dev.get(), "vkDebugMarkerSetObjectTagEXT"));
+        if (debugMarkerSetObjectTag != nullptr) {
+            const VkResult result = debugMarkerSetObjectTag(_dev.get(), &tagInfo);
+            setHasError(result != VK_SUCCESS);
+            if (hasError())
+                setErrorMessage("debugMarkerSetObjectTag returned "s + getVkResultString(result));
+        }
+    }
 
 private:
     VkPipelineShaderStageCreateInfo createShaderModule(ShaderType shType);

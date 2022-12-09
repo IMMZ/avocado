@@ -1,5 +1,6 @@
 #include "graphicspipeline.hpp"
 
+#include "vertexinputstate.hpp"
 #include "vkutils.hpp"
 
 #include <vulkan/vulkan.h>
@@ -82,6 +83,10 @@ void GraphicsPipelineBuilder::addColorAttachment(ColorAttachment &&ca) {
     _colorAttachments.emplace_back(std::move(ca));
 }
 
+void GraphicsPipelineBuilder::setVertexInputState(VertexInputState &vertexInState) {
+    _vertexInputState = &vertexInState;
+}
+
 // todo Looks like heavy function. Refactor?
 GraphicsPipelineBuilder::PipelineUniquePtr GraphicsPipelineBuilder::buildPipeline(const std::vector<VkPipelineShaderStageCreateInfo> &shaderStageCIs, VkFormat format, VkRenderPass renderPass, const std::vector<VkViewport> &viewports, const std::vector<VkRect2D> &scissors) {
     auto pipelineCI = createStruct<VkGraphicsPipelineCreateInfo>();
@@ -97,8 +102,14 @@ GraphicsPipelineBuilder::PipelineUniquePtr GraphicsPipelineBuilder::buildPipelin
     pipelineCI.pDynamicState = &dynamicStateCI;
 
     // Vertex input.
-    auto vertexInStateCreateInfo = createStruct<VkPipelineVertexInputStateCreateInfo>();
-    pipelineCI.pVertexInputState = &vertexInStateCreateInfo;
+    if (_vertexInputState != nullptr) {
+        auto vertexInStateCI = createStruct<VkPipelineVertexInputStateCreateInfo>();
+        vertexInStateCI.pVertexAttributeDescriptions = _vertexInputState->getAttributeDescriptionData();
+        vertexInStateCI.vertexAttributeDescriptionCount = _vertexInputState->getAttributeDescriptionsCount();
+        vertexInStateCI.pVertexBindingDescriptions = _vertexInputState->getBindingDescriptionData();
+        vertexInStateCI.vertexBindingDescriptionCount = _vertexInputState->getBindingDescriptionsCount();
+        pipelineCI.pVertexInputState = &vertexInStateCI;
+    }
 
     // Input assembly.
     auto inputAsmStateCI = createStruct<VkPipelineInputAssemblyStateCreateInfo>();

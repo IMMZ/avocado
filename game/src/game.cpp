@@ -1,14 +1,17 @@
 #include "gameconfig.hpp"
 
+#include "vertex.hpp"
+
+#include "vulkan/buffer.hpp"
 #include "vulkan/clipping.hpp"
 #include "vulkan/colorattachment.hpp"
 #include "vulkan/commandbuffer.hpp"
 #include "vulkan/logicaldevice.hpp"
 #include "vulkan/graphicspipeline.hpp"
 #include "vulkan/graphicsqueue.hpp"
-#include "vulkan/queue.hpp"
 #include "vulkan/surface.hpp"
 #include "vulkan/swapchain.hpp"
+#include "vulkan/vertexinputstate.hpp"
 #include "vulkan/vkutils.hpp"
 #include "vulkantools.hpp" // todo get rid of this header file
 
@@ -109,7 +112,7 @@ int SDL_main(int argc, char ** argv) {
         return 1;
     }
 
-    physicalDevice.getQueueFamilies(surface);
+    physicalDevice.getQueueFamilies(surface); // todo rename this method.
     if (physicalDevice.hasError()) {
         std::cout << "Can't get queue families: " << physicalDevice.getErrorMessage() << std::endl;
         return 1;
@@ -151,7 +154,7 @@ int SDL_main(int argc, char ** argv) {
         imageCount = surface.getMaxImageCount();
 
     const VkSurfaceFormatKHR surfaceFormat = surface.findFormat(
-        avocado::vulkan::Surface::SurfaceFormat::B8G8R8A8SRGB,
+        avocado::vulkan::Format::B8G8R8A8SRGB,
         avocado::vulkan::Surface::ColorSpace::SRGBNonlinearKHR);
 
     if (surface.hasError()) {
@@ -161,28 +164,52 @@ int SDL_main(int argc, char ** argv) {
 
     avocado::vulkan::Swapchain swapChain(logicalDevice);
     swapChain.create(surface, surfaceFormat, extent, imageCount, queueFamilies);
-
-    swapChain.getImages();
     if (swapChain.hasError()) {
-        std::cout << "Can't get swapchain images: " << swapChain.getErrorMessage() << std::endl;
+        std::cout << "Can't create swapchain: " << swapChain.getErrorMessage() << std::endl;
         return 1;
     }
 
-    swapChain.createImageViews(surfaceFormat);
-    if (swapChain.hasError()) {
-        std::cout << "Can't get swapchain images: " << swapChain.getErrorMessage() << std::endl;
+
+    std::vector<avocado::vulkan::Swapchain> swapchains(1);// todo can we do => (1, std::move(swapChain)); ?
+    swapchains[0] = std::move(swapChain);
+    avocado::vulkan::Swapchain &swapchain = swapchains.front();
+    swapchain.getImages();
+    if (swapchain.hasError()) {
+        std::cout << "Can't get swapchain images: " << swapchain.getErrorMessage() << std::endl;
         return 1;
     }
 
-    // todo check for errors.
+    swapchain.createImageViews(surfaceFormat);
+    if (swapchain.hasError()) {
+        std::cout << "Can't get swapchain images: " << swapchain.getErrorMessage() << std::endl;
+        return 1;
+    }
+
+    if (!std::filesystem::exists(Config::SHADERS_PATH + "/triangle.frag.spv")) {
+        std::cout << "File " << Config::SHADERS_PATH << "/triangle.frag.spv doesn't exist." << std::endl;
+        return 1;
+    }
+    if (!std::filesystem::exists(Config::SHADERS_PATH + "/triangle.vert.spv")) {
+        std::cout << "File " << Config::SHADERS_PATH << "/triangle.vert.spv doesn't exist." << std::endl;
+        return 1;
+    }
     const std::vector<char> &fragBuf = avocado::utils::readFile(Config::SHADERS_PATH + "/triangle.frag.spv");
     const std::vector<char> &vertBuf = avocado::utils::readFile(Config::SHADERS_PATH + "/triangle.vert.spv");
 
     // todo replace to pipeline class.
     const VkPipelineShaderStageCreateInfo &fragShaderModule =
         logicalDevice.addShaderModule(fragBuf, avocado::vulkan::LogicalDevice::ShaderType::Fragment);
+    if (logicalDevice.hasError()) {
+        std::cout << "Can't add fragment shader module. " << logicalDevice.getErrorMessage() << std::endl;
+        return 1;
+    }
     const VkPipelineShaderStageCreateInfo &vertShaderModule =
         logicalDevice.addShaderModule(vertBuf, avocado::vulkan::LogicalDevice::ShaderType::Vertex);
+    if (logicalDevice.hasError()) {
+        std::cout << "Can't add vertex shader module. " << logicalDevice.getErrorMessage() << std::endl;
+        return 1;
+    }
+
     const std::vector<VkPipelineShaderStageCreateInfo> pipelineShaderStageCIs = {fragShaderModule, vertShaderModule};
 
     avocado::vulkan::GraphicsPipelineBuilder pipelineBuilder(logicalDevice.getHandle());
@@ -192,7 +219,7 @@ int SDL_main(int argc, char ** argv) {
 
     // Input assembly.
     pipelineBuilder.setPrimitiveTopology(
-        avocado::vulkan::GraphicsPipelineBuilder::PrimitiveTopology::TriangleList);
+        avocado::vulkan::GraphicsPipelineBuilder::PrimitiveTopology::TriangleFan);
 
     // Rasterizer.
     pipelineBuilder.setPolygonMode(
@@ -229,10 +256,90 @@ int SDL_main(int argc, char ** argv) {
     pipelineBuilder.setLogicOperation(
         avocado::vulkan::GraphicsPipelineBuilder::LogicOperation::Copy);
 
+    avocado::vulkan::VertexInputState vertexInState;
+    vertexInState.addAttributeDescription(0, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(avocado::Vertex, position));
+    vertexInState.addAttributeDescription(1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(avocado::Vertex, color));
+    vertexInState.addBindingDescription(0, sizeof(avocado::Vertex), VK_VERTEX_INPUT_RATE_VERTEX);
+    pipelineBuilder.setVertexInputState(vertexInState);
+
+    // Creating vertex buffer.
+    const std::vector<avocado::Vertex> triangle {
+        /* { pos, color } */
+        {{0.f, -0.5f}, {0.f, 0.f, 0.5f}},
+        {{0.5f, 0.5f}, {0.f, 0.f, 1.f}},
+        {{-0.5f, 0.5f}, {0.f, 0.f, 0.8f}}
+    };
+
+    avocado::vulkan::Buffer vertexBuffer(sizeof(decltype(triangle)::value_type) * triangle.size(),
+        avocado::vulkan::Buffer::Usage::Vertex,
+        avocado::vulkan::Buffer::SharingMode::Exclusive,
+        logicalDevice);
+    if (vertexBuffer.hasError()) {
+        std::cout << "Can't create vertex buffer: " << vertexBuffer.getErrorMessage() << std::endl;
+    }
+
+    // Memory requirements.
+    VkMemoryRequirements memReq{};
+    vkGetBufferMemoryRequirements(logicalDevice.getHandle(), vertexBuffer.getHandle(), &memReq);
+
+    VkPhysicalDeviceMemoryProperties memProps{};
+    vkGetPhysicalDeviceMemoryProperties(physicalDevice.getHandle(), &memProps);
+
+    // Find needed type of memory by typeFilter & properties.
+    uint32_t typeFilter = memReq.memoryTypeBits;
+    VkMemoryPropertyFlags properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+
+    uint32_t foundType = 0;
+    for (uint32_t i = 0; i < memProps.memoryTypeCount; ++i) {
+        if (typeFilter & (1 << i) && (memProps.memoryTypes[i].propertyFlags & properties) == properties) {
+            foundType = i;
+            break;
+        }
+    }
+
+    // Allocate memory.
+    VkMemoryAllocateInfo memAllocInfo = avocado::vulkan::createStruct<VkMemoryAllocateInfo>();
+    memAllocInfo.allocationSize = memReq.size;
+    memAllocInfo.memoryTypeIndex = foundType;
+
+    VkDeviceMemory devMem = VK_NULL_HANDLE;
+    // todo vkFreeMemory.
+    const VkResult allocRes = vkAllocateMemory(logicalDevice.getHandle(), &memAllocInfo, nullptr, &devMem);
+    if (allocRes != VK_SUCCESS) {
+        std::cout << "Memory alloc error!" << std::endl;
+        return 1;
+    } else {
+        std::cout << "Memory allocated" << std::endl;
+    }
+
+    // Bind memory.
+    const VkResult bindBufResult = vkBindBufferMemory(logicalDevice.getHandle(), vertexBuffer.getHandle(), devMem, 0);
+    if (bindBufResult != VK_SUCCESS) {
+        std::cout << "Buffer bind error." << std::endl;
+        return 1;
+    } else {
+        std::cout << "Buffer binded" << std::endl;
+    }
+
+    // Map memory.
+    void *data = nullptr;
+    const VkResult mapRes = vkMapMemory(logicalDevice.getHandle(), devMem, 0, sizeof(decltype(triangle)::value_type) * triangle.size(), 0, &data);
+    if (mapRes != VK_SUCCESS) {
+        std::cout << "Memory map error" << std::endl;
+        return 1;
+    } else {
+        std::cout << "Memory mapped" << std::endl;
+    }
+
+    memcpy(data, triangle.data(), sizeof(decltype(triangle)::value_type) * triangle.size());
+
+    vkUnmapMemory(logicalDevice.getHandle(), devMem);
+
     auto renderPassPtr = logicalDevice.createRenderPass(surfaceFormat.format);
 
     const std::vector<VkViewport> viewPorts { avocado::vulkan::Clipping::createViewport(0.f, 0.f, extent) };
     const std::vector<VkRect2D> scissors { avocado::vulkan::Clipping::createScissor(viewPorts.front()) };
+
     avocado::vulkan::GraphicsPipelineBuilder::PipelineUniquePtr grPip = pipelineBuilder.buildPipeline(pipelineShaderStageCIs, surfaceFormat.format, renderPassPtr.get(), viewPorts, scissors);
 
     if (grPip == nullptr) {
@@ -241,7 +348,8 @@ int SDL_main(int argc, char ** argv) {
     }
     VkPipeline graphicsPipeline = grPip.get();
 
-    swapChain.createFramebuffers(renderPassPtr.get(), extent);
+
+    swapchain.createFramebuffers(renderPassPtr.get(), extent);
 
     VkCommandPool commandPool = logicalDevice.createCommandPool(avocado::vulkan::LogicalDevice::CommandPoolCreationFlags::Reset, graphicsQueueFamily);
     if (logicalDevice.hasError()) {
@@ -256,19 +364,26 @@ int SDL_main(int argc, char ** argv) {
     }
 
     avocado::vulkan::CommandBuffer commandBuffer = cmdBuffers.front();
+
     commandBuffer.begin();
     if (commandBuffer.hasError()) {
         std::cout << "Can't begin recording command buffer." << std::endl;
         return 1;
     }
 
-    commandBuffer.beginRenderPass(swapChain, renderPassPtr.get(), extent, {0, 0}, 0);
+
+    commandBuffer.beginRenderPass(swapchain, renderPassPtr.get(), extent, {0, 0}, 0);
+
 
     commandBuffer.bindPipeline(graphicsPipeline, avocado::vulkan::CommandBuffer::PipelineBindPoint::Graphics);
+    // Binding vertex buffer.
+    VkBuffer vertexBuffers[] {vertexBuffer.getHandle()};
+    VkDeviceSize offsets[] {0};
+
+    vkCmdBindVertexBuffers(commandBuffer.getHandle(), 0, 1, vertexBuffers, offsets);
     commandBuffer.setViewports(viewPorts);
     commandBuffer.setScissors(scissors);
-    commandBuffer.draw(3, 1, 0, 0);
-
+    commandBuffer.draw(static_cast<uint32_t>(triangle.size()), 1, 0, 0);
     commandBuffer.endRenderPass();
 
     commandBuffer.end();
@@ -296,22 +411,29 @@ int SDL_main(int argc, char ** argv) {
         return 1;
     }
 
-    // Main event loop.
     SDL_Event event;
 
     const std::vector<VkSemaphore> waitSemaphores {imageAvailableSemaphore};
     const std::vector<VkSemaphore> signalSemaphores {renderFinishedSemaphore};
 
     avocado::vulkan::GraphicsQueue graphicsQueue(logicalDevice.getGraphicsQueue(0));
+    logicalDevice.setObjectName(graphicsQueue.getHandle(), "Graphics queue");
     graphicsQueue.setSemaphores(waitSemaphores, signalSemaphores);
     graphicsQueue.setPipelineStageFlags({avocado::vulkan::GraphicsQueue::PipelineStageFlag::ColorAttachmentOutput});
-    graphicsQueue.setCommandBuffers(cmdBuffers);
 
-    std::vector<avocado::vulkan::Swapchain> swapchains {swapChain};
+    std::vector<VkCommandBuffer> cmdBufferHandles = avocado::vulkan::getCommandBufferHandles(cmdBuffers);
+    graphicsQueue.setCommandBuffers(cmdBufferHandles);
+
+
     presentQueue.setSwapchains(swapchains);
     presentQueue.setWaitSemaphores(signalSemaphores);
+    const uint32_t imgIndex = swapchain.acquireNextImage(imageAvailableSemaphore);
+    if (swapchain.hasError()) {
+        std::cout << "Can't get img index " << swapchain.getErrorMessage() << std::endl;
+    }
 
-    std::vector<uint32_t> imageIndices {swapChain.acquireNextImage(imageAvailableSemaphore)};
+    std::vector<uint32_t> imageIndices {imgIndex};
+    presentQueue.setImageIndices(imageIndices);
 
     while (true) {
         if (SDL_PollEvent(&event)) {
@@ -325,12 +447,14 @@ int SDL_main(int argc, char ** argv) {
         commandBuffer.reset(avocado::vulkan::CommandBuffer::ResetFlags::NoFlags);
 
         commandBuffer.begin();
-        commandBuffer.beginRenderPass(swapChain, renderPassPtr.get(), extent, {0, 0}, imageIndices.front());
+
+        commandBuffer.beginRenderPass(swapchain, renderPassPtr.get(), extent, {0, 0}, imageIndices.front());
 
         commandBuffer.setViewports(viewPorts);
         commandBuffer.setScissors(scissors);
+        vkCmdBindVertexBuffers(commandBuffer.getHandle(), 0, 1, vertexBuffers, offsets);
         commandBuffer.bindPipeline(graphicsPipeline, avocado::vulkan::CommandBuffer::PipelineBindPoint::Graphics);
-        commandBuffer.draw(3, 1, 0, 0);
+        commandBuffer.draw(static_cast<uint32_t>(triangle.size()), 1, 0, 0);
 
         commandBuffer.endRenderPass();
         commandBuffer.end();
@@ -340,14 +464,14 @@ int SDL_main(int argc, char ** argv) {
             std::cout << "Can't submit graphics queue: " << graphicsQueue.getErrorMessage() << std::endl;
         }
 
-        imageIndices[0] = swapChain.acquireNextImage(imageAvailableSemaphore);
-        presentQueue.setImageIndices(imageIndices);
         presentQueue.present();
+        imageIndices[0] = swapchain.acquireNextImage(imageAvailableSemaphore);
     }
 
     logicalDevice.waitIdle();
 
     // Destroy resources.
+    vkFreeMemory(logicalDevice.getHandle(), devMem, nullptr);
     vkDestroySemaphore(logicalDevice.getHandle(), imageAvailableSemaphore, nullptr);
     vkDestroySemaphore(logicalDevice.getHandle(), renderFinishedSemaphore, nullptr);
     vkDestroyFence(logicalDevice.getHandle(), fences.front(), nullptr);

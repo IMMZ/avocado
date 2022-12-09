@@ -97,7 +97,7 @@ VkExtent2D Surface::getCapabilities(SDL_Window *sdlWindow) {
     return extent;
 }
 
-VkSurfaceFormatKHR Surface::findFormat(SurfaceFormat sf, ColorSpace cs) const {
+VkSurfaceFormatKHR Surface::findFormat(Format sf, ColorSpace cs) const {
     VkSurfaceFormatKHR resultFormat{};
     const auto &surfaceFormats = getSurfaceFormats();
     if (hasError()) {

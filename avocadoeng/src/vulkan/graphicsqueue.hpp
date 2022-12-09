@@ -10,7 +10,7 @@ public:
     explicit GraphicsQueue(VkQueue queue);
     
     void setSemaphores(const std::vector<VkSemaphore> &waitSemaphores, const std::vector<VkSemaphore> &signalSemaphores);
-    void setCommandBuffers(std::vector<CommandBuffer> &commandBuffers);
+    void setCommandBuffers(std::vector<VkCommandBuffer> &commandBuffers);
     
     enum class PipelineStageFlag: uint32_t {
         TopOfPipe = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT

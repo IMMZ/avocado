@@ -13,6 +13,8 @@
 
 namespace avocado::vulkan {
 
+class VertexInputState;
+
 class GraphicsPipelineBuilder: public avocado::core::ErrorStorage {
 public:
     enum class DynamicState {
@@ -159,6 +161,8 @@ public:
     void addColorAttachment(const ColorAttachment &ca);
     void addColorAttachment(ColorAttachment &&ca);
 
+    void setVertexInputState(VertexInputState &vertexInState);
+
 private:
     std::vector<VkDynamicState> _dynamicStates;
     uint32_t _dynamicStatesFlags = 0;
@@ -186,6 +190,7 @@ private:
     LogicOperation _logicOperation = LogicOperation::NoOp;
     bool _logicOperationEnable = false;
 
+    VertexInputState *_vertexInputState = nullptr;
     VkDevice _device;
 
 public:

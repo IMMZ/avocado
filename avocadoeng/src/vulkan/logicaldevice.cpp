@@ -153,7 +153,7 @@ VkPipelineShaderStageCreateInfo LogicalDevice::createShaderModule(ShaderType shT
         std::bind(vkDestroyShaderModule, _dev.get(), std::placeholders::_1, nullptr));
 
     shaderStageCreateInfo.stage = static_cast<VkShaderStageFlagBits>(shType); 
-    shaderStageCreateInfo.module = shaderModule; 
+    shaderStageCreateInfo.module = _shaderModules.back().get();
     shaderStageCreateInfo.pName = "main"; // Entry point. 
     return shaderStageCreateInfo;
 }

@@ -27,6 +27,26 @@ Swapchain::~Swapchain() {
     }
 }
 
+// todo Should we destroy objects in vectors?
+Swapchain::Swapchain(Swapchain &&other):
+    _images(std::move(other._images)),
+    _imageViews(std::move(other._imageViews)),
+    _framebuffers(std::move(other._framebuffers)),
+    _device(std::move(other._device)),
+    _swapchain(std::move(other._swapchain)){
+    other._swapchain = VK_NULL_HANDLE;
+}
+
+Swapchain& Swapchain::operator=(Swapchain &&other) {
+    _images = std::move(other._images);
+    _imageViews = std::move(other._imageViews);
+    _framebuffers = std::move(other._framebuffers);
+    _device = std::move(other._device);
+    _swapchain = std::move(other._swapchain);
+    other._swapchain = VK_NULL_HANDLE;
+    return *this;
+}
+
 VkSwapchainKHR Swapchain::getHandle() {
     return _swapchain;
 }
@@ -56,7 +76,7 @@ void Swapchain::create(Surface &surface, VkSurfaceFormatKHR surfaceFormat, VkExt
     } else {
         swapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
     }
-    const VkResult result = vkCreateSwapchainKHR(_device, &swapchainCreateInfo, nullptr, &_swapchain); 
+    const VkResult result = vkCreateSwapchainKHR(_device, &swapchainCreateInfo, nullptr, &_swapchain);
     setHasError(result != VK_SUCCESS);
     if (hasError()) {
         setErrorMessage("vkCreateSwapchainKHR returned "s + getVkResultString(result));
@@ -77,7 +97,7 @@ void Swapchain::getImages() {
     _images.resize(imageCount);
     const VkResult result2 = vkGetSwapchainImagesKHR(_device, _swapchain, &imageCount, _images.data());
     setHasError(result2 != VK_SUCCESS);
-    
+
     if (hasError()) {
         setErrorMessage("vkGetSwapchainImagesKHR returned "s + getVkResultString(result2));
         return;
@@ -122,7 +142,7 @@ void Swapchain::createFramebuffers(VkRenderPass renderPass, VkExtent2D extent) {
         framebufferInfo.width = extent.width;
         framebufferInfo.height = extent.height;
         framebufferInfo.layers = 1;
-        const VkResult result = vkCreateFramebuffer(_device, &framebufferInfo, nullptr, &_framebuffers[i]); 
+        const VkResult result = vkCreateFramebuffer(_device, &framebufferInfo, nullptr, &_framebuffers[i]);
         setHasError(result != VK_SUCCESS);
         if (hasError()) {
             setErrorMessage("vkCreateFramebuffer returned "s +  getVkResultString(result));
@@ -131,7 +151,9 @@ void Swapchain::createFramebuffers(VkRenderPass renderPass, VkExtent2D extent) {
 }
 
 uint32_t Swapchain::acquireNextImage(VkSemaphore semaphore) {
-    uint32_t imageIndex = std::numeric_limits<decltype(imageIndex)>::max();
+    assert(_swapchain != VK_NULL_HANDLE);
+
+    auto imageIndex = std::numeric_limits<uint32_t>::max();
     const VkResult result = vkAcquireNextImageKHR(_device, _swapchain, UINT64_MAX, semaphore, VK_NULL_HANDLE, &imageIndex);
     setHasError(result != VK_SUCCESS);
     if (hasError()) {
