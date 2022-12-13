@@ -4,16 +4,22 @@
 
 #include "vulkan/buffer.hpp"
 #include "vulkan/clipping.hpp"
-#include "vulkan/colorattachment.hpp"
 #include "vulkan/commandbuffer.hpp"
 #include "vulkan/logicaldevice.hpp"
 #include "vulkan/graphicspipeline.hpp"
 #include "vulkan/graphicsqueue.hpp"
 #include "vulkan/surface.hpp"
 #include "vulkan/swapchain.hpp"
-#include "vulkan/vertexinputstate.hpp"
 #include "vulkan/vkutils.hpp"
 #include "vulkantools.hpp" // todo get rid of this header file
+
+#include "vulkan/states/colorblendstate.hpp"
+#include "vulkan/states/dynamicstate.hpp"
+#include "vulkan/states/inputasmstate.hpp"
+#include "vulkan/states/multisamplestate.hpp"
+#include "vulkan/states/rasterizationstate.hpp"
+#include "vulkan/states/vertexinputstate.hpp"
+#include "vulkan/states/viewportstate.hpp"
 
 #include "utils.hpp"
 
@@ -212,49 +218,34 @@ int SDL_main(int argc, char ** argv) {
 
     const std::vector<VkPipelineShaderStageCreateInfo> pipelineShaderStageCIs = {fragShaderModule, vertShaderModule};
 
+    // Building a pipeline.
     avocado::vulkan::GraphicsPipelineBuilder pipelineBuilder(logicalDevice.getHandle());
-    pipelineBuilder.addDynamicStates({
-        avocado::vulkan::GraphicsPipelineBuilder::DynamicState::Viewport
-        , avocado::vulkan::GraphicsPipelineBuilder::DynamicState::Scissor});
 
-    // Input assembly.
-    pipelineBuilder.setPrimitiveTopology(
-        avocado::vulkan::GraphicsPipelineBuilder::PrimitiveTopology::TriangleFan);
+    avocado::vulkan::DynamicState dynState({VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR});
+    pipelineBuilder.setDynamicState(dynState);
 
-    // Rasterizer.
-    pipelineBuilder.setPolygonMode(
-        avocado::vulkan::GraphicsPipelineBuilder::PolygonMode::Fill);
-    pipelineBuilder.setCullMode(
-        avocado::vulkan::GraphicsPipelineBuilder::CullMode::BackBit);
-    pipelineBuilder.setFrontFace(
-        avocado::vulkan::GraphicsPipelineBuilder::FrontFace::Clockwise);
+    avocado::vulkan::InputAsmState inAsmState(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN);
+    pipelineBuilder.setInputAsmState(inAsmState);
 
-    pipelineBuilder.setSampleCount(
-        avocado::vulkan::GraphicsPipelineBuilder::SampleCount::_1Bit);
+    avocado::vulkan::RasterizationState rastState;
+    rastState.setPolygonMode(VK_POLYGON_MODE_FILL);
+    rastState.setCullMode(VK_CULL_MODE_BACK_BIT);
+    rastState.setFrontFace(VK_FRONT_FACE_CLOCKWISE);
+    pipelineBuilder.setRasterizationState(rastState);
 
-    // Color blending.
-    avocado::vulkan::ColorAttachment colorAttachment;
+    avocado::vulkan::MultisampleState multisampleState;
+    multisampleState.setRasterizationSamples(VK_SAMPLE_COUNT_1_BIT);
+    pipelineBuilder.setMultisampleState(multisampleState);
 
-    colorAttachment.setColorComponent(avocado::utils::enumBitwiseOr(avocado::vulkan::ColorAttachment::ColorComponent::R
-        , avocado::vulkan::ColorAttachment::ColorComponent::G
-        , avocado::vulkan::ColorAttachment::ColorComponent::B
-        , avocado::vulkan::ColorAttachment::ColorComponent::A));
-    colorAttachment.setSrcBlendFactor(
-        avocado::vulkan::ColorAttachment::BlendFactor::One);
-    colorAttachment.setDstBlendFactor(
-        avocado::vulkan::ColorAttachment::BlendFactor::Zero);
-    colorAttachment.setSrcAlphaBlendFactor(
-        avocado::vulkan::ColorAttachment::BlendFactor::One);
-    colorAttachment.setDstAlphaBlendFactor(
-        avocado::vulkan::ColorAttachment::BlendFactor::Zero);
-    colorAttachment.setColorBlendOperation(
-        avocado::vulkan::ColorAttachment::BlendOperation::Add);
-    colorAttachment.setAlphaBlendOperation(
-        avocado::vulkan::ColorAttachment::BlendOperation::Add);
-    pipelineBuilder.addColorAttachment(std::move(colorAttachment));
-
-    pipelineBuilder.setLogicOperation(
-        avocado::vulkan::GraphicsPipelineBuilder::LogicOperation::Copy);
+    avocado::vulkan::ColorBlendState colorBlendState;
+    colorBlendState.setLogicOp(VK_LOGIC_OP_COPY);
+    colorBlendState.addAttachment({
+        VK_TRUE // Blend enabled.
+        , VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD // Color blend factor.
+        , VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD // Alpha blend factor.
+        , VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT // Color write mask.
+        | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT});
+    pipelineBuilder.setColorBlendState(colorBlendState);
 
     avocado::vulkan::VertexInputState vertexInState;
     vertexInState.addAttributeDescription(0, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(avocado::Vertex, position));
@@ -286,7 +277,7 @@ int SDL_main(int argc, char ** argv) {
     vkGetPhysicalDeviceMemoryProperties(physicalDevice.getHandle(), &memProps);
 
     // Find needed type of memory by typeFilter & properties.
-    uint32_t typeFilter = memReq.memoryTypeBits;
+    const uint32_t typeFilter = memReq.memoryTypeBits;
     VkMemoryPropertyFlags properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
 
     uint32_t foundType = 0;
@@ -339,15 +330,16 @@ int SDL_main(int argc, char ** argv) {
 
     const std::vector<VkViewport> viewPorts { avocado::vulkan::Clipping::createViewport(0.f, 0.f, extent) };
     const std::vector<VkRect2D> scissors { avocado::vulkan::Clipping::createScissor(viewPorts.front()) };
+    avocado::vulkan::ViewportState viewportState(viewPorts, scissors);
+    pipelineBuilder.setViewportState(viewportState);
 
-    avocado::vulkan::GraphicsPipelineBuilder::PipelineUniquePtr grPip = pipelineBuilder.buildPipeline(pipelineShaderStageCIs, surfaceFormat.format, renderPassPtr.get(), viewPorts, scissors);
 
-    if (grPip == nullptr) {
+    avocado::vulkan::GraphicsPipelineBuilder::PipelineUniquePtr graphicsPipeline = pipelineBuilder.buildPipeline(pipelineShaderStageCIs, renderPassPtr.get());
+
+    if (graphicsPipeline == nullptr) {
         std::cout << "INVALID PIPELINE" << std::endl;
         return 1;
     }
-    VkPipeline graphicsPipeline = grPip.get();
-
 
     swapchain.createFramebuffers(renderPassPtr.get(), extent);
 
@@ -375,7 +367,7 @@ int SDL_main(int argc, char ** argv) {
     commandBuffer.beginRenderPass(swapchain, renderPassPtr.get(), extent, {0, 0}, 0);
 
 
-    commandBuffer.bindPipeline(graphicsPipeline, avocado::vulkan::CommandBuffer::PipelineBindPoint::Graphics);
+    commandBuffer.bindPipeline(graphicsPipeline.get(), avocado::vulkan::CommandBuffer::PipelineBindPoint::Graphics);
     // Binding vertex buffer.
     VkBuffer vertexBuffers[] {vertexBuffer.getHandle()};
     VkDeviceSize offsets[] {0};
@@ -453,7 +445,7 @@ int SDL_main(int argc, char ** argv) {
         commandBuffer.setViewports(viewPorts);
         commandBuffer.setScissors(scissors);
         vkCmdBindVertexBuffers(commandBuffer.getHandle(), 0, 1, vertexBuffers, offsets);
-        commandBuffer.bindPipeline(graphicsPipeline, avocado::vulkan::CommandBuffer::PipelineBindPoint::Graphics);
+        commandBuffer.bindPipeline(graphicsPipeline.get(), avocado::vulkan::CommandBuffer::PipelineBindPoint::Graphics);
         commandBuffer.draw(static_cast<uint32_t>(triangle.size()), 1, 0, 0);
 
         commandBuffer.endRenderPass();

@@ -17,6 +17,8 @@ public:
     uint32_t getBindingDescriptionsCount() const;
     uint32_t getAttributeDescriptionsCount() const;
 
+    VkPipelineVertexInputStateCreateInfo createCreateInfo();
+
 private:
     std::vector<VkVertexInputBindingDescription> _bindingDescriptions;
     std::vector<VkVertexInputAttributeDescription> _attributeDescriptions;

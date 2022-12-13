@@ -1,5 +1,7 @@
 #include "vertexinputstate.hpp"
 
+#include "../vkutils.hpp"
+
 namespace avocado::vulkan {
 
 void VertexInputState::addBindingDescription(const uint32_t binding, const uint32_t stride, VkVertexInputRate inRate) {
@@ -25,6 +27,15 @@ uint32_t VertexInputState::getBindingDescriptionsCount() const {
 
 uint32_t VertexInputState::getAttributeDescriptionsCount() const {
     return static_cast<uint32_t>(_attributeDescriptions.size());
+}
+
+VkPipelineVertexInputStateCreateInfo VertexInputState::createCreateInfo() {
+    auto vertexInStateCI = createStruct<VkPipelineVertexInputStateCreateInfo>();
+    vertexInStateCI.pVertexAttributeDescriptions = getAttributeDescriptionData();
+    vertexInStateCI.vertexAttributeDescriptionCount = getAttributeDescriptionsCount();
+    vertexInStateCI.pVertexBindingDescriptions = getBindingDescriptionData();
+    vertexInStateCI.vertexBindingDescriptionCount = getBindingDescriptionsCount();
+    return vertexInStateCI;
 }
 
 }

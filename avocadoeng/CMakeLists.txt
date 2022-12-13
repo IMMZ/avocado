@@ -16,7 +16,6 @@ add_library(avocado
     src/utils.cpp
 
     src/vulkan/buffer.cpp
-    src/vulkan/colorattachment.cpp
     src/vulkan/commandbuffer.cpp
     src/vulkan/graphicspipeline.cpp
     src/vulkan/graphicsqueue.cpp
@@ -27,6 +26,13 @@ add_library(avocado
     src/vulkan/renderpass.cpp
     src/vulkan/surface.cpp
     src/vulkan/swapchain.cpp
-    src/vulkan/vertexinputstate.cpp
-    src/vulkan/vkutils.cpp)
+    src/vulkan/vkutils.cpp
+
+    src/vulkan/states/colorblendstate.cpp
+    src/vulkan/states/dynamicstate.cpp
+    src/vulkan/states/inputasmstate.cpp
+    src/vulkan/states/multisamplestate.cpp
+    src/vulkan/states/rasterizationstate.cpp
+    src/vulkan/states/vertexinputstate.cpp
+    src/vulkan/states/viewportstate.cpp)
 
