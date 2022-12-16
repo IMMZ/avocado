@@ -13,23 +13,23 @@ void VertexInputState::addAttributeDescription(const uint32_t loc, const uint32_
 
 }
 
-VkVertexInputBindingDescription* VertexInputState::getBindingDescriptionData() {
+VkVertexInputBindingDescription* VertexInputState::getBindingDescriptionData() noexcept {
     return _bindingDescriptions.data();
 }
 
-VkVertexInputAttributeDescription* VertexInputState::getAttributeDescriptionData() {
+VkVertexInputAttributeDescription* VertexInputState::getAttributeDescriptionData() noexcept {
     return _attributeDescriptions.data();
 }
 
-uint32_t VertexInputState::getBindingDescriptionsCount() const {
+uint32_t VertexInputState::getBindingDescriptionsCount() const noexcept {
     return static_cast<uint32_t>(_bindingDescriptions.size());
 }
 
-uint32_t VertexInputState::getAttributeDescriptionsCount() const {
+uint32_t VertexInputState::getAttributeDescriptionsCount() const noexcept {
     return static_cast<uint32_t>(_attributeDescriptions.size());
 }
 
-VkPipelineVertexInputStateCreateInfo VertexInputState::createCreateInfo() {
+VkPipelineVertexInputStateCreateInfo VertexInputState::createCreateInfo() noexcept {
     auto vertexInStateCI = createStruct<VkPipelineVertexInputStateCreateInfo>();
     vertexInStateCI.pVertexAttributeDescriptions = getAttributeDescriptionData();
     vertexInStateCI.vertexAttributeDescriptionCount = getAttributeDescriptionsCount();

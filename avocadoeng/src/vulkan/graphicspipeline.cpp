@@ -23,31 +23,31 @@ GraphicsPipelineBuilder::GraphicsPipelineBuilder(VkDevice device):
     _device(device) {
 }
 
-void GraphicsPipelineBuilder::setColorBlendState(ColorBlendState &state) {
+void GraphicsPipelineBuilder::setColorBlendState(ColorBlendState &state) noexcept {
     _colorBlendState = &state;
 }
 
-void GraphicsPipelineBuilder::setDynamicState(DynamicState &dynState) {
+void GraphicsPipelineBuilder::setDynamicState(DynamicState &dynState) noexcept {
     _dynamicState = &dynState;
 }
 
-void GraphicsPipelineBuilder::setInputAsmState(InputAsmState &inAsmState) {
+void GraphicsPipelineBuilder::setInputAsmState(InputAsmState &inAsmState) noexcept {
     _inputAsmState = &inAsmState;
 }
 
-void GraphicsPipelineBuilder::setMultisampleState(MultisampleState &mss) {
+void GraphicsPipelineBuilder::setMultisampleState(MultisampleState &mss) noexcept {
     _multisampleState = &mss;
 }
 
-void GraphicsPipelineBuilder::setRasterizationState(RasterizationState &rastState) {
+void GraphicsPipelineBuilder::setRasterizationState(RasterizationState &rastState) noexcept {
     _rasterizationState = &rastState;
 }
 
-void GraphicsPipelineBuilder::setVertexInputState(VertexInputState &vertexInState) {
+void GraphicsPipelineBuilder::setVertexInputState(VertexInputState &vertexInState) noexcept {
     _vertexInputState = &vertexInState;
 }
 
-void GraphicsPipelineBuilder::setViewportState(ViewportState &viewportState) {
+void GraphicsPipelineBuilder::setViewportState(ViewportState &viewportState) noexcept {
     _viewportState = &viewportState;
 }
 

@@ -10,9 +10,9 @@ public:
     float getMinSampleShading() const noexcept;
     void setMinSampleShading(const float minSampleShading);
     VkSampleCountFlagBits getRasterizationSamples() const noexcept;
-    void setRasterizationSamples(const VkSampleCountFlagBits rastSamples);
+    void setRasterizationSamples(const VkSampleCountFlagBits rastSamples) noexcept;
 
-    VkPipelineMultisampleStateCreateInfo createCreateInfo();
+    VkPipelineMultisampleStateCreateInfo createCreateInfo() noexcept;
 
 private:
     float _minSampleShading = 0.f;

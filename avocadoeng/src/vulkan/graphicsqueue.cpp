@@ -11,15 +11,14 @@ GraphicsQueue::GraphicsQueue(VkQueue queue):
     _submitInfo(createStruct<VkSubmitInfo>()) {
 }
 
-void GraphicsQueue::setSemaphores(const std::vector<VkSemaphore> &waitSemaphores, const std::vector<VkSemaphore> &signalSemaphores) {
+void GraphicsQueue::setSemaphores(const std::vector<VkSemaphore> &waitSemaphores, const std::vector<VkSemaphore> &signalSemaphores) noexcept {
     _submitInfo.waitSemaphoreCount = static_cast<decltype(_submitInfo.waitSemaphoreCount)>(waitSemaphores.size());
     _submitInfo.pWaitSemaphores = waitSemaphores.data();
     _submitInfo.signalSemaphoreCount = static_cast<decltype(_submitInfo.signalSemaphoreCount)>(signalSemaphores.size());
     _submitInfo.pSignalSemaphores = signalSemaphores.data();
-
 }
 
-void GraphicsQueue::setCommandBuffers(std::vector<VkCommandBuffer> &commandBuffers) {
+void GraphicsQueue::setCommandBuffers(std::vector<VkCommandBuffer> &commandBuffers) noexcept {
     _submitInfo.commandBufferCount = static_cast<decltype(_submitInfo.commandBufferCount)>(commandBuffers.size());
     _submitInfo.pCommandBuffers = commandBuffers.data();
 }
@@ -32,7 +31,7 @@ void GraphicsQueue::setPipelineStageFlags(const std::vector<PipelineStageFlag> &
     _submitInfo.pWaitDstStageMask = _pipelineStageFlags.data();
 }
 
-void GraphicsQueue::submit(VkFence fence) {
+void GraphicsQueue::submit(VkFence fence) noexcept {
     assert(getHandle() != VK_NULL_HANDLE);
 
     const VkResult result = vkQueueSubmit(getHandle(), 1, &_submitInfo, fence);

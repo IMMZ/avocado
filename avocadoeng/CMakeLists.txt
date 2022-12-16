@@ -23,7 +23,6 @@ add_library(avocado
     src/vulkan/physicaldevice.cpp
     src/vulkan/presentqueue.cpp
     src/vulkan/queue.cpp
-    src/vulkan/renderpass.cpp
     src/vulkan/surface.cpp
     src/vulkan/swapchain.cpp
     src/vulkan/vkutils.cpp

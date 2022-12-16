@@ -12,15 +12,15 @@ namespace core {
 
 class ErrorStorage {
 public:
-    bool hasError() const;
-    const std::string &getErrorMessage() const;
+    bool hasError() const noexcept;
+    const std::string &getErrorMessage() const noexcept;
 
 protected:
-    void setHasError(bool he) const;
+    void setHasError(bool he) const noexcept;
     void setErrorMessage(const std::string &msg) const;
-    void setErrorMessage(std::string &&msg) const;
+    void setErrorMessage(std::string &&msg) const noexcept;
 
-    constexpr const char* getVkResultString(const VkResult vkres) const {
+    constexpr const char* getVkResultString(const VkResult vkres) const noexcept {
     #define PROCESS_CODE(code) case VK_ ##code: { return #code; }
     switch (vkres) {
         PROCESS_CODE(SUCCESS)

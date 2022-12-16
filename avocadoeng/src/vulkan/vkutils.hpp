@@ -12,7 +12,7 @@ namespace avocado::vulkan {
 class CommandBuffer;
 
 template <typename T>
-constexpr T createStruct() {
+constexpr T createStruct() noexcept {
     static_assert(internal::StructureType<T> != VK_STRUCTURE_TYPE_MAX_ENUM, "This type is not supported");
 
     T t{};

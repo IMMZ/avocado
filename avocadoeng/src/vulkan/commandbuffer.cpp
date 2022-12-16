@@ -13,15 +13,17 @@ CommandBuffer::CommandBuffer(VkCommandBuffer buf):
     _buf(buf) {
 }
 
-VkCommandBuffer CommandBuffer::getHandle() {
+VkCommandBuffer CommandBuffer::getHandle() noexcept {
     return _buf;
 }
 
-bool CommandBuffer::isValid() const {
+bool CommandBuffer::isValid() const noexcept {
     return (_buf != VK_NULL_HANDLE);
 }
 
-void CommandBuffer::begin() {
+void CommandBuffer::begin() noexcept {
+    assert(_buf != VK_NULL_HANDLE);
+
     auto beginInfo = createStruct<VkCommandBufferBeginInfo>();
     const VkResult result = vkBeginCommandBuffer(_buf, &beginInfo);
     setHasError(result != VK_SUCCESS);
@@ -30,7 +32,9 @@ void CommandBuffer::begin() {
     }
 }
 
-void CommandBuffer::end() {
+void CommandBuffer::end() noexcept {
+    assert(_buf != VK_NULL_HANDLE);
+
     const VkResult result = vkEndCommandBuffer(_buf);
     setHasError(result != VK_SUCCESS);
     if (hasError()) {
@@ -38,7 +42,9 @@ void CommandBuffer::end() {
     }
 }
 
-void CommandBuffer::beginRenderPass(Swapchain &swapchain, VkRenderPass renderPass, const VkExtent2D extent, const VkOffset2D offset, const uint32_t imageIndex) {
+void CommandBuffer::beginRenderPass(Swapchain &swapchain, VkRenderPass renderPass, const VkExtent2D extent, const VkOffset2D offset, const uint32_t imageIndex) noexcept {
+    assert(_buf != VK_NULL_HANDLE);
+
     auto renderPassInfo = createStruct<VkRenderPassBeginInfo>();
     renderPassInfo.renderPass = renderPass;
     renderPassInfo.framebuffer = swapchain.getFramebuffer(imageIndex);
@@ -46,23 +52,28 @@ void CommandBuffer::beginRenderPass(Swapchain &swapchain, VkRenderPass renderPas
     renderPassInfo.renderArea.extent = extent;
 
     VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}}; // todo extract as parameter?
+
     renderPassInfo.clearValueCount = 1;
     renderPassInfo.pClearValues = &clearColor;
     vkCmdBeginRenderPass(_buf, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 }
 
-void CommandBuffer::endRenderPass() {
-    assert(_buf != VK_NULL_HANDLE); // todo Spread all over the class.
+void CommandBuffer::endRenderPass() noexcept {
+    assert(_buf != VK_NULL_HANDLE);
 
     vkCmdEndRenderPass(_buf);
 }
 
 void CommandBuffer::draw(const uint32_t vertexCount, const uint32_t instanceCount,
-        const uint32_t firstVertex, const uint32_t firstInstance) {
+        const uint32_t firstVertex, const uint32_t firstInstance) noexcept {
+    assert(_buf != VK_NULL_HANDLE);
+
     vkCmdDraw(_buf, vertexCount, instanceCount, firstVertex, firstInstance);
 }
 
 void CommandBuffer::reset(const CommandBuffer::ResetFlags flags) {
+    assert(_buf != VK_NULL_HANDLE);
+
     const VkResult result = vkResetCommandBuffer(_buf, static_cast<uint32_t>(flags));
     setHasError(result != VK_SUCCESS);
     if (hasError()) {
@@ -70,15 +81,21 @@ void CommandBuffer::reset(const CommandBuffer::ResetFlags flags) {
     }
 }
 
-void CommandBuffer::setViewports(const std::vector<VkViewport> &vps, const uint32_t firstIndex, const uint32_t count) {
+void CommandBuffer::setViewports(const std::vector<VkViewport> &vps, const uint32_t firstIndex, const uint32_t count) noexcept {
+    assert(_buf != VK_NULL_HANDLE);
+
     vkCmdSetViewport(_buf, firstIndex, count, vps.data());
 }
 
-void CommandBuffer::setScissors(const std::vector<VkRect2D> &scissors, const uint32_t firstIndex, const uint32_t count) {
+void CommandBuffer::setScissors(const std::vector<VkRect2D> &scissors, const uint32_t firstIndex, const uint32_t count) noexcept {
+    assert(_buf != VK_NULL_HANDLE);
+
     vkCmdSetScissor(_buf, firstIndex, count, scissors.data());
 }
 
-void CommandBuffer::bindPipeline(VkPipeline pipeline, const CommandBuffer::PipelineBindPoint bindPoint) {
+void CommandBuffer::bindPipeline(VkPipeline pipeline, const CommandBuffer::PipelineBindPoint bindPoint) noexcept {
+    assert(_buf != VK_NULL_HANDLE);
+
     vkCmdBindPipeline(_buf, static_cast<VkPipelineBindPoint>(bindPoint), pipeline);
 }
 

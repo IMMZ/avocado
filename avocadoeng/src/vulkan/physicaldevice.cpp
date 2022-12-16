@@ -19,11 +19,11 @@ PhysicalDevice::PhysicalDevice(VkPhysicalDevice device):
     _device(device) {
 }
 
-VkPhysicalDevice PhysicalDevice::getHandle() {
+VkPhysicalDevice PhysicalDevice::getHandle() noexcept {
     return _device;
 }
 
-bool PhysicalDevice::isValid() const {
+bool PhysicalDevice::isValid() const noexcept {
     return (_device != VK_NULL_HANDLE);
 }
 
@@ -53,11 +53,11 @@ void PhysicalDevice::getQueueFamilies(Surface &surface) {
     }
 }
 
-QueueFamily PhysicalDevice::getGraphicsQueueFamily() const {
+QueueFamily PhysicalDevice::getGraphicsQueueFamily() const noexcept {
     return _graphicsQueueFamily;
 }
 
-QueueFamily PhysicalDevice::getPresentQueueFamily() const {
+QueueFamily PhysicalDevice::getPresentQueueFamily() const noexcept {
     return _presentQueueFamily;
 }
 
@@ -137,7 +137,7 @@ std::vector<std::string> PhysicalDevice::getPhysicalDeviceExtensions() const {
 }
 
 bool PhysicalDevice::areExtensionsSupported(const std::vector<std::string> &extNames) const {
-    std::vector<std::string> deviceExtensions = getPhysicalDeviceExtensions(); 
+    std::vector<std::string> deviceExtensions = getPhysicalDeviceExtensions();
     if (hasError()) {
         setErrorMessage("getDeviceExtensions() returned Error ("s + getErrorMessage() + ')');
         return false;

@@ -14,18 +14,21 @@ Surface::Surface(VkSurfaceKHR surface, VkInstance instance, PhysicalDevice &phys
 }
 
 Surface::~Surface() {
-    vkDestroySurfaceKHR(_instance, _surface, nullptr);
+    if (_surface != VK_NULL_HANDLE)
+        vkDestroySurfaceKHR(_instance, _surface, nullptr);
 }
 
-VkSurfaceKHR Surface::getHandle() {
+VkSurfaceKHR Surface::getHandle() noexcept {
     return _surface;
 }
 
-bool Surface::isValid() const {
+bool Surface::isValid() const noexcept {
     return (_surface != VK_NULL_HANDLE);
 }
 
 const std::vector<VkSurfaceFormatKHR> Surface::getSurfaceFormats() const {
+    assert(_surface != VK_NULL_HANDLE);
+
     std::vector<VkSurfaceFormatKHR> surfaceFormats;
     uint32_t formatCount = 0;
     const VkResult result1 = vkGetPhysicalDeviceSurfaceFormatsKHR(_physicalDevice, _surface, &formatCount, nullptr);
@@ -50,6 +53,8 @@ const std::vector<VkSurfaceFormatKHR> Surface::getSurfaceFormats() const {
 }
 
 const std::vector<VkPresentModeKHR> Surface::getPresentModes() const {
+    assert(_surface != VK_NULL_HANDLE);
+
     std::vector<VkPresentModeKHR> presentModes;
     uint32_t presentModeCount = 0;
     const VkResult result1 = vkGetPhysicalDeviceSurfacePresentModesKHR(_physicalDevice, _surface, &presentModeCount, nullptr);
@@ -69,10 +74,12 @@ const std::vector<VkPresentModeKHR> Surface::getPresentModes() const {
         }
     }
 
-    return presentModes; 
+    return presentModes;
 }
 
-VkExtent2D Surface::getCapabilities(SDL_Window *sdlWindow) {
+VkExtent2D Surface::getCapabilities(SDL_Window *sdlWindow) noexcept {
+    assert(_surface != VK_NULL_HANDLE);
+
     VkExtent2D extent{};
 
     VkSurfaceCapabilitiesKHR surfaceCapabilities{};
@@ -98,6 +105,8 @@ VkExtent2D Surface::getCapabilities(SDL_Window *sdlWindow) {
 }
 
 VkSurfaceFormatKHR Surface::findFormat(Format sf, ColorSpace cs) const {
+    assert(_surface != VK_NULL_HANDLE);
+
     VkSurfaceFormatKHR resultFormat{};
     const auto &surfaceFormats = getSurfaceFormats();
     if (hasError()) {
@@ -120,31 +129,31 @@ VkSurfaceFormatKHR Surface::findFormat(Format sf, ColorSpace cs) const {
 }
 
 
-const uint32_t Surface::getMinImageCount() const {
+const uint32_t Surface::getMinImageCount() const noexcept {
     return _minImageCount;
 }
 
-const uint32_t Surface::getMaxImageCount() const {
+const uint32_t Surface::getMaxImageCount() const noexcept {
     return _maxImageCount;
 }
 
-const uint32_t Surface::getMinExtentH() const {
+const uint32_t Surface::getMinExtentH() const noexcept {
     return _minExtentH;
 }
 
-const uint32_t Surface::getMaxExtentH() const {
+const uint32_t Surface::getMaxExtentH() const noexcept {
     return _maxExtentH;
 }
 
-const uint32_t Surface::getMinExtentW() const {
+const uint32_t Surface::getMinExtentW() const noexcept {
     return _minExtentW;
 }
 
-const uint32_t Surface::getMaxExtentW() const {
+const uint32_t Surface::getMaxExtentW() const noexcept {
     return _maxExtentW;
 }
 
-const VkSurfaceTransformFlagBitsKHR Surface::getCurrentTransform() const {
+const VkSurfaceTransformFlagBitsKHR Surface::getCurrentTransform() const noexcept {
     return _currentTransform;
 }
 

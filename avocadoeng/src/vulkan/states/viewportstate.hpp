@@ -16,14 +16,14 @@ public:
     uint32_t getViewportCount() const noexcept;
     const VkViewport* getViewports() const noexcept;
     void setViewports(const std::vector<VkViewport> &viewports);
-    void setViewPorts(std::vector<VkViewport> &&viewports);
+    void setViewPorts(std::vector<VkViewport> &&viewports) noexcept;
 
     uint32_t getScissorCount() const noexcept;
     const VkRect2D* getScissors() const noexcept;
     void setScissors(const std::vector<VkRect2D> &scissors);
-    void setScissors(std::vector<VkRect2D> &&scissors);
+    void setScissors(std::vector<VkRect2D> &&scissors) noexcept;
 
-    VkPipelineViewportStateCreateInfo createCreateInfo();
+    VkPipelineViewportStateCreateInfo createCreateInfo() noexcept;
 
 private:
     std::vector<VkViewport> _viewports;

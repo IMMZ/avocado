@@ -12,12 +12,12 @@ public:
     void addBindingDescription(const uint32_t binding, const uint32_t stride, VkVertexInputRate inRate);
     void addAttributeDescription(const uint32_t loc, const uint32_t binding, const VkFormat format, const uint32_t offset);
 
-    VkVertexInputBindingDescription* getBindingDescriptionData();
-    VkVertexInputAttributeDescription* getAttributeDescriptionData();
-    uint32_t getBindingDescriptionsCount() const;
-    uint32_t getAttributeDescriptionsCount() const;
+    VkVertexInputBindingDescription* getBindingDescriptionData() noexcept;
+    VkVertexInputAttributeDescription* getAttributeDescriptionData() noexcept;
+    uint32_t getBindingDescriptionsCount() const noexcept;
+    uint32_t getAttributeDescriptionsCount() const noexcept;
 
-    VkPipelineVertexInputStateCreateInfo createCreateInfo();
+    VkPipelineVertexInputStateCreateInfo createCreateInfo() noexcept;
 
 private:
     std::vector<VkVertexInputBindingDescription> _bindingDescriptions;

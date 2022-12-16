@@ -27,7 +27,7 @@ void ViewportState::setViewports(const std::vector<VkViewport> &viewports) {
     _viewports = viewports;
 }
 
-void ViewportState::setViewPorts(std::vector<VkViewport> &&viewports) {
+void ViewportState::setViewPorts(std::vector<VkViewport> &&viewports) noexcept {
     _viewports = std::move(viewports);
 }
 
@@ -43,11 +43,11 @@ void ViewportState::setScissors(const std::vector<VkRect2D> &scissors) {
     _scissors = scissors;
 }
 
-void ViewportState::setScissors(std::vector<VkRect2D> &&scissors) {
+void ViewportState::setScissors(std::vector<VkRect2D> &&scissors) noexcept {
     _scissors = std::move(scissors);
 }
 
-VkPipelineViewportStateCreateInfo ViewportState::createCreateInfo() {
+VkPipelineViewportStateCreateInfo ViewportState::createCreateInfo() noexcept {
     auto viewportStateCI = createStruct<VkPipelineViewportStateCreateInfo>();
     viewportStateCI.viewportCount = getViewportCount();
     if (getViewportCount() > 0)
@@ -57,7 +57,6 @@ VkPipelineViewportStateCreateInfo ViewportState::createCreateInfo() {
     if (getScissorCount() > 0)
         viewportStateCI.pScissors = getScissors();
     return viewportStateCI;
- 
 }
 
 }

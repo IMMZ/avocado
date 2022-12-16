@@ -26,8 +26,8 @@ public:
     explicit LogicalDevice();
     explicit LogicalDevice(VkDevice dev);
 
-    VkDevice getHandle();
-    bool isValid() const;
+    VkDevice getHandle() noexcept;
+    bool isValid() const noexcept;
 
     enum class ShaderType {
         Vertex = VK_SHADER_STAGE_VERTEX_BIT,
@@ -58,25 +58,25 @@ public:
     VkPipelineShaderStageCreateInfo addShaderModule(const std::vector<char> &shaderCode, ShaderType shType);
     VkPipelineShaderStageCreateInfo addShaderModule(std::vector<char> &&shaderCode, ShaderType shType);
 
-    GraphicsQueue getGraphicsQueue(const uint32_t index);
-    PresentQueue getPresentQueue(const uint32_t index);
+    GraphicsQueue getGraphicsQueue(const uint32_t index) noexcept;
+    PresentQueue getPresentQueue(const uint32_t index) noexcept;
 
     // todo this is supposed to be used by PhysicalDevice, not straightly.
-    void setQueueFamilies(const QueueFamily graphicsQueueFamily, const QueueFamily presentQueueFamily);
+    void setQueueFamilies(const QueueFamily graphicsQueueFamily, const QueueFamily presentQueueFamily) noexcept;
 
-    VkFence createFence();
+    VkFence createFence() noexcept;
 
     // todo make last arg with default value.
-    void waitForFences(const std::vector<VkFence> &fences, const bool waitAll, uint64_t timeout);
-    void resetFences(const std::vector<VkFence> &fences);
-    VkSemaphore createSemaphore();
+    void waitForFences(const std::vector<VkFence> &fences, const bool waitAll, uint64_t timeout) noexcept;
+    void resetFences(const std::vector<VkFence> &fences) noexcept;
+    VkSemaphore createSemaphore() noexcept;
 
     enum class CommandPoolCreationFlags {
         Transient = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
         Reset = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
         Protected = VK_COMMAND_POOL_CREATE_PROTECTED_BIT,
     };
-    VkCommandPool createCommandPool(const CommandPoolCreationFlags flags, const QueueFamily queueFamilyIndex);
+    VkCommandPool createCommandPool(const CommandPoolCreationFlags flags, const QueueFamily queueFamilyIndex) noexcept;
 
     enum class CommandBufferLevel {
         Primary = VK_COMMAND_BUFFER_LEVEL_PRIMARY
@@ -84,11 +84,11 @@ public:
     };
     std::vector<CommandBuffer> allocateCommandBuffers(const uint32_t count, VkCommandPool cmdPool, const CommandBufferLevel bufLevel);
 
-    void waitIdle();
+    void waitIdle() noexcept;
 
     // todo replace next 2 functions to the separate class.
     template <typename T>
-    void setObjectName(T object, const char *objectName) {
+    void setObjectName(T object, const char *objectName) noexcept {
         static_assert(internal::ObjectType<T> != VK_DEBUG_REPORT_OBJECT_TYPE_MAX_ENUM_EXT, "This type is not supported");
 
         assert(_dev.get() != VK_NULL_HANDLE);
@@ -108,7 +108,7 @@ public:
     }
 
     template <typename T>
-    void setObjectTag(T object, const uint64_t tagName, const size_t tagSize, const void *tag) {
+    void setObjectTag(T object, const uint64_t tagName, const size_t tagSize, const void *tag) noexcept {
         auto tagInfo = createStruct<VkDebugMarkerObjectTagInfoEXT>();
         tagInfo.objectType = internal::ObjectType<T>;
         tagInfo.object = reinterpret_cast<uint64_t>(object);
@@ -128,7 +128,7 @@ private:
     VkPipelineShaderStageCreateInfo createShaderModule(ShaderType shType);
 
     using DeviceDeleter = decltype(std::bind(vkDestroyDevice, std::placeholders::_1, nullptr));
-    using DevicePtr = std::unique_ptr<VkDevice_T, DeviceDeleter>; 
+    using DevicePtr = std::unique_ptr<VkDevice_T, DeviceDeleter>;
     DevicePtr _dev;
 
     using ShaderModuleDeleter = decltype(std::bind(vkDestroyShaderModule, _dev.get(), std::placeholders::_1, nullptr));

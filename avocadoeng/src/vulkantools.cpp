@@ -22,14 +22,14 @@ namespace avocado::vulkan {
 void Vulkan::createInstance(const std::vector<std::string> &extensions,
     const std::vector<std::string> &layers, const VulkanInstanceInfo &vii) {
     auto instanceCreateInfo = createStruct<VkInstanceCreateInfo>();
-    
+
     auto appInfo = createStruct<VkApplicationInfo>();
     appInfo.pApplicationName = vii.appName;
     appInfo.applicationVersion = VK_MAKE_VERSION(vii.appMajorVersion, vii.appMinorVersion, vii.appPatchVersion);
     appInfo.pEngineName = avocado::core::Config::ENGINE_NAME;
     appInfo.engineVersion = VK_MAKE_VERSION(
        avocado::core::Config::ENGINE_MAJOR_VERSION
-       , avocado::core::Config::ENGINE_MINOR_VERSION 
+       , avocado::core::Config::ENGINE_MINOR_VERSION
        , avocado::core::Config::ENGINE_PATCH_VERSION);
     appInfo.apiVersion = VK_MAKE_API_VERSION(1, vii.apiMajorVersion, vii.apiMinorVersion, 0);
     instanceCreateInfo.pApplicationInfo = &appInfo;
@@ -112,7 +112,7 @@ std::vector<std::string> Vulkan::getExtensionNamesForSDLSurface(SDL_Window *wind
 
 std::vector<VkLayerProperties> Vulkan::getLayerProperties() const {
     unsigned int count = 0;
-    
+
     std::vector<VkLayerProperties> layerProps;
     const VkResult firstCall = vkEnumerateInstanceLayerProperties(&count, nullptr);
     setHasError(firstCall != VK_SUCCESS);

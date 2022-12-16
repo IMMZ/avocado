@@ -32,11 +32,11 @@ void ColorBlendState::addAttachment(VkPipelineColorBlendAttachmentState &&attach
     _attachments.emplace_back(std::move(attachment));
 }
 
-VkPipelineColorBlendAttachmentState* ColorBlendState::getAttachments() {
+VkPipelineColorBlendAttachmentState* ColorBlendState::getAttachments() noexcept {
     return _attachments.data();
 }
 
-VkPipelineColorBlendStateCreateInfo ColorBlendState::createCreateInfo() {
+VkPipelineColorBlendStateCreateInfo ColorBlendState::createCreateInfo() noexcept {
     auto colorBlendStateCI = createStruct<VkPipelineColorBlendStateCreateInfo>();
     colorBlendStateCI.logicOpEnable = isLogicOpEnabled();
     colorBlendStateCI.logicOp = getLogicOp();

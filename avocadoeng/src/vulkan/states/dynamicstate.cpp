@@ -24,11 +24,11 @@ void DynamicState::setDynamicStates(const std::vector<VkDynamicState> &dynStates
     _dynamicStates = dynStates;
 }
 
-void DynamicState::setDynamicStates(std::vector<VkDynamicState> &&dynStates) {
+void DynamicState::setDynamicStates(std::vector<VkDynamicState> &&dynStates) noexcept {
     _dynamicStates = std::move(dynStates);
 }
 
-VkPipelineDynamicStateCreateInfo DynamicState::createCreateInfo() {
+VkPipelineDynamicStateCreateInfo DynamicState::createCreateInfo() noexcept {
     auto dynamicStateCI = createStruct<VkPipelineDynamicStateCreateInfo>();
     dynamicStateCI.dynamicStateCount = getDynamicStateCount();
     dynamicStateCI.pDynamicStates = getDynamicStates();

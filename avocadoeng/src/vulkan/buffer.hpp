@@ -2,6 +2,7 @@
 #define AVOCADO_VULKAN_BUFFER
 
 #include "../errorstorage.hpp"
+#include "../utils.hpp"
 
 #include <vulkan/vulkan_core.h>
 
@@ -11,6 +12,8 @@ class LogicalDevice;
 
 class Buffer: public core::ErrorStorage {
 public:
+    NON_COPYABLE(Buffer);
+
     enum class Usage: uint32_t {
         TransferSrc = VK_BUFFER_USAGE_TRANSFER_SRC_BIT
         , TransferDst = VK_BUFFER_USAGE_TRANSFER_DST_BIT
@@ -45,10 +48,12 @@ public:
     };
 
     explicit Buffer(const VkDeviceSize size, const Usage usage, const SharingMode sharingMode, LogicalDevice &device);
+    Buffer(Buffer &&other);
+    Buffer& operator=(Buffer &&other);
     ~Buffer();
 
-    VkBuffer getHandle();
-    Usage getUsage() const;
+    VkBuffer getHandle() noexcept;
+    Usage getUsage() const noexcept;
 
 private:
     VkDevice _dev = VK_NULL_HANDLE;

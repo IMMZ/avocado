@@ -16,11 +16,11 @@ VkSampleCountFlagBits MultisampleState::getRasterizationSamples() const noexcept
     return _rasterizationSamples;
 }
 
-void MultisampleState::setRasterizationSamples(const VkSampleCountFlagBits rastSamples) {
+void MultisampleState::setRasterizationSamples(const VkSampleCountFlagBits rastSamples) noexcept {
     _rasterizationSamples = rastSamples;
 }
 
-VkPipelineMultisampleStateCreateInfo MultisampleState::createCreateInfo() {
+VkPipelineMultisampleStateCreateInfo MultisampleState::createCreateInfo() noexcept {
     auto multisamplingCI = createStruct<VkPipelineMultisampleStateCreateInfo>();
     multisamplingCI.rasterizationSamples = getRasterizationSamples();
     multisamplingCI.minSampleShading = getMinSampleShading();

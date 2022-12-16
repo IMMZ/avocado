@@ -16,9 +16,9 @@ public:
     uint32_t getDynamicStateCount() const noexcept;
     const VkDynamicState* getDynamicStates() noexcept;
     void setDynamicStates(const std::vector<VkDynamicState> &dynStates);
-    void setDynamicStates(std::vector<VkDynamicState> &&dynStates);
+    void setDynamicStates(std::vector<VkDynamicState> &&dynStates) noexcept;
 
-    VkPipelineDynamicStateCreateInfo createCreateInfo();
+    VkPipelineDynamicStateCreateInfo createCreateInfo() noexcept;
 
 private:
     std::vector<VkDynamicState> _dynamicStates;

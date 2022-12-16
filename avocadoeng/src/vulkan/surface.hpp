@@ -4,6 +4,7 @@
 #include "format.hpp"
 
 #include "../errorstorage.hpp"
+#include "../utils.hpp"
 
 #include <vulkan/vulkan_core.h>
 
@@ -37,22 +38,25 @@ public:
         DCIP3LinearExt = VK_COLOR_SPACE_DCI_P3_LINEAR_EXT
     };
 
+    NON_COPYABLE(Surface);
+    MAKE_MOVABLE(Surface);
+
     Surface(VkSurfaceKHR surface, VkInstance instance, PhysicalDevice &physicalDevice);
     ~Surface();
 
-    VkSurfaceKHR getHandle();
-    bool isValid() const;
+    VkSurfaceKHR getHandle() noexcept;
+    bool isValid() const noexcept;
 
     const std::vector<VkPresentModeKHR> getPresentModes() const;
-    VkExtent2D getCapabilities(SDL_Window *sdlWindow);
+    VkExtent2D getCapabilities(SDL_Window *sdlWindow) noexcept;
     VkSurfaceFormatKHR findFormat(Format sf, ColorSpace cs) const;
-    const uint32_t getMinImageCount() const;
-    const uint32_t getMaxImageCount() const;
-    const uint32_t getMinExtentH() const; 
-    const uint32_t getMaxExtentH() const; 
-    const uint32_t getMinExtentW() const; 
-    const uint32_t getMaxExtentW() const; 
-    const VkSurfaceTransformFlagBitsKHR getCurrentTransform() const;
+    const uint32_t getMinImageCount() const noexcept;
+    const uint32_t getMaxImageCount() const noexcept;
+    const uint32_t getMinExtentH() const noexcept;
+    const uint32_t getMaxExtentH() const noexcept;
+    const uint32_t getMinExtentW() const noexcept;
+    const uint32_t getMaxExtentW() const noexcept;
+    const VkSurfaceTransformFlagBitsKHR getCurrentTransform() const noexcept;
 
 private:
     const std::vector<VkSurfaceFormatKHR> getSurfaceFormats() const;

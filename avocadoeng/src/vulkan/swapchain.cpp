@@ -47,15 +47,15 @@ Swapchain& Swapchain::operator=(Swapchain &&other) {
     return *this;
 }
 
-VkSwapchainKHR Swapchain::getHandle() {
+VkSwapchainKHR Swapchain::getHandle() noexcept {
     return _swapchain;
 }
 
-bool Swapchain::isValid() const {
+bool Swapchain::isValid() const noexcept {
     return (_swapchain != VK_NULL_HANDLE);
 }
 
-void Swapchain::create(Surface &surface, VkSurfaceFormatKHR surfaceFormat, VkExtent2D extent, const uint32_t minImageCount, const std::vector<QueueFamily> &queueFamilies) {
+void Swapchain::create(Surface &surface, VkSurfaceFormatKHR surfaceFormat, VkExtent2D extent, const uint32_t minImageCount, const std::vector<QueueFamily> &queueFamilies) noexcept {
     auto swapchainCreateInfo = createStruct<VkSwapchainCreateInfoKHR>();
     swapchainCreateInfo.surface = surface.getHandle();
     swapchainCreateInfo.minImageCount = minImageCount;
@@ -150,7 +150,7 @@ void Swapchain::createFramebuffers(VkRenderPass renderPass, VkExtent2D extent) {
     }
 }
 
-uint32_t Swapchain::acquireNextImage(VkSemaphore semaphore) {
+uint32_t Swapchain::acquireNextImage(VkSemaphore semaphore) noexcept {
     assert(_swapchain != VK_NULL_HANDLE);
 
     auto imageIndex = std::numeric_limits<uint32_t>::max();

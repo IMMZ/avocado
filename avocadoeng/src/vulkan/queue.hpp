@@ -16,7 +16,7 @@ public:
     explicit Queue(VkQueue q);
     virtual ~Queue() = default;
 
-    VkQueue getHandle();
+    VkQueue getHandle() noexcept;
 
 private:
     VkQueue _queue = VK_NULL_HANDLE;

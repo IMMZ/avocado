@@ -30,7 +30,7 @@ constexpr bool areOfSameType() {
 }
 
 template<typename ...Enums>
-constexpr std::common_type_t<Enums...> enumBitwiseOr(Enums ...enums) {
+constexpr std::common_type_t<Enums...> enumBitwiseOr(Enums ...enums) noexcept {
     static_assert(std::conjunction_v<std::is_enum<Enums>...>, "All types must be of enum type.");
     static_assert(areOfSameType<Enums...>(), "All types must be the same.");
     return static_cast<std::common_type_t<Enums...>>((static_cast<std::underlying_type_t<Enums>>(enums) | ...));
@@ -38,7 +38,7 @@ constexpr std::common_type_t<Enums...> enumBitwiseOr(Enums ...enums) {
 
 std::vector<char> readFile(const std::string &filePath);
 
-inline bool areFloatEq(const float a, const float b) {
+inline bool areFloatEq(const float a, const float b) noexcept {
     return fabs(a - b) < std::numeric_limits<float>::epsilon();
 }
 

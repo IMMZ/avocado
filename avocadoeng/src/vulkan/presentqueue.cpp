@@ -11,7 +11,7 @@ PresentQueue::PresentQueue(VkQueue queue):
     _presentInfo(createStruct<VkPresentInfoKHR>()){
 }
 
-void PresentQueue::setWaitSemaphores(const std::vector<VkSemaphore> &waitSemaphores) {
+void PresentQueue::setWaitSemaphores(const std::vector<VkSemaphore> &waitSemaphores) noexcept {
     _presentInfo.waitSemaphoreCount = static_cast<decltype(_presentInfo.waitSemaphoreCount)>(waitSemaphores.size());
     _presentInfo.pWaitSemaphores = waitSemaphores.data();
 }
@@ -27,11 +27,11 @@ void PresentQueue::setSwapchains(std::vector<Swapchain> &swapchains) {
     _presentInfo.pSwapchains = _swapchainHandles.data();
 }
 
-void PresentQueue::setImageIndices(const std::vector<uint32_t> &imageIndices) {
+void PresentQueue::setImageIndices(const std::vector<uint32_t> &imageIndices) noexcept {
     _presentInfo.pImageIndices = imageIndices.data();
 }
 
-void PresentQueue::present() {
+void PresentQueue::present() noexcept {
     const VkResult result = vkQueuePresentKHR(getHandle(), &_presentInfo);
     setHasError(result != VK_SUCCESS);
     if (hasError()) {

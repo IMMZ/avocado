@@ -11,7 +11,7 @@ public:
 
     VkPrimitiveTopology getTopology() const noexcept;
 
-    VkPipelineInputAssemblyStateCreateInfo createCreateInfo();
+    VkPipelineInputAssemblyStateCreateInfo createCreateInfo() noexcept;
 
 private:
     VkPrimitiveTopology _topology = VK_PRIMITIVE_TOPOLOGY_MAX_ENUM;

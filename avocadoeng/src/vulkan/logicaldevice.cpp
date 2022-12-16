@@ -14,11 +14,11 @@ LogicalDevice::LogicalDevice(VkDevice dev):
     _dev(dev, std::bind(vkDestroyDevice, std::placeholders::_1, nullptr)) {
 }
 
-VkDevice LogicalDevice::getHandle() {
+VkDevice LogicalDevice::getHandle() noexcept {
     return _dev.get();
 }
 
-bool LogicalDevice::isValid() const {
+bool LogicalDevice::isValid() const noexcept {
     return _dev.get() != VK_NULL_HANDLE;
 }
 
@@ -32,24 +32,24 @@ VkPipelineShaderStageCreateInfo LogicalDevice::addShaderModule(std::vector<char>
     return createShaderModule(shType);
 }
 
-GraphicsQueue LogicalDevice::getGraphicsQueue(const uint32_t index) {
+GraphicsQueue LogicalDevice::getGraphicsQueue(const uint32_t index) noexcept {
     VkQueue queue = VK_NULL_HANDLE;
     vkGetDeviceQueue(_dev.get(), _graphicsQueueFamily, index, &queue);
     return GraphicsQueue(queue);
 }
 
-PresentQueue LogicalDevice::getPresentQueue(const uint32_t index) {
+PresentQueue LogicalDevice::getPresentQueue(const uint32_t index) noexcept {
     VkQueue queue = VK_NULL_HANDLE;
     vkGetDeviceQueue(_dev.get(), _presentQueueFamily, index, &queue);
     return PresentQueue(queue);
 }
 
-void LogicalDevice::setQueueFamilies(const QueueFamily graphicsQueueFamily, const QueueFamily presentQueueFamily) {
+void LogicalDevice::setQueueFamilies(const QueueFamily graphicsQueueFamily, const QueueFamily presentQueueFamily) noexcept {
     _graphicsQueueFamily = graphicsQueueFamily;
     _presentQueueFamily = presentQueueFamily;
 }
 
-VkFence LogicalDevice::createFence() {
+VkFence LogicalDevice::createFence() noexcept {
     auto fenceCI = createStruct<VkFenceCreateInfo>();
     fenceCI.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
@@ -62,7 +62,7 @@ VkFence LogicalDevice::createFence() {
     return fence;
 }
 
-void LogicalDevice::waitForFences(const std::vector<VkFence> &fences, const bool waitAll, uint64_t timeout) {
+void LogicalDevice::waitForFences(const std::vector<VkFence> &fences, const bool waitAll, uint64_t timeout) noexcept {
     const VkResult result = vkWaitForFences(_dev.get(), static_cast<uint32_t>(fences.size()), fences.data(), waitAll ? VK_TRUE : VK_FALSE, timeout);
     setHasError(result != VK_SUCCESS);
     if (hasError()) {
@@ -70,7 +70,7 @@ void LogicalDevice::waitForFences(const std::vector<VkFence> &fences, const bool
     }
 }
 
-void LogicalDevice::resetFences(const std::vector<VkFence> &fences) {
+void LogicalDevice::resetFences(const std::vector<VkFence> &fences) noexcept {
     const VkResult result = vkResetFences(_dev.get(), static_cast<uint32_t>(fences.size()), fences.data());
     setHasError(result != VK_SUCCESS);
     if (hasError()) {
@@ -78,7 +78,7 @@ void LogicalDevice::resetFences(const std::vector<VkFence> &fences) {
     }
 }
 
-VkSemaphore LogicalDevice::createSemaphore() {
+VkSemaphore LogicalDevice::createSemaphore() noexcept {
     VkSemaphore semaphore;
     auto semaphoreCI = createStruct<VkSemaphoreCreateInfo>();
     const VkResult result = vkCreateSemaphore(_dev.get(), &semaphoreCI, nullptr, &semaphore);
@@ -89,7 +89,7 @@ VkSemaphore LogicalDevice::createSemaphore() {
     return semaphore;
 }
 
-VkCommandPool LogicalDevice::createCommandPool(const LogicalDevice::CommandPoolCreationFlags flags, const QueueFamily queueFamilyIndex) {
+VkCommandPool LogicalDevice::createCommandPool(const LogicalDevice::CommandPoolCreationFlags flags, const QueueFamily queueFamilyIndex) noexcept {
     auto poolCreateInfo = createStruct<VkCommandPoolCreateInfo>();
     poolCreateInfo.flags = static_cast<VkCommandPoolCreateFlags>(flags);
     poolCreateInfo.queueFamilyIndex = queueFamilyIndex;
@@ -125,7 +125,7 @@ std::vector<CommandBuffer> LogicalDevice::allocateCommandBuffers(const uint32_t 
     return result;
 }
 
-void LogicalDevice::waitIdle() {
+void LogicalDevice::waitIdle() noexcept {
     const VkResult result = vkDeviceWaitIdle(_dev.get());
     setHasError(result != VK_SUCCESS);
     if (hasError()) {
@@ -152,17 +152,18 @@ VkPipelineShaderStageCreateInfo LogicalDevice::createShaderModule(ShaderType shT
     _shaderModules.emplace_back(shaderModule,
         std::bind(vkDestroyShaderModule, _dev.get(), std::placeholders::_1, nullptr));
 
-    shaderStageCreateInfo.stage = static_cast<VkShaderStageFlagBits>(shType); 
+    shaderStageCreateInfo.stage = static_cast<VkShaderStageFlagBits>(shType);
     shaderStageCreateInfo.module = _shaderModules.back().get();
-    shaderStageCreateInfo.pName = "main"; // Entry point. 
+    shaderStageCreateInfo.pName = "main"; // Entry point.
     return shaderStageCreateInfo;
 }
 
+// todo Refactor? Extract constants as parameters.
 LogicalDevice::RenderPassUniquePtr LogicalDevice::createRenderPass(VkFormat format) {
     // Attachment description.
     VkAttachmentReference attachmentRef{};
     attachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    
+
     VkSubpassDescription subpassDescription{};
     subpassDescription.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpassDescription.colorAttachmentCount = 1;
@@ -191,7 +192,7 @@ LogicalDevice::RenderPassUniquePtr LogicalDevice::createRenderPass(VkFormat form
         setErrorMessage("vkCreateRenderPass returned "s + getVkResultString(result));
         return RenderPassUniquePtr(VK_NULL_HANDLE, renderPassDestroyer);
     }
-    
+
     return RenderPassUniquePtr(renderPass, renderPassDestroyer);
 }
 

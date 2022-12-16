@@ -23,17 +23,14 @@ public:
     Swapchain(Swapchain &&other);
     Swapchain& operator=(Swapchain &&other);
 
-    Swapchain(const Swapchain &swapchain) = delete;
-    Swapchain& operator=(const Swapchain &other) = delete;
+    VkSwapchainKHR getHandle() noexcept;
+    bool isValid() const noexcept;
 
-    VkSwapchainKHR getHandle();
-    bool isValid() const;
-
-    void create(Surface &surface, VkSurfaceFormatKHR surfaceFormat, VkExtent2D extent, const uint32_t minImageCount, const std::vector<QueueFamily> &queueFamilies);
+    void create(Surface &surface, VkSurfaceFormatKHR surfaceFormat, VkExtent2D extent, const uint32_t minImageCount, const std::vector<QueueFamily> &queueFamilies) noexcept;
     void getImages();
     void createImageViews(VkSurfaceFormatKHR surfaceFormat);
     void createFramebuffers(VkRenderPass renderPass, VkExtent2D extent);
-    uint32_t acquireNextImage(VkSemaphore semaphore);
+    uint32_t acquireNextImage(VkSemaphore semaphore) noexcept;
     VkFramebuffer getFramebuffer(size_t index);
 
 private:

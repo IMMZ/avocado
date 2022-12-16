@@ -16,9 +16,9 @@ public:
     uint32_t getAttachmentCount() const noexcept;
     void addAttachment(const VkPipelineColorBlendAttachmentState &attachment);
     void addAttachment(VkPipelineColorBlendAttachmentState &&attachment);
-    VkPipelineColorBlendAttachmentState* getAttachments();
+    VkPipelineColorBlendAttachmentState* getAttachments() noexcept;
 
-    VkPipelineColorBlendStateCreateInfo createCreateInfo();
+    VkPipelineColorBlendStateCreateInfo createCreateInfo() noexcept;
 
 private:
     std::vector<VkPipelineColorBlendAttachmentState> _attachments;

@@ -16,16 +16,16 @@ public:
     CommandBuffer() = default;
     explicit CommandBuffer(VkCommandBuffer buf);
 
-    VkCommandBuffer getHandle();
-    bool isValid() const;
+    VkCommandBuffer getHandle() noexcept;
+    bool isValid() const noexcept;
 
-    void begin();
-    void end();
-    void beginRenderPass(Swapchain &swapchain, VkRenderPass renderPass, const VkExtent2D extent, const VkOffset2D offset, const uint32_t imageIndex);
-    void endRenderPass();
+    void begin() noexcept;
+    void end() noexcept;
+    void beginRenderPass(Swapchain &swapchain, VkRenderPass renderPass, const VkExtent2D extent, const VkOffset2D offset, const uint32_t imageIndex) noexcept;
+    void endRenderPass() noexcept;
 
     void draw(const uint32_t vertexCount, const uint32_t instanceCount,
-        const uint32_t firstVertex, const uint32_t firstInstance);
+        const uint32_t firstVertex, const uint32_t firstInstance) noexcept;
 
     enum class ResetFlags: uint32_t {
         NoFlags = 0
@@ -33,12 +33,12 @@ public:
     };
     void reset(const ResetFlags flags);
 
-    void setViewports(const std::vector<VkViewport> &vps, const uint32_t firstIndex, const uint32_t count);
+    void setViewports(const std::vector<VkViewport> &vps, const uint32_t firstIndex, const uint32_t count) noexcept;
     inline void setViewports(const std::vector<VkViewport> &vps) {
         setViewports(vps, 0, static_cast<uint32_t>(vps.size()));
     }
 
-    void setScissors(const std::vector<VkRect2D> &scissors, const uint32_t firstIndex, const uint32_t count);
+    void setScissors(const std::vector<VkRect2D> &scissors, const uint32_t firstIndex, const uint32_t count) noexcept;
     inline void setScissors(const std::vector<VkRect2D> &scissors) {
         setScissors(scissors, 0, static_cast<uint32_t>(scissors.size()));
     }
@@ -48,9 +48,9 @@ public:
         Compute = VK_PIPELINE_BIND_POINT_COMPUTE,
         RayTracing = VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR,
         SubpassShadingHuawei = VK_PIPELINE_BIND_POINT_SUBPASS_SHADING_HUAWEI,
-        RayTracingNV = VK_PIPELINE_BIND_POINT_RAY_TRACING_NV 
+        RayTracingNV = VK_PIPELINE_BIND_POINT_RAY_TRACING_NV
     };
-    void bindPipeline(VkPipeline pipeline, const PipelineBindPoint bindPoint);
+    void bindPipeline(VkPipeline pipeline, const PipelineBindPoint bindPoint) noexcept;
 
 private:
     VkCommandBuffer _buf = VK_NULL_HANDLE;

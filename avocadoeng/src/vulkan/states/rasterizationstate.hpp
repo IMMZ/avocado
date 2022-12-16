@@ -8,21 +8,21 @@ namespace avocado::vulkan {
 class RasterizationState {
 public:
     VkBool32 isDepthClampEnabled() const noexcept;
-    void setDepthClampEnabled(const VkBool32 enable);
+    void setDepthClampEnabled(const VkBool32 enable) noexcept;
     VkBool32 isRasterizerDiscardEnabled() const noexcept;
-    void setRasterizerDiscardEnabled(const VkBool32 enable);
+    void setRasterizerDiscardEnabled(const VkBool32 enable) noexcept;
     VkBool32 isDepthBiasEnabled() const noexcept;
-    void setDepthBiasEnabled(const VkBool32 enable);
+    void setDepthBiasEnabled(const VkBool32 enable) noexcept;
     float getLineWidth() const noexcept;
-    void setLineWidth(const float lineWidth);
+    void setLineWidth(const float lineWidth) noexcept;
     VkPolygonMode getPolygonMode() const noexcept;
-    void setPolygonMode(const VkPolygonMode polygonMode);
+    void setPolygonMode(const VkPolygonMode polygonMode) noexcept;
     VkFlags getCullMode() const noexcept;
-    void setCullMode(const VkFlags cullMode);
+    void setCullMode(const VkFlags cullMode) noexcept;
     VkFrontFace getFrontFace() const noexcept;
-    void setFrontFace(const VkFrontFace frontFace);
+    void setFrontFace(const VkFrontFace frontFace) noexcept;
 
-    VkPipelineRasterizationStateCreateInfo createCreateInfo();
+    VkPipelineRasterizationStateCreateInfo createCreateInfo() noexcept;
 
 private:
     VkBool32 _depthClampEnable = VK_FALSE, _rasterizerDiscardEnable = VK_FALSE, _depthBiasEnable = VK_FALSE;

@@ -1,4 +1,4 @@
-#ifndef AVOCADO_VULKAN_PHYSICAL_DEVICE 
+#ifndef AVOCADO_VULKAN_PHYSICAL_DEVICE
 #define AVOCADO_VULKAN_PHYSICAL_DEVICE
 
 #include "../errorstorage.hpp"
@@ -22,13 +22,13 @@ public:
     PhysicalDevice();
     explicit PhysicalDevice(VkPhysicalDevice device);
 
-    VkPhysicalDevice getHandle();
-    bool isValid() const;
+    VkPhysicalDevice getHandle() noexcept;
+    bool isValid() const noexcept;
     std::vector<std::string> getPhysicalDeviceExtensions() const;
 
     void getQueueFamilies(Surface &surface);
-    QueueFamily getGraphicsQueueFamily() const;
-    QueueFamily getPresentQueueFamily() const;
+    QueueFamily getGraphicsQueueFamily() const noexcept;
+    QueueFamily getPresentQueueFamily() const noexcept;
 
     LogicalDevice createLogicalDevice(
         const std::vector<uint32_t> &uniqueQueueFamilyIndices,

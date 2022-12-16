@@ -10,7 +10,7 @@ Queue::Queue(VkQueue vq):
     _queue(vq) {
 }
 
-VkQueue Queue::getHandle() {
+VkQueue Queue::getHandle() noexcept {
     return _queue;
 }
 

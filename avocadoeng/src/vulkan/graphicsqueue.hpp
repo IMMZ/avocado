@@ -8,10 +8,10 @@ namespace avocado::vulkan {
 class GraphicsQueue final: public Queue {
 public:
     explicit GraphicsQueue(VkQueue queue);
-    
-    void setSemaphores(const std::vector<VkSemaphore> &waitSemaphores, const std::vector<VkSemaphore> &signalSemaphores);
-    void setCommandBuffers(std::vector<VkCommandBuffer> &commandBuffers);
-    
+
+    void setSemaphores(const std::vector<VkSemaphore> &waitSemaphores, const std::vector<VkSemaphore> &signalSemaphores) noexcept;
+    void setCommandBuffers(std::vector<VkCommandBuffer> &commandBuffers) noexcept;
+
     enum class PipelineStageFlag: uint32_t {
         TopOfPipe = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT
         , DrawIndirect = VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT
@@ -47,7 +47,7 @@ public:
     };
     void setPipelineStageFlags(const std::vector<PipelineStageFlag> &flags);
 
-    void submit(VkFence fence);
+    void submit(VkFence fence) noexcept;
 
 private:
     std::vector<VkPipelineStageFlags> _pipelineStageFlags;

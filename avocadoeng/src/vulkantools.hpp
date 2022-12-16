@@ -1,7 +1,6 @@
 #ifndef VULKANTOOLS_HPP
 #define VULKANTOOLS_HPP
 
-#include "core.hpp"
 #include "errorstorage.hpp"
 
 #include "vulkan/physicaldevice.hpp"
@@ -24,6 +23,7 @@ struct SDL_Window;
 namespace avocado::vulkan::internal {
 
 // Some useful type traits.
+// todo Can we use template variable instead of template struct?
 template <typename T>
 struct IsVulkanCreateInfoType {
     static constexpr bool value = false;
@@ -81,7 +81,7 @@ private:
 };
 
 template <typename T>
-inline void setExtensions(T &structure, const std::vector<const char*> &extensions) {
+inline void setExtensions(T &structure, const std::vector<const char*> &extensions) noexcept {
     static_assert(internal::IsVulkanCreateInfoType_V<T>, "Type must be Vulkan CreateInfo struct.");
 
     structure.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
@@ -90,7 +90,7 @@ inline void setExtensions(T &structure, const std::vector<const char*> &extensio
 
 // todo such method is in PhysicalDevice. Extract from here. Search for 'ppEnabledExtension, -//- Layers'
 template <typename T>
-inline void setLayers(T &structure, const std::vector<const char*> &layers) {
+inline void setLayers(T &structure, const std::vector<const char*> &layers) noexcept {
     static_assert(internal::IsVulkanCreateInfoType_V<T>, "Type must be Vulkan CreateInfo struct.");
 
     structure.enabledLayerCount = static_cast<uint32_t>(layers.size());
