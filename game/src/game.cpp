@@ -254,85 +254,45 @@ int SDL_main(int argc, char ** argv) {
     pipelineBuilder.setVertexInputState(vertexInState);
 
     // Creating vertex buffer.
-    const std::vector<avocado::Vertex> triangle {
+    constexpr std::array<avocado::Vertex, 3> triangle = {{
         /* { pos, color } */
         {{0.f, -0.5f}, {0.f, 0.f, 0.5f}},
         {{0.5f, 0.5f}, {0.f, 0.f, 1.f}},
         {{-0.5f, 0.5f}, {0.f, 0.f, 0.8f}}
-    };
-
-    avocado::vulkan::Buffer vertexBuffer(sizeof(decltype(triangle)::value_type) * triangle.size(),
-        avocado::vulkan::Buffer::Usage::Vertex,
-        avocado::vulkan::Buffer::SharingMode::Exclusive,
-        logicalDevice);
+    }};
+    constexpr VkDeviceSize bufferSize = sizeof(decltype(triangle)::value_type) * triangle.size();
+    avocado::vulkan::Buffer vertexBuffer(bufferSize,
+        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+        VK_SHARING_MODE_EXCLUSIVE,
+        logicalDevice, physicalDevice);
     if (vertexBuffer.hasError()) {
         std::cout << "Can't create vertex buffer: " << vertexBuffer.getErrorMessage() << std::endl;
-    }
-
-    // Memory requirements.
-    VkMemoryRequirements memReq{};
-    vkGetBufferMemoryRequirements(logicalDevice.getHandle(), vertexBuffer.getHandle(), &memReq);
-
-    VkPhysicalDeviceMemoryProperties memProps{};
-    vkGetPhysicalDeviceMemoryProperties(physicalDevice.getHandle(), &memProps);
-
-    // Find needed type of memory by typeFilter & properties.
-    const uint32_t typeFilter = memReq.memoryTypeBits;
-    VkMemoryPropertyFlags properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-
-    uint32_t foundType = 0;
-    for (uint32_t i = 0; i < memProps.memoryTypeCount; ++i) {
-        if (typeFilter & (1 << i) && (memProps.memoryTypes[i].propertyFlags & properties) == properties) {
-            foundType = i;
-            break;
-        }
-    }
-
-    // Allocate memory.
-    VkMemoryAllocateInfo memAllocInfo = avocado::vulkan::createStruct<VkMemoryAllocateInfo>();
-    memAllocInfo.allocationSize = memReq.size;
-    memAllocInfo.memoryTypeIndex = foundType;
-
-    VkDeviceMemory devMem = VK_NULL_HANDLE;
-    // todo vkFreeMemory.
-    const VkResult allocRes = vkAllocateMemory(logicalDevice.getHandle(), &memAllocInfo, nullptr, &devMem);
-    if (allocRes != VK_SUCCESS) {
-        std::cout << "Memory alloc error!" << std::endl;
         return 1;
-    } else {
-        std::cout << "Memory allocated" << std::endl;
     }
 
-    // Bind memory.
-    const VkResult bindBufResult = vkBindBufferMemory(logicalDevice.getHandle(), vertexBuffer.getHandle(), devMem, 0);
-    if (bindBufResult != VK_SUCCESS) {
-        std::cout << "Buffer bind error." << std::endl;
+    vertexBuffer.allocateMemory(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    if (vertexBuffer.hasError()) {
+        std::cout << "Can't allocate memory: " << vertexBuffer.getErrorMessage() << std::endl;
         return 1;
-    } else {
-        std::cout << "Buffer binded" << std::endl;
     }
 
-    // Map memory.
-    void *data = nullptr;
-    const VkResult mapRes = vkMapMemory(logicalDevice.getHandle(), devMem, 0, sizeof(decltype(triangle)::value_type) * triangle.size(), 0, &data);
-    if (mapRes != VK_SUCCESS) {
-        std::cout << "Memory map error" << std::endl;
+    vertexBuffer.bindMemory();
+    if (vertexBuffer.hasError()) {
+        std::cout << "Can't bind memory: " << vertexBuffer.getErrorMessage() << std::endl;
         return 1;
-    } else {
-        std::cout << "Memory mapped" << std::endl;
     }
 
-    memcpy(data, triangle.data(), sizeof(decltype(triangle)::value_type) * triangle.size());
-
-    vkUnmapMemory(logicalDevice.getHandle(), devMem);
+    vertexBuffer.fill(triangle.data(), bufferSize);
+    if (vertexBuffer.hasError()) {
+        std::cout << "Can't fill memory: " << vertexBuffer.getErrorMessage() << std::endl;
+        return 1;
+    }
 
     auto renderPassPtr = logicalDevice.createRenderPass(surfaceFormat.format);
-
     const std::vector<VkViewport> viewPorts { avocado::vulkan::Clipping::createViewport(0.f, 0.f, extent) };
     const std::vector<VkRect2D> scissors { avocado::vulkan::Clipping::createScissor(viewPorts.front()) };
     avocado::vulkan::ViewportState viewportState(viewPorts, scissors);
     pipelineBuilder.setViewportState(viewportState);
-
 
     avocado::vulkan::GraphicsPipelineBuilder::PipelineUniquePtr graphicsPipeline = pipelineBuilder.buildPipeline(pipelineShaderStageCIs, renderPassPtr.get());
 
@@ -463,7 +423,6 @@ int SDL_main(int argc, char ** argv) {
     logicalDevice.waitIdle();
 
     // Destroy resources.
-    vkFreeMemory(logicalDevice.getHandle(), devMem, nullptr);
     vkDestroySemaphore(logicalDevice.getHandle(), imageAvailableSemaphore, nullptr);
     vkDestroySemaphore(logicalDevice.getHandle(), renderFinishedSemaphore, nullptr);
     vkDestroyFence(logicalDevice.getHandle(), fences.front(), nullptr);
