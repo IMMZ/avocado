@@ -8,7 +8,6 @@
 #include "vulkan/debugutils.hpp"
 #include "vulkan/logicaldevice.hpp"
 #include "vulkan/graphicspipeline.hpp"
-#include "vulkan/graphicsqueue.hpp"
 #include "vulkan/surface.hpp"
 #include "vulkan/swapchain.hpp"
 #include "vulkan/vkutils.hpp"
@@ -119,15 +118,13 @@ int SDL_main(int argc, char ** argv) {
         return 1;
     }
 
-    physicalDevice.getQueueFamilies(surface); // todo rename this method, cause it nothing returns.
+    physicalDevice.initQueueFamilies(surface);
     if (physicalDevice.hasError()) {
         std::cout << "Can't get queue families: " << physicalDevice.getErrorMessage() << std::endl;
         return 1;
     }
     const avocado::vulkan::QueueFamily graphicsQueueFamily = physicalDevice.getGraphicsQueueFamily();
     const avocado::vulkan::QueueFamily transferQueueFamily = physicalDevice.getTransferQueueFamily();
-
-
     const avocado::vulkan::QueueFamily presentQueueFamily = physicalDevice.getPresentQueueFamily();
 
     if (surface.hasError()) {
@@ -146,7 +143,7 @@ int SDL_main(int argc, char ** argv) {
 
     auto debugUtilsPtr = logicalDevice.createDebugUtils();
 
-    avocado::vulkan::PresentQueue presentQueue = logicalDevice.getPresentQueue(0);
+    avocado::vulkan::Queue presentQueue = logicalDevice.getPresentQueue(0);
 
     const bool isSwapChainSuppported = physicalDevice.areExtensionsSupported({ VK_KHR_SWAPCHAIN_EXTENSION_NAME });
     if (!isSwapChainSuppported) {
@@ -385,10 +382,10 @@ int SDL_main(int argc, char ** argv) {
     const std::vector<VkSemaphore> waitSemaphores {imageAvailableSemaphore};
     const std::vector<VkSemaphore> signalSemaphores {renderFinishedSemaphore};
 
-    avocado::vulkan::GraphicsQueue graphicsQueue(logicalDevice.getGraphicsQueue(0));
+    avocado::vulkan::Queue graphicsQueue(logicalDevice.getGraphicsQueue(0));
     debugUtilsPtr->setObjectName(graphicsQueue.getHandle(), "Graphics queue");
 
-    avocado::vulkan::GraphicsQueue transferQueue(logicalDevice.getTransferQueue(0));
+    avocado::vulkan::Queue transferQueue(logicalDevice.getTransferQueue(0));
 
     std::vector cmdBufferHandles = avocado::vulkan::getCommandBufferHandles(cmdBuffers);
 
@@ -433,19 +430,20 @@ int SDL_main(int argc, char ** argv) {
         return 1;
     }
 
-    presentQueue.setSwapchains(swapchains);
-    presentQueue.setWaitSemaphores(signalSemaphores);
     const uint32_t imgIndex = swapchain.acquireNextImage(imageAvailableSemaphore);
     if (swapchain.hasError()) {
         std::cout << "Can't get img index " << swapchain.getErrorMessage() << std::endl;
     }
 
     std::vector imageIndices {imgIndex};
-    presentQueue.setImageIndices(imageIndices);
 
     std::vector<VkPipelineStageFlags> flags = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
     auto submitInfo = graphicsQueue.createSubmitInfo(waitSemaphores, signalSemaphores, cmdBufferHandles, flags);
     SDL_Event event;
+    std::vector<VkSwapchainKHR> swapchainHandles(swapchains.size());
+    std::transform(swapchains.begin(), swapchains.end(), swapchainHandles.begin(), [](avocado::vulkan::Swapchain &swapchain) { return swapchain.getHandle(); });
+
+    // Main loop.
     while (true) {
         if (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT)
@@ -475,7 +473,7 @@ int SDL_main(int argc, char ** argv) {
             std::cout << "Can't submit graphics queue: " << graphicsQueue.getErrorMessage() << std::endl;
         }
 
-        presentQueue.present();
+        presentQueue.present(signalSemaphores, imageIndices, swapchainHandles);
         imageIndices[0] = swapchain.acquireNextImage(imageAvailableSemaphore);
     }
 

@@ -26,7 +26,7 @@ public:
     bool isValid() const noexcept;
     std::vector<std::string> getPhysicalDeviceExtensions() const;
 
-    void getQueueFamilies(Surface &surface);
+    void initQueueFamilies(Surface &surface);
     QueueFamily getGraphicsQueueFamily() const noexcept;
     QueueFamily getPresentQueueFamily() const noexcept;
     QueueFamily getTransferQueueFamily() const noexcept;

@@ -27,7 +27,7 @@ bool PhysicalDevice::isValid() const noexcept {
     return (_device != VK_NULL_HANDLE);
 }
 
-void PhysicalDevice::getQueueFamilies(Surface &surface) {
+void PhysicalDevice::initQueueFamilies(Surface &surface) {
     uint32_t queueFamilyPropertiesCount = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(_device, &queueFamilyPropertiesCount, nullptr);
     if (queueFamilyPropertiesCount > 0) {

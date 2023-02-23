@@ -35,22 +35,22 @@ VkPipelineShaderStageCreateInfo LogicalDevice::addShaderModule(std::vector<char>
     return createShaderModule(shType);
 }
 
-GraphicsQueue LogicalDevice::getGraphicsQueue(const uint32_t index) noexcept {
+Queue LogicalDevice::getGraphicsQueue(const uint32_t index) noexcept {
     VkQueue queue = VK_NULL_HANDLE;
     vkGetDeviceQueue(_dev.get(), _graphicsQueueFamily, index, &queue);
-    return GraphicsQueue(queue);
+    return Queue(queue);
 }
 
-PresentQueue LogicalDevice::getPresentQueue(const uint32_t index) noexcept {
+Queue LogicalDevice::getPresentQueue(const uint32_t index) noexcept {
     VkQueue queue = VK_NULL_HANDLE;
     vkGetDeviceQueue(_dev.get(), _presentQueueFamily, index, &queue);
-    return PresentQueue(queue);
+    return Queue(queue);
 }
 
-GraphicsQueue LogicalDevice::getTransferQueue(const uint32_t index) noexcept {
+Queue LogicalDevice::getTransferQueue(const uint32_t index) noexcept {
     VkQueue queue = VK_NULL_HANDLE;
     vkGetDeviceQueue(_dev.get(), _presentQueueFamily, index, &queue);
-    return GraphicsQueue(queue);
+    return Queue(queue);
 }
 
 std::unique_ptr<DebugUtils> LogicalDevice::createDebugUtils() {

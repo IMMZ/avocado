@@ -2,8 +2,7 @@
 #define AVOCADO_VULKAN_LOGICAL_DEVICE
 
 #include "commandbuffer.hpp"
-#include "graphicsqueue.hpp"
-#include "presentqueue.hpp"
+#include "queue.hpp"
 #include "types.hpp"
 
 #include "../errorstorage.hpp"
@@ -57,9 +56,9 @@ public:
     VkPipelineShaderStageCreateInfo addShaderModule(const std::vector<char> &shaderCode, ShaderType shType);
     VkPipelineShaderStageCreateInfo addShaderModule(std::vector<char> &&shaderCode, ShaderType shType);
 
-    GraphicsQueue getGraphicsQueue(const uint32_t index) noexcept;
-    PresentQueue getPresentQueue(const uint32_t index) noexcept;
-    GraphicsQueue getTransferQueue(const uint32_t index) noexcept; // todo change return type.
+    Queue getGraphicsQueue(const uint32_t index) noexcept;
+    Queue getPresentQueue(const uint32_t index) noexcept;
+    Queue getTransferQueue(const uint32_t index) noexcept;
 
     std::unique_ptr<DebugUtils> createDebugUtils();
 
