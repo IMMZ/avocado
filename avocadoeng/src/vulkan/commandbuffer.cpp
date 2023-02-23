@@ -1,5 +1,6 @@
 #include "commandbuffer.hpp"
 
+#include "buffer.hpp"
 #include "swapchain.hpp"
 #include "vkutils.hpp"
 
@@ -21,10 +22,11 @@ bool CommandBuffer::isValid() const noexcept {
     return (_buf != VK_NULL_HANDLE);
 }
 
-void CommandBuffer::begin() noexcept {
+void CommandBuffer::begin(const VkCommandBufferUsageFlags flags) noexcept {
     assert(_buf != VK_NULL_HANDLE);
 
     auto beginInfo = createStruct<VkCommandBufferBeginInfo>();
+    beginInfo.flags = flags;
     const VkResult result = vkBeginCommandBuffer(_buf, &beginInfo);
     setHasError(result != VK_SUCCESS);
     if (hasError()) {
@@ -62,6 +64,13 @@ void CommandBuffer::endRenderPass() noexcept {
     assert(_buf != VK_NULL_HANDLE);
 
     vkCmdEndRenderPass(_buf);
+}
+
+void CommandBuffer::copyBuffer(Buffer &srcBuf, Buffer &dstBuf, const std::vector<VkBufferCopy> &regions) noexcept {
+    assert(_buf != VK_NULL_HANDLE);
+
+    vkCmdCopyBuffer(_buf, srcBuf.getHandle(), dstBuf.getHandle(),
+        static_cast<uint32_t>(regions.size()), regions.data());
 }
 
 void CommandBuffer::draw(const uint32_t vertexCount, const uint32_t instanceCount,

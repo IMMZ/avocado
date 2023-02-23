@@ -1,6 +1,9 @@
 #include "logicaldevice.hpp"
 
+#include "debugutils.hpp"
 #include "vkutils.hpp"
+
+#include <memory>
 
 using namespace std::string_literals;
 
@@ -44,9 +47,21 @@ PresentQueue LogicalDevice::getPresentQueue(const uint32_t index) noexcept {
     return PresentQueue(queue);
 }
 
-void LogicalDevice::setQueueFamilies(const QueueFamily graphicsQueueFamily, const QueueFamily presentQueueFamily) noexcept {
+GraphicsQueue LogicalDevice::getTransferQueue(const uint32_t index) noexcept {
+    VkQueue queue = VK_NULL_HANDLE;
+    vkGetDeviceQueue(_dev.get(), _presentQueueFamily, index, &queue);
+    return GraphicsQueue(queue);
+}
+
+std::unique_ptr<DebugUtils> LogicalDevice::createDebugUtils() {
+    auto *debugUtils = new DebugUtils(*this);
+    return std::unique_ptr<DebugUtils>(debugUtils);
+}
+
+void LogicalDevice::setQueueFamilies(const QueueFamily graphicsQueueFamily, const QueueFamily presentQueueFamily, const QueueFamily transferQueueFamily) noexcept {
     _graphicsQueueFamily = graphicsQueueFamily;
     _presentQueueFamily = presentQueueFamily;
+    _transferQueueFamily = transferQueueFamily;
 }
 
 VkFence LogicalDevice::createFence() noexcept {
@@ -116,7 +131,8 @@ std::vector<CommandBuffer> LogicalDevice::allocateCommandBuffers(const uint32_t 
     std::vector<VkCommandBuffer> dataToFill(count, VK_NULL_HANDLE);
     const VkResult callResult = vkAllocateCommandBuffers(_dev.get(), &allocInfo, dataToFill.data());
     setHasError(callResult != VK_SUCCESS);
-    setErrorMessage("vkAllocateCommandBuffers returned "s + getVkResultString(callResult));
+    if (hasError())
+        setErrorMessage("vkAllocateCommandBuffers returned "s + getVkResultString(callResult));
 
     std::vector<CommandBuffer> result(count);
     for (size_t i = 0; i < count; ++i)

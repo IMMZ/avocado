@@ -8,7 +8,8 @@ using namespace std::string_literals;
 
 namespace avocado::vulkan {
 
-Buffer::Buffer(const VkDeviceSize size, const VkBufferUsageFlagBits usage, const VkSharingMode sharingMode, LogicalDevice &logicalDevice, PhysicalDevice &physDevice):
+Buffer::Buffer(const VkDeviceSize size, const VkBufferUsageFlagBits usage, const VkSharingMode sharingMode, LogicalDevice &logicalDevice,
+    PhysicalDevice &physDevice, const std::vector<QueueFamily> &queueFamilies):
     _dev(logicalDevice.getHandle()),
     _physDev(physDevice.getHandle()),
     _bufSize(size) {
@@ -16,6 +17,11 @@ Buffer::Buffer(const VkDeviceSize size, const VkBufferUsageFlagBits usage, const
     bufferCI.size = _bufSize;
     bufferCI.usage = usage;
     bufferCI.sharingMode = sharingMode;
+
+    if (!queueFamilies.empty()) {
+        bufferCI.queueFamilyIndexCount = static_cast<decltype(bufferCI.queueFamilyIndexCount)>(queueFamilies.size());
+        bufferCI.pQueueFamilyIndices = queueFamilies.data();
+    }
 
     const VkResult result = vkCreateBuffer(_dev, &bufferCI, nullptr, &_buf);
     setHasError(result != VK_SUCCESS);
@@ -126,6 +132,11 @@ void Buffer::fill(const void * const dataToCopy, const VkDeviceSize dataSize, co
 
 VkDeviceSize Buffer::getSize() const noexcept {
     return _bufSize;
+}
+
+void Buffer::copyDataToBuffer(Buffer &dstBuf) const {
+    auto cmdBufAllocInfo = createStruct<VkCommandBufferAllocateInfo>();
+    cmdBufAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 }
 
 }

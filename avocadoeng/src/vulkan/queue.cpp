@@ -14,5 +14,14 @@ VkQueue Queue::getHandle() noexcept {
     return _queue;
 }
 
+void Queue::waitIdle() noexcept {
+    assert(_queue != VK_NULL_HANDLE);
+
+    const VkResult res = vkQueueWaitIdle(_queue);
+    setHasError(res != VK_SUCCESS);
+    if (hasError())
+        setErrorMessage("vkQueueWaitIdle returned "s + getVkResultString(res));
+}
+
 }
 

@@ -39,6 +39,10 @@ void PhysicalDevice::getQueueFamilies(Surface &surface) {
                 _graphicsQueueFamily = static_cast<uint32_t>(i);
             }
 
+            if (_transferQueueFamily == std::numeric_limits<QueueFamily>::max() && (result[i].queueFlags & VK_QUEUE_TRANSFER_BIT)) {
+                _transferQueueFamily = static_cast<uint32_t>(i);
+            }
+
             if (_presentQueueFamily == std::numeric_limits<QueueFamily>::max()) {
                 const VkResult surfSupportResult = vkGetPhysicalDeviceSurfaceSupportKHR(_device, static_cast<uint32_t>(i), surface.getHandle(), &presentSupport);
                 setHasError(surfSupportResult != VK_SUCCESS);
@@ -59,6 +63,10 @@ QueueFamily PhysicalDevice::getGraphicsQueueFamily() const noexcept {
 
 QueueFamily PhysicalDevice::getPresentQueueFamily() const noexcept {
     return _presentQueueFamily;
+}
+
+QueueFamily PhysicalDevice::getTransferQueueFamily() const noexcept {
+    return _transferQueueFamily;
 }
 
 LogicalDevice PhysicalDevice::createLogicalDevice(
@@ -105,7 +113,7 @@ LogicalDevice PhysicalDevice::createLogicalDevice(
     }
 
     LogicalDevice logicalDevice(logicDevHandle);
-    logicalDevice.setQueueFamilies(getGraphicsQueueFamily(), getPresentQueueFamily());
+    logicalDevice.setQueueFamilies(getGraphicsQueueFamily(), getPresentQueueFamily(), getTransferQueueFamily());
     return logicalDevice;
 }
 

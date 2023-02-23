@@ -5,6 +5,7 @@
 #include "vulkan/buffer.hpp"
 #include "vulkan/clipping.hpp"
 #include "vulkan/commandbuffer.hpp"
+#include "vulkan/debugutils.hpp"
 #include "vulkan/logicaldevice.hpp"
 #include "vulkan/graphicspipeline.hpp"
 #include "vulkan/graphicsqueue.hpp"
@@ -74,7 +75,7 @@ int SDL_main(int argc, char ** argv) {
 
     std::vector<std::string> instanceExtensions = vlk.getExtensionNamesForSDLSurface(sdlWindow.get());
     if constexpr (avocado::core::isDebugBuild())
-        instanceExtensions.push_back("VK_EXT_debug_utils");
+        instanceExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 
     if (vlk.hasError()) {
         std::cerr << vlk.getErrorMessage() << std::endl;
@@ -118,12 +119,15 @@ int SDL_main(int argc, char ** argv) {
         return 1;
     }
 
-    physicalDevice.getQueueFamilies(surface); // todo rename this method.
+    physicalDevice.getQueueFamilies(surface); // todo rename this method, cause it nothing returns.
     if (physicalDevice.hasError()) {
         std::cout << "Can't get queue families: " << physicalDevice.getErrorMessage() << std::endl;
         return 1;
     }
     const avocado::vulkan::QueueFamily graphicsQueueFamily = physicalDevice.getGraphicsQueueFamily();
+    const avocado::vulkan::QueueFamily transferQueueFamily = physicalDevice.getTransferQueueFamily();
+
+
     const avocado::vulkan::QueueFamily presentQueueFamily = physicalDevice.getPresentQueueFamily();
 
     if (surface.hasError()) {
@@ -131,7 +135,7 @@ int SDL_main(int argc, char ** argv) {
         return 1;
     }
 
-    std::vector<avocado::vulkan::QueueFamily> queueFamilies {graphicsQueueFamily, presentQueueFamily};
+    std::vector<avocado::vulkan::QueueFamily> queueFamilies {graphicsQueueFamily, transferQueueFamily, presentQueueFamily};
     avocado::utils::makeUniqueContainer(queueFamilies);
 
     avocado::vulkan::LogicalDevice logicalDevice = physicalDevice.createLogicalDevice(queueFamilies, physExtensions, instanceLayers, 1, 1.0f);
@@ -139,6 +143,8 @@ int SDL_main(int argc, char ** argv) {
         std::cerr << "Can't create logical device: " << physicalDevice.getErrorMessage() << std::endl;
         return 1;
     }
+
+    auto debugUtilsPtr = logicalDevice.createDebugUtils();
 
     avocado::vulkan::PresentQueue presentQueue = logicalDevice.getPresentQueue(0);
 
@@ -169,7 +175,7 @@ int SDL_main(int argc, char ** argv) {
     }
 
     avocado::vulkan::Swapchain swapChain(logicalDevice);
-    swapChain.create(surface, surfaceFormat, extent, imageCount, queueFamilies);
+    swapChain.create(surface, surfaceFormat, extent, imageCount, queueFamilies); // todo we can forget to call create. Need solution.
     if (swapChain.hasError()) {
         std::cout << "Can't create swapchain: " << swapChain.getErrorMessage() << std::endl;
         return 1;
@@ -254,39 +260,53 @@ int SDL_main(int argc, char ** argv) {
     pipelineBuilder.setVertexInputState(vertexInState);
 
     // Creating vertex buffer.
-    constexpr std::array<avocado::Vertex, 3> triangle = {{
+    constexpr std::array<avocado::Vertex, 4> quad = {{
         /* { pos, color } */
-        {{0.f, -0.5f}, {0.f, 0.f, 0.5f}},
-        {{0.5f, 0.5f}, {0.f, 0.f, 1.f}},
-        {{-0.5f, 0.5f}, {0.f, 0.f, 0.8f}}
+        {{-.5f, -.5f}, {0.f, 0.f, 0.5f}},
+        {{.5f, -.5f}, {0.f, 0.f, 1.f}},
+        {{0.5f, 0.5f}, {0.f, 0.f, 0.8f}},
+        {{-.5f, 0.5f}, {0.f, 0.f, 0.8f}}
     }};
-    constexpr VkDeviceSize bufferSize = sizeof(decltype(triangle)::value_type) * triangle.size();
-    avocado::vulkan::Buffer vertexBuffer(bufferSize,
-        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+
+    constexpr VkDeviceSize bufferSize = sizeof(decltype(quad)::value_type) * quad.size();
+
+    // Create staging buffer.
+    avocado::vulkan::Buffer transferBufSrc(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_SHARING_MODE_EXCLUSIVE,
+        logicalDevice, physicalDevice);
+    if (transferBufSrc.hasError()) {
+        std::cout << "Can't create transfer src buf: " << transferBufSrc.getErrorMessage() << std::endl;
+        return 1;
+    }
+    transferBufSrc.allocateMemory(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    if (transferBufSrc.hasError()) {
+        std::cout << "Can't allocate memory on transfer src buf: " << transferBufSrc.getErrorMessage() << std::endl;
+        return 1;
+    }
+    transferBufSrc.fill(quad.data(), bufferSize);
+    if (transferBufSrc.hasError()) {
+        std::cout << "Can't fill memory on transfer src buf: " << transferBufSrc.getErrorMessage() << std::endl;
+        return 1;
+    }
+
+    transferBufSrc.bindMemory();
+
+
+    avocado::vulkan::Buffer transferBufDst(bufferSize,
+        static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT),
         VK_SHARING_MODE_EXCLUSIVE,
         logicalDevice, physicalDevice);
-    if (vertexBuffer.hasError()) {
-        std::cout << "Can't create vertex buffer: " << vertexBuffer.getErrorMessage() << std::endl;
+    if (transferBufDst.hasError()) {
+        std::cout << "Can't create transfer dst buf: " << transferBufDst.getErrorMessage() << std::endl;
         return 1;
     }
 
-    vertexBuffer.allocateMemory(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    if (vertexBuffer.hasError()) {
-        std::cout << "Can't allocate memory: " << vertexBuffer.getErrorMessage() << std::endl;
+    transferBufDst.allocateMemory(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    if (transferBufDst.hasError()) {
+        std::cout << "Can't allocate memory on transfer dst buf: " << transferBufDst.getErrorMessage() << std::endl;
         return 1;
     }
 
-    vertexBuffer.bindMemory();
-    if (vertexBuffer.hasError()) {
-        std::cout << "Can't bind memory: " << vertexBuffer.getErrorMessage() << std::endl;
-        return 1;
-    }
-
-    vertexBuffer.fill(triangle.data(), bufferSize);
-    if (vertexBuffer.hasError()) {
-        std::cout << "Can't fill memory: " << vertexBuffer.getErrorMessage() << std::endl;
-        return 1;
-    }
+    transferBufDst.bindMemory();
 
     auto renderPassPtr = logicalDevice.createRenderPass(surfaceFormat.format);
     const std::vector<VkViewport> viewPorts { avocado::vulkan::Clipping::createViewport(0.f, 0.f, extent) };
@@ -315,6 +335,7 @@ int SDL_main(int argc, char ** argv) {
         return 1;
     }
 
+
     avocado::vulkan::CommandBuffer commandBuffer = cmdBuffers.front();
 
     commandBuffer.begin();
@@ -325,17 +346,15 @@ int SDL_main(int argc, char ** argv) {
 
 
     commandBuffer.beginRenderPass(swapchain, renderPassPtr.get(), extent, {0, 0}, 0);
-
-
     commandBuffer.bindPipeline(graphicsPipeline.get(), avocado::vulkan::CommandBuffer::PipelineBindPoint::Graphics);
     // Binding vertex buffer.
-    VkBuffer vertexBuffers[] {vertexBuffer.getHandle()};
+    VkBuffer vertexBuffers[] {transferBufDst.getHandle()};
     VkDeviceSize offsets[] {0};
 
     vkCmdBindVertexBuffers(commandBuffer.getHandle(), 0, 1, vertexBuffers, offsets);
     commandBuffer.setViewports(viewPorts);
     commandBuffer.setScissors(scissors);
-    commandBuffer.draw(static_cast<uint32_t>(triangle.size()), 1, 0, 0);
+    commandBuffer.draw(static_cast<uint32_t>(quad.size()), 1);
     commandBuffer.endRenderPass();
 
     commandBuffer.end();
@@ -363,19 +382,56 @@ int SDL_main(int argc, char ** argv) {
         return 1;
     }
 
-    SDL_Event event;
-
     const std::vector<VkSemaphore> waitSemaphores {imageAvailableSemaphore};
     const std::vector<VkSemaphore> signalSemaphores {renderFinishedSemaphore};
 
     avocado::vulkan::GraphicsQueue graphicsQueue(logicalDevice.getGraphicsQueue(0));
-    logicalDevice.setObjectName(graphicsQueue.getHandle(), "Graphics queue");
-    graphicsQueue.setSemaphores(waitSemaphores, signalSemaphores);
-    graphicsQueue.setPipelineStageFlags({avocado::vulkan::GraphicsQueue::PipelineStageFlag::ColorAttachmentOutput});
+    debugUtilsPtr->setObjectName(graphicsQueue.getHandle(), "Graphics queue");
 
-    std::vector<VkCommandBuffer> cmdBufferHandles = avocado::vulkan::getCommandBufferHandles(cmdBuffers);
-    graphicsQueue.setCommandBuffers(cmdBufferHandles);
+    avocado::vulkan::GraphicsQueue transferQueue(logicalDevice.getTransferQueue(0));
 
+    std::vector cmdBufferHandles = avocado::vulkan::getCommandBufferHandles(cmdBuffers);
+
+    std::vector<avocado::vulkan::CommandBuffer> newCmdBufs = logicalDevice.allocateCommandBuffers(1, commandPool, avocado::vulkan::LogicalDevice::CommandBufferLevel::Primary);
+    if (logicalDevice.hasError()) {
+        std::cout << "Can't allocate new command buffers: " << logicalDevice.getErrorMessage() << std::endl;
+        return 1;
+    }
+    avocado::vulkan::CommandBuffer newCmdBuf = newCmdBufs.front();
+    debugUtilsPtr->setObjectName(newCmdBuf.getHandle(), "Command buf for buffer copying");
+    if (logicalDevice.hasError()) {
+        std::cout << "Logical device error: " << logicalDevice.getErrorMessage() << std::endl;
+        return 1;
+    }
+
+    newCmdBuf.begin(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+    if (newCmdBuf.hasError()) {
+        std::cout << "Can't begin new cmdbuf: " << newCmdBuf.getErrorMessage() << std::endl;
+        return 1;
+    }
+
+    std::vector<VkBufferCopy> copyRegions(1);
+    copyRegions.front().size = bufferSize;
+    newCmdBuf.copyBuffer(transferBufSrc, transferBufDst, copyRegions);
+    newCmdBuf.end();
+    if (newCmdBuf.hasError()) {
+        std::cout << "Can't end new cmdbuf: " << newCmdBuf.getErrorMessage() << std::endl;
+        return 1;
+    }
+
+
+    std::vector newCmdBufHandles = avocado::vulkan::getCommandBufferHandles(newCmdBufs);
+    auto subInfo = transferQueue.createSubmitInfo({}, {}, newCmdBufHandles, {});
+    transferQueue.submit(subInfo);
+    if (transferQueue.hasError()) {
+        std::cout << "Can't submit gr queue: " << transferQueue.getErrorMessage() << std::endl;
+        return 1;
+    }
+    transferQueue.waitIdle();
+    if (transferQueue.hasError()) {
+        std::cout << "Can't wait idle gr queue: " << transferQueue.getErrorMessage() << std::endl;
+        return 1;
+    }
 
     presentQueue.setSwapchains(swapchains);
     presentQueue.setWaitSemaphores(signalSemaphores);
@@ -384,9 +440,12 @@ int SDL_main(int argc, char ** argv) {
         std::cout << "Can't get img index " << swapchain.getErrorMessage() << std::endl;
     }
 
-    std::vector<uint32_t> imageIndices {imgIndex};
+    std::vector imageIndices {imgIndex};
     presentQueue.setImageIndices(imageIndices);
 
+    std::vector<VkPipelineStageFlags> flags = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+    auto submitInfo = graphicsQueue.createSubmitInfo(waitSemaphores, signalSemaphores, cmdBufferHandles, flags);
+    SDL_Event event;
     while (true) {
         if (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT)
@@ -406,12 +465,12 @@ int SDL_main(int argc, char ** argv) {
         commandBuffer.setScissors(scissors);
         vkCmdBindVertexBuffers(commandBuffer.getHandle(), 0, 1, vertexBuffers, offsets);
         commandBuffer.bindPipeline(graphicsPipeline.get(), avocado::vulkan::CommandBuffer::PipelineBindPoint::Graphics);
-        commandBuffer.draw(static_cast<uint32_t>(triangle.size()), 1, 0, 0);
+        commandBuffer.draw(static_cast<uint32_t>(quad.size()), 1);
 
         commandBuffer.endRenderPass();
         commandBuffer.end();
 
-        graphicsQueue.submit(fences.front());
+        graphicsQueue.submit(submitInfo, fences.front());
         if (graphicsQueue.hasError()) {
             std::cout << "Can't submit graphics queue: " << graphicsQueue.getErrorMessage() << std::endl;
         }

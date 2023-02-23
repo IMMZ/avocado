@@ -17,6 +17,7 @@ public:
     virtual ~Queue() = default;
 
     VkQueue getHandle() noexcept;
+    void waitIdle() noexcept;
 
 private:
     VkQueue _queue = VK_NULL_HANDLE;

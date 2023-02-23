@@ -9,6 +9,7 @@
 
 namespace avocado::vulkan {
 
+class Buffer;
 class Swapchain;
 
 class CommandBuffer: public core::ErrorStorage {
@@ -19,13 +20,15 @@ public:
     VkCommandBuffer getHandle() noexcept;
     bool isValid() const noexcept;
 
-    void begin() noexcept;
+    void begin(const VkCommandBufferUsageFlags flags = 0) noexcept;
     void end() noexcept;
     void beginRenderPass(Swapchain &swapchain, VkRenderPass renderPass, const VkExtent2D extent, const VkOffset2D offset, const uint32_t imageIndex) noexcept;
     void endRenderPass() noexcept;
 
+    void copyBuffer(Buffer &srcBuf, Buffer &dstBuf, const std::vector<VkBufferCopy> &regions) noexcept;
+
     void draw(const uint32_t vertexCount, const uint32_t instanceCount,
-        const uint32_t firstVertex, const uint32_t firstInstance) noexcept;
+        const uint32_t firstVertex = 0, const uint32_t firstInstance = 0) noexcept;
 
     enum class ResetFlags: uint32_t {
         NoFlags = 0

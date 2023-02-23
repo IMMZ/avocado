@@ -1,6 +1,8 @@
 #ifndef AVOCADO_VULKAN_BUFFER
 #define AVOCADO_VULKAN_BUFFER
 
+#include "types.hpp"
+
 #include "../errorstorage.hpp"
 #include "../utils.hpp"
 
@@ -15,7 +17,8 @@ class Buffer: public core::ErrorStorage {
 public:
     NON_COPYABLE(Buffer);
 
-    explicit Buffer(const VkDeviceSize size, const VkBufferUsageFlagBits usage, const VkSharingMode sharingMode, LogicalDevice &device, PhysicalDevice &physDevice);
+    explicit Buffer(const VkDeviceSize size, const VkBufferUsageFlagBits usage, const VkSharingMode sharingMode, LogicalDevice &device,
+        PhysicalDevice &physDevice, const std::vector<QueueFamily> &queueFamilies = {});
     Buffer(Buffer &&other);
     Buffer& operator=(Buffer &&other);
     ~Buffer();
@@ -25,6 +28,7 @@ public:
     void bindMemory(const VkDeviceSize offset = 0) noexcept;
     void fill(const void * const dataToCopy, const VkDeviceSize dataSize, const size_t offset = 0);
     VkDeviceSize getSize() const noexcept;
+    void copyDataToBuffer(Buffer &dstBuf) const;
 
 private:
     VkDevice _dev = VK_NULL_HANDLE;

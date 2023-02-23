@@ -29,6 +29,7 @@ public:
     void getQueueFamilies(Surface &surface);
     QueueFamily getGraphicsQueueFamily() const noexcept;
     QueueFamily getPresentQueueFamily() const noexcept;
+    QueueFamily getTransferQueueFamily() const noexcept;
 
     LogicalDevice createLogicalDevice(
         const std::vector<uint32_t> &uniqueQueueFamilyIndices,
@@ -42,7 +43,8 @@ private:
 
     VkPhysicalDevice _device;
     QueueFamily _graphicsQueueFamily = std::numeric_limits<QueueFamily>::max(),
-        _presentQueueFamily = std::numeric_limits<QueueFamily>::max();
+        _presentQueueFamily = std::numeric_limits<QueueFamily>::max(),
+        _transferQueueFamily = std::numeric_limits<QueueFamily>::max();
 };
 
 }

@@ -17,6 +17,7 @@ add_library(avocado
 
     src/vulkan/buffer.cpp
     src/vulkan/commandbuffer.cpp
+    src/vulkan/debugutils.cpp
     src/vulkan/graphicspipeline.cpp
     src/vulkan/graphicsqueue.cpp
     src/vulkan/logicaldevice.cpp

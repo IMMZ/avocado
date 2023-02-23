@@ -7,34 +7,37 @@ using namespace std::string_literals;
 namespace avocado::vulkan {
 
 GraphicsQueue::GraphicsQueue(VkQueue queue):
-    Queue(queue),
-    _submitInfo(createStruct<VkSubmitInfo>()) {
+    Queue(queue) {
 }
 
-void GraphicsQueue::setSemaphores(const std::vector<VkSemaphore> &waitSemaphores, const std::vector<VkSemaphore> &signalSemaphores) noexcept {
-    _submitInfo.waitSemaphoreCount = static_cast<decltype(_submitInfo.waitSemaphoreCount)>(waitSemaphores.size());
-    _submitInfo.pWaitSemaphores = waitSemaphores.data();
-    _submitInfo.signalSemaphoreCount = static_cast<decltype(_submitInfo.signalSemaphoreCount)>(signalSemaphores.size());
-    _submitInfo.pSignalSemaphores = signalSemaphores.data();
-}
-
-void GraphicsQueue::setCommandBuffers(std::vector<VkCommandBuffer> &commandBuffers) noexcept {
-    _submitInfo.commandBufferCount = static_cast<decltype(_submitInfo.commandBufferCount)>(commandBuffers.size());
-    _submitInfo.pCommandBuffers = commandBuffers.data();
-}
-
-void GraphicsQueue::setPipelineStageFlags(const std::vector<PipelineStageFlag> &flags) {
-    _pipelineStageFlags.resize(flags.size());
-    for (size_t i = 0; i < flags.size(); ++i) {
-        _pipelineStageFlags[i] = static_cast<decltype(_pipelineStageFlags)::value_type>(flags[i]);
+VkSubmitInfo GraphicsQueue::createSubmitInfo(const std::vector<VkSemaphore> &waitSemaphores, const std::vector<VkSemaphore> &signalSemaphores,
+    const std::vector<VkCommandBuffer> &commandBuffers, const std::vector<VkPipelineStageFlags> &flags) {
+    auto submitInfo = createStruct<VkSubmitInfo>();
+    if (!waitSemaphores.empty()) {
+        submitInfo.waitSemaphoreCount = static_cast<decltype(submitInfo.waitSemaphoreCount)>(waitSemaphores.size());
+        submitInfo.pWaitSemaphores = waitSemaphores.data();
     }
-    _submitInfo.pWaitDstStageMask = _pipelineStageFlags.data();
+
+    if (!signalSemaphores.empty()) {
+        submitInfo.signalSemaphoreCount = static_cast<decltype(submitInfo.signalSemaphoreCount)>(signalSemaphores.size());
+        submitInfo.pSignalSemaphores = signalSemaphores.data();
+    }
+
+    if (!commandBuffers.empty()) {
+        submitInfo.commandBufferCount = static_cast<decltype(submitInfo.commandBufferCount)>(commandBuffers.size());
+        submitInfo.pCommandBuffers = commandBuffers.data();
+    }
+
+    if (!flags.empty())
+        submitInfo.pWaitDstStageMask = flags.data();
+
+    return submitInfo;
 }
 
-void GraphicsQueue::submit(VkFence fence) noexcept {
+void GraphicsQueue::submit(const VkSubmitInfo &submitInfo, VkFence fence) noexcept {
     assert(getHandle() != VK_NULL_HANDLE);
 
-    const VkResult result = vkQueueSubmit(getHandle(), 1, &_submitInfo, fence);
+    const VkResult result = vkQueueSubmit(getHandle(), 1, &submitInfo, fence);
     setHasError(result != VK_SUCCESS);
     if (hasError()) {
         setErrorMessage("vkQueueSubmit returned "s + getVkResultString(result));

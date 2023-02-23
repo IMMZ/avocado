@@ -5,9 +5,6 @@
 #include "graphicsqueue.hpp"
 #include "presentqueue.hpp"
 #include "types.hpp"
-#include "vkutils.hpp"
-
-#include "internal/structuretypes.hpp"
 
 #include "../errorstorage.hpp"
 
@@ -19,6 +16,8 @@
 using namespace std::string_literals;
 
 namespace avocado::vulkan {
+
+class DebugUtils;
 
 class LogicalDevice: public avocado::core::ErrorStorage {
 public:
@@ -60,9 +59,12 @@ public:
 
     GraphicsQueue getGraphicsQueue(const uint32_t index) noexcept;
     PresentQueue getPresentQueue(const uint32_t index) noexcept;
+    GraphicsQueue getTransferQueue(const uint32_t index) noexcept; // todo change return type.
+
+    std::unique_ptr<DebugUtils> createDebugUtils();
 
     // todo this is supposed to be used by PhysicalDevice, not straightly.
-    void setQueueFamilies(const QueueFamily graphicsQueueFamily, const QueueFamily presentQueueFamily) noexcept;
+    void setQueueFamilies(const QueueFamily graphicsQF, const QueueFamily presentQF, const QueueFamily transferQF) noexcept;
 
     VkFence createFence() noexcept;
 
@@ -86,44 +88,6 @@ public:
 
     void waitIdle() noexcept;
 
-    // todo replace next 2 functions to the separate class.
-    template <typename T>
-    void setObjectName(T object, const char *objectName) noexcept {
-        static_assert(internal::ObjectType<T> != VK_DEBUG_REPORT_OBJECT_TYPE_MAX_ENUM_EXT, "This type is not supported");
-
-        assert(_dev.get() != VK_NULL_HANDLE);
-
-        auto objNameInfo = createStruct<VkDebugMarkerObjectNameInfoEXT>();
-        objNameInfo.objectType = internal::ObjectType<T>;
-        objNameInfo.object = reinterpret_cast<uint64_t>(object);
-        objNameInfo.pObjectName = objectName;
-
-        auto debugMarkerSetObjectName = reinterpret_cast<PFN_vkDebugMarkerSetObjectNameEXT>(vkGetDeviceProcAddr(_dev.get(), "vkDebugMarkerSetObjectNameEXT"));
-        if (debugMarkerSetObjectName != nullptr) {
-            const VkResult result = debugMarkerSetObjectName(_dev.get(), &objNameInfo);
-            setHasError(result != VK_SUCCESS);
-            if (hasError())
-                setErrorMessage("debugMarkerSetObjectName returned "s + getVkResultString(result));
-        }
-    }
-
-    template <typename T>
-    void setObjectTag(T object, const uint64_t tagName, const size_t tagSize, const void *tag) noexcept {
-        auto tagInfo = createStruct<VkDebugMarkerObjectTagInfoEXT>();
-        tagInfo.objectType = internal::ObjectType<T>;
-        tagInfo.object = reinterpret_cast<uint64_t>(object);
-        tagInfo.tagName = tagName;
-        tagInfo.tagSize = tagSize;
-        tagInfo.pTag = tag;
-        auto debugMarkerSetObjectTag = reinterpret_cast<PFN_vkDebugMarkerSetObjectTagEXT>(vkGetDeviceProcAddr(_dev.get(), "vkDebugMarkerSetObjectTagEXT"));
-        if (debugMarkerSetObjectTag != nullptr) {
-            const VkResult result = debugMarkerSetObjectTag(_dev.get(), &tagInfo);
-            setHasError(result != VK_SUCCESS);
-            if (hasError())
-                setErrorMessage("debugMarkerSetObjectTag returned "s + getVkResultString(result));
-        }
-    }
-
 private:
     VkPipelineShaderStageCreateInfo createShaderModule(ShaderType shType);
 
@@ -136,7 +100,7 @@ private:
     std::vector<std::vector<char>> _shaderCodes;
 
     // Queue families. Needed to return queues.
-    QueueFamily _graphicsQueueFamily = 0, _presentQueueFamily = 0;
+    QueueFamily _graphicsQueueFamily = 0, _presentQueueFamily = 0, _transferQueueFamily = 0;
 
 public:
     using RenderPassUniquePtr = std::unique_ptr<
