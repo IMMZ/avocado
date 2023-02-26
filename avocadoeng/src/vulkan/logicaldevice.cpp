@@ -35,6 +35,39 @@ VkPipelineShaderStageCreateInfo LogicalDevice::addShaderModule(std::vector<char>
     return createShaderModule(shType);
 }
 
+VkDescriptorSetLayoutBinding LogicalDevice::createLayoutBinding(const uint32_t bindingNumber, const VkDescriptorType type,
+    const uint32_t descriptorCount, const VkShaderStageFlags flags, const std::vector<VkSampler> &samplers) noexcept {
+    VkDescriptorSetLayoutBinding layoutBinding{};
+    layoutBinding.binding = bindingNumber;
+    layoutBinding.descriptorType = type;
+    layoutBinding.descriptorCount = descriptorCount;
+    layoutBinding.stageFlags = flags;
+    if (!samplers.empty())
+        layoutBinding.pImmutableSamplers = samplers.data();
+    return layoutBinding;
+}
+
+auto LogicalDevice::createDescriptorSetLayout(const std::vector<VkDescriptorSetLayoutBinding> &bindings) {
+    assert(_dev != nullptr);
+
+    auto createInfo = createStruct<VkDescriptorSetLayoutCreateInfo>();
+    createInfo.bindingCount = static_cast<uint32_t>(bindings.size());
+    createInfo.pBindings = bindings.data();
+
+    VkDescriptorSetLayout descriptorSetLayout;
+    const VkResult result = vkCreateDescriptorSetLayout(_dev.get(), &createInfo, nullptr, &descriptorSetLayout);
+    setHasError(result != VK_SUCCESS);
+
+    auto layoutDeleter = std::bind(vkDestroyDescriptorSetLayout, _dev.get(), descriptorSetLayout, nullptr);
+    using LayoutPtr = std::unique_ptr<VkDescriptorSetLayout_T, decltype(layoutDeleter)>;
+    if (hasError()) {
+        setErrorMessage("vkCreateDescriptorSetLayout returned "s + getVkResultString(result));
+        return LayoutPtr(nullptr, layoutDeleter);
+    }
+
+    return LayoutPtr(descriptorSetLayout, layoutDeleter);
+}
+
 Queue LogicalDevice::getGraphicsQueue(const uint32_t index) noexcept {
     VkQueue queue = VK_NULL_HANDLE;
     vkGetDeviceQueue(_dev.get(), _graphicsQueueFamily, index, &queue);

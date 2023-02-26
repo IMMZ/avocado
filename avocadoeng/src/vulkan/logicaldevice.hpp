@@ -56,6 +56,11 @@ public:
     VkPipelineShaderStageCreateInfo addShaderModule(const std::vector<char> &shaderCode, ShaderType shType);
     VkPipelineShaderStageCreateInfo addShaderModule(std::vector<char> &&shaderCode, ShaderType shType);
 
+    VkDescriptorSetLayoutBinding createLayoutBinding(const uint32_t bindingNumber, const VkDescriptorType type,
+        const uint32_t descriptorCount, const VkShaderStageFlags flags, const std::vector<VkSampler> &samplers = {}) noexcept;
+
+    auto createDescriptorSetLayout(const std::vector<VkDescriptorSetLayoutBinding> &bindings);
+
     Queue getGraphicsQueue(const uint32_t index) noexcept;
     Queue getPresentQueue(const uint32_t index) noexcept;
     Queue getTransferQueue(const uint32_t index) noexcept;
