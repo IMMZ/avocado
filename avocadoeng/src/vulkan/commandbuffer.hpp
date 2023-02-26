@@ -26,9 +26,13 @@ public:
     void endRenderPass() noexcept;
 
     void copyBuffer(Buffer &srcBuf, Buffer &dstBuf, const std::vector<VkBufferCopy> &regions) noexcept;
+    void bindVertexBuffers(const uint32_t firstBinding, const uint32_t bindingCount, VkBuffer *buffers, VkDeviceSize *offsets) noexcept;
+    void bindIndexBuffer(VkBuffer buffer, const VkDeviceSize offset, const VkIndexType indexType) noexcept;
 
     void draw(const uint32_t vertexCount, const uint32_t instanceCount,
         const uint32_t firstVertex = 0, const uint32_t firstInstance = 0) noexcept;
+    void drawIndexed(const uint32_t indexCount, const uint32_t instanceCount,
+        const uint32_t firstIndex, const int32_t vertexOffset, const uint32_t firstInstance) noexcept;
 
     enum class ResetFlags: uint32_t {
         NoFlags = 0

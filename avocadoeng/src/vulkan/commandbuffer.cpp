@@ -73,12 +73,33 @@ void CommandBuffer::copyBuffer(Buffer &srcBuf, Buffer &dstBuf, const std::vector
         static_cast<uint32_t>(regions.size()), regions.data());
 }
 
+void CommandBuffer::bindVertexBuffers(const uint32_t firstBinding, const uint32_t bindingCount,
+    VkBuffer *buffers, VkDeviceSize *offsets) noexcept {
+    assert(_buf != VK_NULL_HANDLE);
+
+    vkCmdBindVertexBuffers(_buf, firstBinding, bindingCount, buffers, offsets);
+}
+
+void CommandBuffer::bindIndexBuffer(VkBuffer buffer, const VkDeviceSize offset, const VkIndexType indexType) noexcept {
+    assert(_buf != VK_NULL_HANDLE);
+
+    vkCmdBindIndexBuffer(_buf, buffer, offset, indexType);
+}
+
 void CommandBuffer::draw(const uint32_t vertexCount, const uint32_t instanceCount,
         const uint32_t firstVertex, const uint32_t firstInstance) noexcept {
     assert(_buf != VK_NULL_HANDLE);
 
     vkCmdDraw(_buf, vertexCount, instanceCount, firstVertex, firstInstance);
 }
+
+void CommandBuffer::drawIndexed(const uint32_t indexCount, const uint32_t instanceCount,
+        const uint32_t firstIndex, const int32_t vertexOffset, const uint32_t firstInstance) noexcept {
+    assert(_buf != VK_NULL_HANDLE);
+
+    vkCmdDrawIndexed(_buf, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
+}
+
 
 void CommandBuffer::reset(const CommandBuffer::ResetFlags flags) {
     assert(_buf != VK_NULL_HANDLE);

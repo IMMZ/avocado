@@ -28,7 +28,6 @@ public:
     void bindMemory(const VkDeviceSize offset = 0) noexcept;
     void fill(const void * const dataToCopy, const VkDeviceSize dataSize, const size_t offset = 0);
     VkDeviceSize getSize() const noexcept;
-    void copyDataToBuffer(Buffer &dstBuf) const;
 
 private:
     VkDevice _dev = VK_NULL_HANDLE;

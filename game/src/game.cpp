@@ -256,54 +256,76 @@ int SDL_main(int argc, char ** argv) {
     vertexInState.addBindingDescription(0, sizeof(avocado::Vertex), VK_VERTEX_INPUT_RATE_VERTEX);
     pipelineBuilder.setVertexInputState(vertexInState);
 
-    // Creating vertex buffer.
     constexpr std::array<avocado::Vertex, 4> quad = {{
         /* { pos, color } */
-        {{-.5f, -.5f}, {0.f, 0.f, 0.5f}},
-        {{.5f, -.5f}, {0.f, 0.f, 1.f}},
-        {{0.5f, 0.5f}, {0.f, 0.f, 0.8f}},
-        {{-.5f, 0.5f}, {0.f, 0.f, 0.8f}}
+        {{-.5f, -.5f}, {1.f, 0.f, 0.f}},
+        {{ .5f, -.5f}, {0.f, 1.f, 0.f}},
+        {{ .5f,  .5f}, {0.f, 0.f, 1.f}},
+        {{-.5f,  .5f}, {1.f, 1.f, 1.f}}
     }};
+    constexpr VkDeviceSize verticesSizeBytes = sizeof(decltype(quad)::value_type) * quad.size();
+    constexpr std::array<uint16_t, 6> indices {0, 1, 2, 2, 3, 0};
+    constexpr size_t indicesSizeBytes = indices.size() * sizeof(decltype(indices)::value_type);
 
-    constexpr VkDeviceSize bufferSize = sizeof(decltype(quad)::value_type) * quad.size();
-
-    // Create staging buffer.
-    avocado::vulkan::Buffer transferBufSrc(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_SHARING_MODE_EXCLUSIVE,
+    // Create transfer and vertex buffers.
+    // Transfer buffer is used to transfer both vertices and indices.
+    avocado::vulkan::Buffer transferBuf(verticesSizeBytes + indicesSizeBytes, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_SHARING_MODE_EXCLUSIVE,
         logicalDevice, physicalDevice);
-    if (transferBufSrc.hasError()) {
-        std::cout << "Can't create transfer src buf: " << transferBufSrc.getErrorMessage() << std::endl;
-        return 1;
-    }
-    transferBufSrc.allocateMemory(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    if (transferBufSrc.hasError()) {
-        std::cout << "Can't allocate memory on transfer src buf: " << transferBufSrc.getErrorMessage() << std::endl;
-        return 1;
-    }
-    transferBufSrc.fill(quad.data(), bufferSize);
-    if (transferBufSrc.hasError()) {
-        std::cout << "Can't fill memory on transfer src buf: " << transferBufSrc.getErrorMessage() << std::endl;
+    if (transferBuf.hasError()) {
+        std::cout << "Can't create transfer buf: " << transferBuf.getErrorMessage() << std::endl;
         return 1;
     }
 
-    transferBufSrc.bindMemory();
+    transferBuf.allocateMemory(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    if (transferBuf.hasError()) {
+        std::cout << "Can't allocate memory on transfer buf: " << transferBuf.getErrorMessage() << std::endl;
+        return 1;
+    }
 
+    transferBuf.fill(quad.data(), verticesSizeBytes);
+    if (transferBuf.hasError()) {
+        std::cout << "Can't fill memory on transfer buf: " << transferBuf.getErrorMessage() << std::endl;
+        return 1;
+    }
 
-    avocado::vulkan::Buffer transferBufDst(bufferSize,
+    transferBuf.bindMemory();
+
+    avocado::vulkan::Buffer vertexBuffer(verticesSizeBytes,
         static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT),
         VK_SHARING_MODE_EXCLUSIVE,
         logicalDevice, physicalDevice);
-    if (transferBufDst.hasError()) {
-        std::cout << "Can't create transfer dst buf: " << transferBufDst.getErrorMessage() << std::endl;
+
+    if (vertexBuffer.hasError()) {
+        std::cout << "Can't create vertex buf: " << vertexBuffer.getErrorMessage() << std::endl;
         return 1;
     }
 
-    transferBufDst.allocateMemory(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    if (transferBufDst.hasError()) {
-        std::cout << "Can't allocate memory on transfer dst buf: " << transferBufDst.getErrorMessage() << std::endl;
+    vertexBuffer.allocateMemory(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    if (vertexBuffer.hasError()) {
+        std::cout << "Can't allocate memory on vertex buf: " << vertexBuffer.getErrorMessage() << std::endl;
         return 1;
     }
 
-    transferBufDst.bindMemory();
+    vertexBuffer.bindMemory();
+
+    avocado::vulkan::Buffer indexBuffer(indicesSizeBytes,
+        static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT),
+        VK_SHARING_MODE_EXCLUSIVE, logicalDevice, physicalDevice);
+    if (indexBuffer.hasError()) {
+        std::cout << "Can't create index buffer: " << indexBuffer.getErrorMessage() << std::endl;
+        return 1;
+    }
+    indexBuffer.allocateMemory(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    if (indexBuffer.hasError()) {
+        std::cout << "Can't allocate memory on index buffer: " << indexBuffer.getErrorMessage() << std::endl;
+        return 1;
+    }
+
+    indexBuffer.bindMemory();
+    if (indexBuffer.hasError()) {
+        std::cout << "Can't bind memory of index buffer: " << indexBuffer.getErrorMessage() << std::endl;
+        return 1;
+    }
 
     auto renderPassPtr = logicalDevice.createRenderPass(surfaceFormat.format);
     const std::vector<VkViewport> viewPorts { avocado::vulkan::Clipping::createViewport(0.f, 0.f, extent) };
@@ -314,7 +336,7 @@ int SDL_main(int argc, char ** argv) {
     avocado::vulkan::GraphicsPipelineBuilder::PipelineUniquePtr graphicsPipeline = pipelineBuilder.buildPipeline(pipelineShaderStageCIs, renderPassPtr.get());
 
     if (graphicsPipeline == nullptr) {
-        std::cout << "INVALID PIPELINE" << std::endl;
+        std::cout << "Error: invalid pipeline" << std::endl;
         return 1;
     }
 
@@ -345,13 +367,14 @@ int SDL_main(int argc, char ** argv) {
     commandBuffer.beginRenderPass(swapchain, renderPassPtr.get(), extent, {0, 0}, 0);
     commandBuffer.bindPipeline(graphicsPipeline.get(), avocado::vulkan::CommandBuffer::PipelineBindPoint::Graphics);
     // Binding vertex buffer.
-    VkBuffer vertexBuffers[] {transferBufDst.getHandle()};
+    VkBuffer vertexBuffers[] {vertexBuffer.getHandle()};
     VkDeviceSize offsets[] {0};
 
-    vkCmdBindVertexBuffers(commandBuffer.getHandle(), 0, 1, vertexBuffers, offsets);
+    commandBuffer.bindVertexBuffers(0, 1, vertexBuffers, offsets);
+    commandBuffer.bindIndexBuffer(indexBuffer.getHandle(), 0, avocado::vulkan::toIndexType<decltype(indices)::value_type>());
     commandBuffer.setViewports(viewPorts);
     commandBuffer.setScissors(scissors);
-    commandBuffer.draw(static_cast<uint32_t>(quad.size()), 1);
+    commandBuffer.drawIndexed(static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
     commandBuffer.endRenderPass();
 
     commandBuffer.end();
@@ -407,9 +430,20 @@ int SDL_main(int argc, char ** argv) {
         return 1;
     }
 
-    std::vector<VkBufferCopy> copyRegions(1);
-    copyRegions.front().size = bufferSize;
-    newCmdBuf.copyBuffer(transferBufSrc, transferBufDst, copyRegions);
+    std::vector<VkBufferCopy> vertexCopyRegions(1);
+    vertexCopyRegions.front().size = verticesSizeBytes;
+    newCmdBuf.copyBuffer(transferBuf, vertexBuffer, vertexCopyRegions);
+
+    transferBuf.fill(indices.data(), indicesSizeBytes, verticesSizeBytes);
+    if (transferBuf.hasError()) {
+        std::cout << "Error re-filling the buffer: " << transferBuf.getErrorMessage() << std::endl;
+        return 1;
+    }
+
+    std::vector<VkBufferCopy> indexCopyRegions(1);
+    indexCopyRegions.front().size = indicesSizeBytes;
+    indexCopyRegions.front().srcOffset = verticesSizeBytes;
+    newCmdBuf.copyBuffer(transferBuf, indexBuffer, indexCopyRegions);
     newCmdBuf.end();
     if (newCmdBuf.hasError()) {
         std::cout << "Can't end new cmdbuf: " << newCmdBuf.getErrorMessage() << std::endl;
@@ -454,16 +488,15 @@ int SDL_main(int argc, char ** argv) {
         logicalDevice.resetFences(fences);
 
         commandBuffer.reset(avocado::vulkan::CommandBuffer::ResetFlags::NoFlags);
-
         commandBuffer.begin();
-
         commandBuffer.beginRenderPass(swapchain, renderPassPtr.get(), extent, {0, 0}, imageIndices.front());
 
         commandBuffer.setViewports(viewPorts);
         commandBuffer.setScissors(scissors);
-        vkCmdBindVertexBuffers(commandBuffer.getHandle(), 0, 1, vertexBuffers, offsets);
+        commandBuffer.bindVertexBuffers(0, 1, vertexBuffers, offsets);
+        commandBuffer.bindIndexBuffer(indexBuffer.getHandle(), 0, avocado::vulkan::toIndexType<decltype(indices)::value_type>());
         commandBuffer.bindPipeline(graphicsPipeline.get(), avocado::vulkan::CommandBuffer::PipelineBindPoint::Graphics);
-        commandBuffer.draw(static_cast<uint32_t>(quad.size()), 1);
+        commandBuffer.drawIndexed(static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 
         commandBuffer.endRenderPass();
         commandBuffer.end();
@@ -484,11 +517,6 @@ int SDL_main(int argc, char ** argv) {
     vkDestroySemaphore(logicalDevice.getHandle(), renderFinishedSemaphore, nullptr);
     vkDestroyFence(logicalDevice.getHandle(), fences.front(), nullptr);
     vkDestroyCommandPool(logicalDevice.getHandle(), commandPool, nullptr);
-
-    //vkDestroyPipeline(logicalDevice.getHandle(), graphicsPipeline, nullptr);
-    //vkDestroyRenderPass(logicalDevice.getHandle(), renderPass, nullptr);
-
-    //vkDestroySurfaceKHR(vkInstance.get(), surface, nullptr);
 
     return 0;
 }

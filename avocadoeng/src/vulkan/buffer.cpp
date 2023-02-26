@@ -105,6 +105,7 @@ void Buffer::allocateMemory(const VkMemoryPropertyFlags memoryFlags) noexcept {
     }
 }
 
+// todo This just attaches memory to buffer. Maybe we can do it automatically?
 void Buffer::bindMemory(const VkDeviceSize offset) noexcept {
     assert(_dev != VK_NULL_HANDLE && _buf != VK_NULL_HANDLE && _devMem != VK_NULL_HANDLE);
 
@@ -119,7 +120,7 @@ void Buffer::fill(const void * const dataToCopy, const VkDeviceSize dataSize, co
     assert(_dev != VK_NULL_HANDLE && _devMem != VK_NULL_HANDLE);
 
     void *data = nullptr;
-    const VkResult mapRes = vkMapMemory(_dev, _devMem, offset, _bufSize, 0, &data);
+    const VkResult mapRes = vkMapMemory(_dev, _devMem, offset, dataSize, 0, &data);
     setHasError(mapRes != VK_SUCCESS);
     if (hasError()) {
         setErrorMessage("vkMapMemory returned "s + getVkResultString(mapRes));
@@ -132,11 +133,6 @@ void Buffer::fill(const void * const dataToCopy, const VkDeviceSize dataSize, co
 
 VkDeviceSize Buffer::getSize() const noexcept {
     return _bufSize;
-}
-
-void Buffer::copyDataToBuffer(Buffer &dstBuf) const {
-    auto cmdBufAllocInfo = createStruct<VkCommandBufferAllocateInfo>();
-    cmdBufAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 }
 
 }
