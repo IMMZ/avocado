@@ -258,10 +258,10 @@ int SDL_main(int argc, char ** argv) {
 
     constexpr std::array<avocado::Vertex, 4> quad = {{
         /* { pos, color } */
-        {{-.5f, -.5f}, {1.f, 0.f, 0.f}},
-        {{ .5f, -.5f}, {0.f, 1.f, 0.f}},
-        {{ .5f,  .5f}, {0.f, 0.f, 1.f}},
-        {{-.5f,  .5f}, {1.f, 1.f, 1.f}}
+        {avocado::math::vec2f(-.5f, -.5f), avocado::math::vec3f(1.f, 0.f, 0.f)},
+        {avocado::math::vec2f( .5f, -.5f), avocado::math::vec3f(0.f, 1.f, 0.f)},
+        {avocado::math::vec2f( .5f,  .5f), avocado::math::vec3f(0.f, 0.f, 1.f)},
+        {avocado::math::vec2f(-.5f,  .5f), avocado::math::vec3f(1.f, 1.f, 1.f)}
     }};
     constexpr VkDeviceSize verticesSizeBytes = sizeof(decltype(quad)::value_type) * quad.size();
     constexpr std::array<uint16_t, 6> indices {0, 1, 2, 2, 3, 0};

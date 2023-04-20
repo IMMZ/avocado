@@ -1,13 +1,13 @@
 #ifndef AVOCADO_VERTEX
 #define AVOCADO_VERTEX
 
-#include "vecn.hpp"
+#include "math/vecn.hpp"
 
 namespace avocado {
 
 struct Vertex {
-    glsl::vec2 position;
-    glsl::vec3 color;
+    math::vec2f position;
+    math::vec3f color;
 };
 
 }
