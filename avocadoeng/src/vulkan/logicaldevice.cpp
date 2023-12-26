@@ -47,7 +47,7 @@ VkDescriptorSetLayoutBinding LogicalDevice::createLayoutBinding(const uint32_t b
     return layoutBinding;
 }
 
-auto LogicalDevice::createDescriptorSetLayout(const std::vector<VkDescriptorSetLayoutBinding> &bindings) {
+VkDescriptorSetLayout LogicalDevice::createDescriptorSetLayout(const std::vector<VkDescriptorSetLayoutBinding> &bindings) {
     assert(_dev != nullptr);
 
     auto createInfo = createStruct<VkDescriptorSetLayoutCreateInfo>();
@@ -57,15 +57,12 @@ auto LogicalDevice::createDescriptorSetLayout(const std::vector<VkDescriptorSetL
     VkDescriptorSetLayout descriptorSetLayout;
     const VkResult result = vkCreateDescriptorSetLayout(_dev.get(), &createInfo, nullptr, &descriptorSetLayout);
     setHasError(result != VK_SUCCESS);
-
-    auto layoutDeleter = std::bind(vkDestroyDescriptorSetLayout, _dev.get(), descriptorSetLayout, nullptr);
-    using LayoutPtr = std::unique_ptr<VkDescriptorSetLayout_T, decltype(layoutDeleter)>;
     if (hasError()) {
         setErrorMessage("vkCreateDescriptorSetLayout returned "s + getVkResultString(result));
-        return LayoutPtr(nullptr, layoutDeleter);
+        return VK_NULL_HANDLE;
     }
 
-    return LayoutPtr(descriptorSetLayout, layoutDeleter);
+    return descriptorSetLayout;
 }
 
 Queue LogicalDevice::getGraphicsQueue(const uint32_t index) noexcept {

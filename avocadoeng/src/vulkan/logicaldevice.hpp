@@ -10,6 +10,7 @@
 #include <vulkan/vulkan.h>
 
 #include <functional>
+#include <memory>
 #include <vector>
 
 using namespace std::string_literals;
@@ -59,7 +60,7 @@ public:
     VkDescriptorSetLayoutBinding createLayoutBinding(const uint32_t bindingNumber, const VkDescriptorType type,
         const uint32_t descriptorCount, const VkShaderStageFlags flags, const std::vector<VkSampler> &samplers = {}) noexcept;
 
-    auto createDescriptorSetLayout(const std::vector<VkDescriptorSetLayoutBinding> &bindings);
+    VkDescriptorSetLayout createDescriptorSetLayout(const std::vector<VkDescriptorSetLayoutBinding> &bindings);
 
     Queue getGraphicsQueue(const uint32_t index) noexcept;
     Queue getPresentQueue(const uint32_t index) noexcept;
