@@ -21,6 +21,7 @@ inline constexpr VkObjectType ObjectType = VK_OBJECT_TYPE_MAX_ENUM;
 DEFINE_OBJECT_TYPE(CommandBuffer, COMMAND_BUFFER);
 DEFINE_OBJECT_TYPE(SwapchainKHR, SWAPCHAIN_KHR);
 DEFINE_OBJECT_TYPE(Queue, QUEUE);
+DEFINE_OBJECT_TYPE(PipelineLayout, PIPELINE_LAYOUT);
 
 // Structure types.
 template<typename T>
