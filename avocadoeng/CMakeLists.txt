@@ -4,9 +4,8 @@ cmake_minimum_required(VERSION 3.0)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 include_directories(
-    "C:\\VulkanSDK\\1.3.211.0\\Include"
-    "C:\\SDL2-2.0.22\\include"
-    "C:\\SDL2_image-2.6.0\\include"
+    "/usr/include/vulkan"
+    "/usr/include/SDL2/"
     "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/Catch2-3.3.2"
 )
 

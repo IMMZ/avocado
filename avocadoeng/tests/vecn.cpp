@@ -10,7 +10,7 @@ TEST_CASE("Vector2f operations") {
     SECTION("Null vector") {
         constexpr vec2f notNullVec(2.f, 22.f);
         REQUIRE_FALSE(notNullVec.isNull());
-        
+
         constexpr vec2f v1(12.f, 12.f);
         REQUIRE_FALSE(v1.isNull());
 
@@ -45,6 +45,7 @@ TEST_CASE("Vector2f operations") {
         auto nullVec1 = vec2f::createNullVec();
         nullVec1.normalize();
         REQUIRE(nullVec1.isNull());
+        REQUIRE(nullVec1 == vec2f::createNullVec());
         REQUIRE_FALSE(nullVec1.isUnit());
     }
 
@@ -57,7 +58,7 @@ TEST_CASE("Vector2f operations") {
         REQUIRE((v1 * 0).isNull());
         REQUIRE((v1 * 1) == v1);
     }
-    
+
     SECTION("Sum") {
         constexpr avocado::math::vec2f v1(4.f, 2.f);
         constexpr avocado::math::vec2f v2(2.f, 3.f);

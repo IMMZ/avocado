@@ -14,7 +14,7 @@ class DebugUtils: public core::ErrorStorage {
 public:
     template <typename T>
     void setObjectName(T object, const char *objectName) noexcept {
-        static_assert(internal::ObjectType<T> != VK_DEBUG_REPORT_OBJECT_TYPE_MAX_ENUM_EXT, "This type is not supported");
+        static_assert(internal::ObjectType<T> != VK_OBJECT_TYPE_MAX_ENUM, "This type is not supported");
 
         assert(_dev.getHandle() != VK_NULL_HANDLE);
 

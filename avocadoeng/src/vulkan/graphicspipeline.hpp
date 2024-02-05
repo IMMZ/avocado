@@ -47,6 +47,10 @@ private:
     ViewportState *_viewportState = nullptr;
     VkDevice _device;
 
+public: // todo refactor!
+    VkPipelineLayout _pipelineLayout = VK_NULL_HANDLE;
+    VkDescriptorSetLayout _descriptorSetLayout = VK_NULL_HANDLE;
+
 public:
     // todo maybe replace it by handle + dtor? And rename class to GraphicsPipeline?
     // We must take into account that this class could create many pipelines (in future, see todo in cpp).

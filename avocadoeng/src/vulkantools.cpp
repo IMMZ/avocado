@@ -10,8 +10,10 @@
 
 #include <vulkan/vulkan.h>
 
+#ifdef _WIN32
 #define VK_USE_PLATFORM_WIN32_KHR // todo need this?
 #include <vulkan/vulkan_win32.h>
+#endif
 
 #define VKRESULT_TO_STRING(VKRES) #VKRES // todo need this?
 

@@ -59,58 +59,88 @@ GraphicsPipelineBuilder::PipelineUniquePtr GraphicsPipelineBuilder::buildPipelin
     pipelineCI.stageCount = static_cast<uint32_t>(shaderStageCIs.size());
     pipelineCI.pStages = shaderStageCIs.data();
 
+    VkPipelineDynamicStateCreateInfo dynamicStateCI{};
+    dynamicStateCI.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
     if (_dynamicState != nullptr) {
-        const VkPipelineDynamicStateCreateInfo &dynamicStateCI = createStateCreateInfo(*_dynamicState);
+        dynamicStateCI = createStateCreateInfo(*_dynamicState);
         pipelineCI.pDynamicState = &dynamicStateCI;
     }
 
+    VkPipelineVertexInputStateCreateInfo vertexInStateCI{};
+    vertexInStateCI.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
     if (_vertexInputState != nullptr) {
-        const VkPipelineVertexInputStateCreateInfo &vertexInStateCI = createStateCreateInfo(*_vertexInputState);
+        vertexInStateCI = createStateCreateInfo(*_vertexInputState);
         pipelineCI.pVertexInputState = &vertexInStateCI;
     }
 
+    VkPipelineInputAssemblyStateCreateInfo inputAsmStateCI{};
+    inputAsmStateCI.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
     if (_inputAsmState != nullptr) {
-        const VkPipelineInputAssemblyStateCreateInfo &inputAsmStateCI = createStateCreateInfo(*_inputAsmState);
+        inputAsmStateCI = createStateCreateInfo(*_inputAsmState);
         pipelineCI.pInputAssemblyState = &inputAsmStateCI;
     }
 
+    VkPipelineViewportStateCreateInfo viewportStateCI{};
+    viewportStateCI.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
     if (_viewportState != nullptr) {
-        const VkPipelineViewportStateCreateInfo &viewportStateCI = createStateCreateInfo(*_viewportState);
+        viewportStateCI = createStateCreateInfo(*_viewportState);
         pipelineCI.pViewportState = &viewportStateCI;
     }
 
+    VkPipelineRasterizationStateCreateInfo rasterizationCI{};
+    rasterizationCI.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     if (_rasterizationState != nullptr) {
-        const VkPipelineRasterizationStateCreateInfo &rasterizationCI = createStateCreateInfo(*_rasterizationState);
+        rasterizationCI = createStateCreateInfo(*_rasterizationState);
         pipelineCI.pRasterizationState = &rasterizationCI;
     }
 
+    VkPipelineMultisampleStateCreateInfo multisamplingCI{};
+    multisamplingCI.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
     if (_multisampleState != nullptr) {
-        const VkPipelineMultisampleStateCreateInfo &multisamplingCI = createStateCreateInfo(*_multisampleState);
+        multisamplingCI = createStateCreateInfo(*_multisampleState);
         pipelineCI.pMultisampleState = &multisamplingCI;
     }
 
+    VkPipelineColorBlendStateCreateInfo colorBlendStateCI{};
+    colorBlendStateCI.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
     if (_colorBlendState != nullptr) {
-        const VkPipelineColorBlendStateCreateInfo &colorBlendStateCI = createStateCreateInfo(*_colorBlendState);
+        colorBlendStateCI = createStateCreateInfo(*_colorBlendState);
         pipelineCI.pColorBlendState = &colorBlendStateCI;
     }
 
-    // Pipeline layout.
-    using PipelineLayoutDestroyer = decltype(std::bind(vkDestroyPipelineLayout, _device, std::placeholders::_1, nullptr));
-    using PipelineLayoutUniquePtr =
-        std::unique_ptr<std::remove_pointer_t<VkPipelineLayout>, PipelineLayoutDestroyer>;
+    VkDescriptorSetLayoutBinding layoutBinding{};
+    layoutBinding.binding = 0;
+    layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    layoutBinding.descriptorCount = 1;
+    layoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+
+    auto pipelineDestroyer = std::bind(vkDestroyPipeline, _device, std::placeholders::_1, nullptr);
+
+    auto createInfo = createStruct<VkDescriptorSetLayoutCreateInfo>();
+    createInfo.bindingCount = 1;
+    createInfo.pBindings = &layoutBinding;
+
+    const VkResult result1 = vkCreateDescriptorSetLayout(_device, &createInfo, nullptr, &_descriptorSetLayout);
+    setHasError(result1 != VK_SUCCESS);
+    if (hasError()) {
+        setErrorMessage("vkCreateDescriptorSetLayout returned "s + getVkResultString(result1));
+        return PipelineUniquePtr(VK_NULL_HANDLE, pipelineDestroyer);
+    }
+
 
     auto pipelineLayoutCreateInfo = createStruct<VkPipelineLayoutCreateInfo>();
-    VkPipelineLayout _pipelineLayout = VK_NULL_HANDLE;
+
+    pipelineLayoutCreateInfo.setLayoutCount = 1;
+    pipelineLayoutCreateInfo.pSetLayouts = &_descriptorSetLayout;
     const VkResult pipelineCreationResult = vkCreatePipelineLayout(_device, &pipelineLayoutCreateInfo, nullptr, &_pipelineLayout);
-    auto pipelineDestroyer = std::bind(vkDestroyPipeline, _device, std::placeholders::_1, nullptr);
     setHasError(pipelineCreationResult != VK_SUCCESS);
     if (hasError()) {
         setErrorMessage("vkCreatePipelineLayout returned "s + getVkResultString(pipelineCreationResult));
         return PipelineUniquePtr(VK_NULL_HANDLE, pipelineDestroyer);
     }
 
-    PipelineLayoutUniquePtr pipelineLayout(_pipelineLayout, std::bind(vkDestroyPipelineLayout, _device, std::placeholders::_1, nullptr));
-    pipelineCI.layout = pipelineLayout.get();
+    pipelineCI.layout = _pipelineLayout;
     pipelineCI.renderPass = renderPass;
 
     // Create the pipeline.

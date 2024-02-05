@@ -34,6 +34,7 @@ TEST_CASE("Matrix properties") {
     }
 
     SECTION("Unit matrix") {
+        REQUIRE(Mat4x4::createIdentityMatrix().isIdentity());
         REQUIRE_FALSE(mat.isIdentity());
         REQUIRE_FALSE(nullMatrix.isIdentity());
         REQUIRE_FALSE(defaultMatrix.isIdentity());

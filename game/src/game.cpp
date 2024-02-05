@@ -36,6 +36,8 @@
 #include <SDL.h>
 #include <SDL_vulkan.h>
 #include <SDL_image.h>
+#include <SDL_events.h>
+#include <SDL_keycode.h>
 
 #include <array>
 #include <chrono>
@@ -48,10 +50,7 @@
 #include <set>
 #include <vector>
 
-void createDescriptorSetLayout() {
-}
-
-int SDL_main(int argc, char ** argv) {
+int main(int argc, char ** argv) {
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS) < 0) {
         std::cerr << "Can't init SDL." << std::endl;
         return 1;
@@ -153,35 +152,6 @@ int SDL_main(int argc, char ** argv) {
 
     auto debugUtilsPtr = logicalDevice.createDebugUtils();
 
-    // New code.
-    VkDescriptorSetLayoutBinding layoutBinding{};
-    layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutBinding.descriptorCount = 1;
-    layoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-
-
-    VkDescriptorSetLayout layoutPtr = logicalDevice.createDescriptorSetLayout({layoutBinding});
-    if (logicalDevice.hasError()) {
-        std::cout << "Error creating descriptor set layout: " << logicalDevice.getErrorMessage() << std::endl;
-        return 1;
-    }
-
-    VkPipelineLayoutCreateInfo pipelineLayoutCI{};
-    pipelineLayoutCI.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipelineLayoutCI.setLayoutCount = 1;
-    const auto layoutRawPtr = layoutPtr; // todo duplicate, remove!
-    pipelineLayoutCI.pSetLayouts = &layoutRawPtr;
-
-    VkPipelineLayout newPipelineLayout = VK_NULL_HANDLE;
-    const VkResult rr = vkCreatePipelineLayout(logicalDevice.getHandle(), &pipelineLayoutCI, nullptr, &newPipelineLayout);
-    if (rr != VK_SUCCESS) {
-        std::cout << "Couldn't create pipeline layout and error is " << static_cast<int>(rr) << std::endl;
-    } else {
-        debugUtilsPtr->setObjectName(newPipelineLayout, "New pipeline layout");
-        std::cout << "New pipeline layout created OK" << std::endl;
-    }
-
-    // New code end
     avocado::vulkan::Queue presentQueue = logicalDevice.getPresentQueue(0);
 
     const bool isSwapChainSuppported = physicalDevice.areExtensionsSupported({ VK_KHR_SWAPCHAIN_EXTENSION_NAME });
@@ -269,9 +239,10 @@ int SDL_main(int argc, char ** argv) {
     pipelineBuilder.setInputAsmState(inAsmState);
 
     avocado::vulkan::RasterizationState rastState;
+    rastState.setDepthBiasEnabled(VK_FALSE);
     rastState.setPolygonMode(VK_POLYGON_MODE_FILL);
     rastState.setCullMode(VK_CULL_MODE_BACK_BIT);
-    rastState.setFrontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE);
+    rastState.setFrontFace(VK_FRONT_FACE_CLOCKWISE);
     pipelineBuilder.setRasterizationState(rastState);
 
     avocado::vulkan::MultisampleState multisampleState;
@@ -338,11 +309,13 @@ int SDL_main(int argc, char ** argv) {
         return 1;
     }
 
-    vertexBuffer.allocateMemory(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    vertexBuffer.allocateMemory(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
     if (vertexBuffer.hasError()) {
         std::cout << "Can't allocate memory on vertex buf: " << vertexBuffer.getErrorMessage() << std::endl;
         return 1;
     }
+
+    vertexBuffer.fill(quad.data(), quad.size() * sizeof(avocado::Vertex));
 
     vertexBuffer.bindMemory();
 
@@ -353,11 +326,13 @@ int SDL_main(int argc, char ** argv) {
         std::cout << "Can't create index buffer: " << indexBuffer.getErrorMessage() << std::endl;
         return 1;
     }
-    indexBuffer.allocateMemory(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    indexBuffer.allocateMemory(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
     if (indexBuffer.hasError()) {
         std::cout << "Can't allocate memory on index buffer: " << indexBuffer.getErrorMessage() << std::endl;
         return 1;
     }
+
+    indexBuffer.fill(indices.data(), indices.size() * sizeof(uint16_t));
 
     indexBuffer.bindMemory();
     if (indexBuffer.hasError()) {
@@ -373,6 +348,12 @@ int SDL_main(int argc, char ** argv) {
 
     avocado::vulkan::Buffer uniformBuffer(sizeof(UniformBufferObject), static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT), VK_SHARING_MODE_EXCLUSIVE, logicalDevice, physicalDevice);
     uniformBuffer.allocateMemory(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+
+    UniformBufferObject ubo{};
+    ubo.view = avocado::math::lookAt(avocado::math::vec3f(2.f, 2.f, 2.f), avocado::math::vec3f(0.f, 0.f, 0.f), avocado::math::vec3f(0.f, 0.f, 1.f));
+    ubo.proj = avocado::math::perspectiveProjection(45.f, 800.f / 600.f, 0.1f, 10.f); // todo Replace to consts with screen size
+    uniformBuffer.fill(&ubo, sizeof(ubo));
     uniformBuffer.bindMemory();
 
     auto renderPassPtr = logicalDevice.createRenderPass(surfaceFormat.format);
@@ -418,9 +399,57 @@ int SDL_main(int argc, char ** argv) {
     VkBuffer vertexBuffers[] {vertexBuffer.getHandle()};
     VkDeviceSize offsets[] {0};
 
-    //commandBuffer.bindVertexBuffers(0, 1, vertexBuffers, offsets);
-    //commandBuffer.bindIndexBuffer(indexBuffer.getHandle(), 0, avocado::vulkan::toIndexType<decltype(indices)::value_type>());
-    
+    commandBuffer.bindVertexBuffers(0, 1, vertexBuffers, offsets);
+    commandBuffer.bindIndexBuffer(indexBuffer.getHandle(), 0, avocado::vulkan::toIndexType<decltype(indices)::value_type>());
+
+    VkDescriptorPoolSize descriptorPoolSize{};
+    descriptorPoolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    descriptorPoolSize.descriptorCount = 1;
+
+    VkDescriptorPoolCreateInfo dPoolCI{};
+    dPoolCI.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    dPoolCI.poolSizeCount = 1;
+    dPoolCI.pPoolSizes = &descriptorPoolSize;
+    dPoolCI.maxSets = 1;
+
+    VkDescriptorPool descriptorPool;
+    const VkResult cdp = vkCreateDescriptorPool(logicalDevice.getHandle(), &dPoolCI, nullptr, &descriptorPool);
+    if (cdp != VK_SUCCESS) {
+        std::cout << "Can't create descriptor pool: " << static_cast<int>(cdp) << std::endl;
+        return 1;
+    }
+
+
+    VkDescriptorSetAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocInfo.descriptorPool = descriptorPool;
+    allocInfo.descriptorSetCount = 1;
+    allocInfo.pSetLayouts = &pipelineBuilder._descriptorSetLayout;
+
+    VkDescriptorSet dSet;
+    const VkResult ads = vkAllocateDescriptorSets(logicalDevice.getHandle(), &allocInfo, &dSet);
+    if (ads != VK_SUCCESS) {
+        std::cout << "Can't allocate descriptor sets: " << static_cast<int>(ads) << std::endl;
+        return 1;
+    }
+
+    VkDescriptorBufferInfo dBufInfo{};
+    dBufInfo.buffer = uniformBuffer.getHandle();
+    dBufInfo.offset = 0;
+    dBufInfo.range = sizeof(UniformBufferObject);
+
+    VkWriteDescriptorSet descriptorWrite{};
+    descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrite.dstSet = dSet;
+    descriptorWrite.dstBinding = 0;
+    descriptorWrite.dstArrayElement = 0;
+    descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    descriptorWrite.descriptorCount = 1;
+    descriptorWrite.pBufferInfo = &dBufInfo;
+
+    vkUpdateDescriptorSets(logicalDevice.getHandle(), 1, &descriptorWrite, 0, nullptr);
+    vkCmdBindDescriptorSets(commandBuffer.getHandle(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineBuilder._pipelineLayout, 0,1, &dSet, 0, nullptr);
+
     commandBuffer.setViewports(viewPorts);
     commandBuffer.setScissors(scissors);
     commandBuffer.drawIndexed(static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
@@ -499,7 +528,6 @@ int SDL_main(int argc, char ** argv) {
         return 1;
     }
 
-
     std::vector newCmdBufHandles = avocado::vulkan::getCommandBufferHandles(newCmdBufs);
     auto subInfo = transferQueue.createSubmitInfo({}, {}, newCmdBufHandles, {});
     transferQueue.submit(subInfo);
@@ -526,60 +554,17 @@ int SDL_main(int argc, char ** argv) {
     std::vector<VkSwapchainKHR> swapchainHandles(swapchains.size());
     std::transform(swapchains.begin(), swapchains.end(), swapchainHandles.begin(), [](avocado::vulkan::Swapchain &swapchain) { return swapchain.getHandle(); });
 
-    VkDescriptorPoolSize descriptorPoolSize{};
-    descriptorPoolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    descriptorPoolSize.descriptorCount = 1;
 
-    VkDescriptorPoolCreateInfo dPoolCI{};
-    dPoolCI.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    dPoolCI.poolSizeCount = 1;
-    dPoolCI.pPoolSizes = &descriptorPoolSize;
-    dPoolCI.maxSets = 1;
-
-    VkDescriptorPool descriptorPool;
-    const VkResult cdp = vkCreateDescriptorPool(logicalDevice.getHandle(), &dPoolCI, nullptr, &descriptorPool);
-    if (cdp != VK_SUCCESS) {
-        std::cout << "Can't create descriptor pool: " << static_cast<int>(cdp) << std::endl;
-        return 1;
-    }
-
-    
-    VkDescriptorSetAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    allocInfo.descriptorPool = descriptorPool;
-    allocInfo.descriptorSetCount = 1;
-    allocInfo.pSetLayouts = &layoutRawPtr;
-
-    VkDescriptorSet dSet;
-    const VkResult ads = vkAllocateDescriptorSets(logicalDevice.getHandle(), &allocInfo, &dSet);
-    if (ads != VK_SUCCESS) {
-        std::cout << "Can't allocate descripto sets: " << static_cast<int>(ads) << std::endl;
-        return 1;
-    }
-
-    VkDescriptorBufferInfo dBufInfo{};
-    dBufInfo.buffer = uniformBuffer.getHandle();
-    dBufInfo.offset = 0;
-    dBufInfo.range = sizeof(UniformBufferObject);
-
-    VkWriteDescriptorSet descriptorWrite{};
-    descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrite.dstSet = dSet;
-    descriptorWrite.dstBinding = 0;
-    descriptorWrite.dstArrayElement = 0;
-    descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    descriptorWrite.descriptorCount = 1;
-    descriptorWrite.pBufferInfo = &dBufInfo;
-
-
-    vkUpdateDescriptorSets(logicalDevice.getHandle(), 1, &descriptorWrite, 0, nullptr);
 
 
     auto startTime = std::chrono::high_resolution_clock::now();
+
+
+
     // Main loop.
     while (true) {
         if (SDL_PollEvent(&event)) {
-            if (event.type == SDL_QUIT)
+            if ((event.type == SDL_QUIT) || (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE))
                 break;
         }
 
@@ -587,15 +572,11 @@ int SDL_main(int argc, char ** argv) {
         logicalDevice.resetFences(fences);
 
         // Update uniform buffer.
-
         auto currentTime = std::chrono::high_resolution_clock::now();
         float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
-        UniformBufferObject ubo{};
-        ubo.model = avocado::math::createRotationMatrix(time * 90.f, avocado::math::vec3f(0.0f, 0.0f, 0.0f));
-        ubo.view = avocado::math::lookAt(avocado::math::vec3f(2.f, 2.f, 2.f), avocado::math::vec3f(0.f, 0.f, 0.f), avocado::math::vec3f(0.f, 0.f, 1.f));
-        ubo.proj =avocado::math::perspectiveProjection(avocado::math::toRadians(45.f), 800.f / 600.f, 0.1f, 10.f);
+        ubo.model = avocado::math::Mat4x4::createIdentityMatrix() * avocado::math::createRotationMatrix(time * 90.f, avocado::math::vec3f(0.0f, 0.0f, 1.0f));
         uniformBuffer.fill(&ubo, sizeof(ubo));
-        
+
         vkUpdateDescriptorSets(logicalDevice.getHandle(), 1, &descriptorWrite, 0, nullptr);
 
         commandBuffer.reset(avocado::vulkan::CommandBuffer::ResetFlags::NoFlags);
@@ -604,10 +585,10 @@ int SDL_main(int argc, char ** argv) {
 
         commandBuffer.setViewports(viewPorts);
         commandBuffer.setScissors(scissors);
-        //commandBuffer.bindVertexBuffers(0, 1, vertexBuffers, offsets);
+        commandBuffer.bindVertexBuffers(0, 1, vertexBuffers, offsets);
         commandBuffer.bindIndexBuffer(indexBuffer.getHandle(), 0, avocado::vulkan::toIndexType<decltype(indices)::value_type>());
         commandBuffer.bindPipeline(graphicsPipeline.get(), avocado::vulkan::CommandBuffer::PipelineBindPoint::Graphics);
-        vkCmdBindDescriptorSets(commandBuffer.getHandle(), VK_PIPELINE_BIND_POINT_GRAPHICS, newPipelineLayout, 0, 1, &dSet, 0, nullptr);
+        vkCmdBindDescriptorSets(commandBuffer.getHandle(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineBuilder._pipelineLayout, 0,1, &dSet, 0, nullptr);
         commandBuffer.drawIndexed(static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 
         commandBuffer.endRenderPass();
@@ -620,12 +601,12 @@ int SDL_main(int argc, char ** argv) {
 
         presentQueue.present(signalSemaphores, imageIndices, swapchainHandles);
         imageIndices[0] = swapchain.acquireNextImage(imageAvailableSemaphore);
-    }
+    } // main loop.
 
     logicalDevice.waitIdle();
 
     // Destroy resources.
-    vkDestroyDescriptorSetLayout(logicalDevice.getHandle(), layoutPtr, nullptr);
+    //vkDestroyDescriptorSetLayout(logicalDevice.getHandle(), layoutPtr, nullptr);
     vkDestroySemaphore(logicalDevice.getHandle(), imageAvailableSemaphore, nullptr);
     vkDestroySemaphore(logicalDevice.getHandle(), renderFinishedSemaphore, nullptr);
     vkDestroyFence(logicalDevice.getHandle(), fences.front(), nullptr);

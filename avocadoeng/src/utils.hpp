@@ -2,7 +2,9 @@
 #define AVOCADO_UTILS
 
 #include <algorithm>
+#include <cmath>
 #include <fstream>
+#include <limits>
 #include <type_traits>
 #include <vector>
 

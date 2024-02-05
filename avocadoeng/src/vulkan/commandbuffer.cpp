@@ -53,7 +53,7 @@ void CommandBuffer::beginRenderPass(Swapchain &swapchain, VkRenderPass renderPas
     renderPassInfo.renderArea.offset = offset;
     renderPassInfo.renderArea.extent = extent;
 
-    VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}}; // todo extract as parameter?
+    VkClearValue clearColor = {{{0.f, 0.f, 0.f, 0.f}}}; // todo extract as parameter?
 
     renderPassInfo.clearValueCount = 1;
     renderPassInfo.pClearValues = &clearColor;
@@ -99,7 +99,6 @@ void CommandBuffer::drawIndexed(const uint32_t indexCount, const uint32_t instan
 
     vkCmdDrawIndexed(_buf, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
 }
-
 
 void CommandBuffer::reset(const CommandBuffer::ResetFlags flags) {
     assert(_buf != VK_NULL_HANDLE);

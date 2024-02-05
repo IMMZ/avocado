@@ -4,6 +4,8 @@
 
 #include "vkutils.hpp"
 
+#include <cstring>
+
 using namespace std::string_literals;
 
 namespace avocado::vulkan {
