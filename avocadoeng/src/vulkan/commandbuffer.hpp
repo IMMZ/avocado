@@ -28,6 +28,7 @@ public:
     void copyBuffer(Buffer &srcBuf, Buffer &dstBuf, const std::vector<VkBufferCopy> &regions) noexcept;
     void bindVertexBuffers(const uint32_t firstBinding, const uint32_t bindingCount, VkBuffer *buffers, VkDeviceSize *offsets) noexcept;
     void bindIndexBuffer(VkBuffer buffer, const VkDeviceSize offset, const VkIndexType indexType) noexcept;
+    void bindDescriptorSets(const VkPipelineBindPoint bindPoint, VkPipelineLayout pipelineLayout, uint32_t firstSet, uint32_t setCount, const VkDescriptorSet *sets, uint32_t dynamicOffsetCount = 0, const uint32_t *dynamicOffsets = nullptr);
 
     void draw(const uint32_t vertexCount, const uint32_t instanceCount,
         const uint32_t firstVertex = 0, const uint32_t firstInstance = 0) noexcept;

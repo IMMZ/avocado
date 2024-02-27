@@ -3,6 +3,7 @@
 #include "buffer.hpp"
 #include "swapchain.hpp"
 #include "vkutils.hpp"
+#include "vulkan_core.h"
 
 #include <cassert>
 
@@ -84,6 +85,13 @@ void CommandBuffer::bindIndexBuffer(VkBuffer buffer, const VkDeviceSize offset, 
     assert(_buf != VK_NULL_HANDLE);
 
     vkCmdBindIndexBuffer(_buf, buffer, offset, indexType);
+}
+
+void CommandBuffer::bindDescriptorSets(const VkPipelineBindPoint bindPoint, VkPipelineLayout pipelineLayout,
+    uint32_t firstSet,
+    uint32_t setCount, const VkDescriptorSet *sets,
+    uint32_t dynamicOffsetCount, const uint32_t *dynamicOffsets) {
+    vkCmdBindDescriptorSets(_buf, bindPoint, pipelineLayout, firstSet, setCount, sets, dynamicOffsetCount, dynamicOffsets);
 }
 
 void CommandBuffer::draw(const uint32_t vertexCount, const uint32_t instanceCount,

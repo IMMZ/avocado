@@ -6,6 +6,7 @@
 #include "types.hpp"
 
 #include "../errorstorage.hpp"
+#include "vulkan_core.h"
 
 #include <vulkan/vulkan.h>
 
@@ -27,35 +28,6 @@ public:
 
     VkDevice getHandle() noexcept;
     bool isValid() const noexcept;
-
-    enum class ShaderType {
-        Vertex = VK_SHADER_STAGE_VERTEX_BIT,
-        TessellationControl = VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT,
-        TessellationEvaluation = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT,
-        Geometry = VK_SHADER_STAGE_GEOMETRY_BIT,
-        Fragment = VK_SHADER_STAGE_FRAGMENT_BIT,
-        Compute = VK_SHADER_STAGE_COMPUTE_BIT,
-        AllGraphics = VK_SHADER_STAGE_ALL_GRAPHICS,
-        All = VK_SHADER_STAGE_ALL,
-        RaygenKHR = VK_SHADER_STAGE_RAYGEN_BIT_KHR,
-        AnyHitKHR = VK_SHADER_STAGE_ANY_HIT_BIT_KHR,
-        ClosestHitKHR = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR,
-        MissKHR = VK_SHADER_STAGE_MISS_BIT_KHR,
-        IntersectionKHR = VK_SHADER_STAGE_INTERSECTION_BIT_KHR,
-        CallableKHR = VK_SHADER_STAGE_CALLABLE_BIT_KHR,
-        TaskNV = VK_SHADER_STAGE_TASK_BIT_NV,
-        MeshNV = VK_SHADER_STAGE_MESH_BIT_NV,
-        SubpassShadingHuawei = VK_SHADER_STAGE_SUBPASS_SHADING_BIT_HUAWEI,
-        RaygenNV = VK_SHADER_STAGE_RAYGEN_BIT_NV,
-        AnyHitNV = VK_SHADER_STAGE_ANY_HIT_BIT_NV,
-        ClosestHitNV = VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV,
-        MissNV = VK_SHADER_STAGE_MISS_BIT_NV,
-        IntersectionNV = VK_SHADER_STAGE_INTERSECTION_BIT_NV,
-        CallableNV = VK_SHADER_STAGE_CALLABLE_BIT_NV
-    };
-
-    VkPipelineShaderStageCreateInfo addShaderModule(const std::vector<char> &shaderCode, ShaderType shType);
-    VkPipelineShaderStageCreateInfo addShaderModule(std::vector<char> &&shaderCode, ShaderType shType);
 
     VkDescriptorSetLayoutBinding createLayoutBinding(const uint32_t bindingNumber, const VkDescriptorType type,
         const uint32_t descriptorCount, const VkShaderStageFlags flags, const std::vector<VkSampler> &samplers = {}) noexcept;
@@ -94,15 +66,9 @@ public:
     void waitIdle() noexcept;
 
 private:
-    VkPipelineShaderStageCreateInfo createShaderModule(ShaderType shType);
-
     using DeviceDeleter = decltype(std::bind(vkDestroyDevice, std::placeholders::_1, nullptr));
     using DevicePtr = std::unique_ptr<VkDevice_T, DeviceDeleter>;
     DevicePtr _dev;
-
-    using ShaderModuleDeleter = decltype(std::bind(vkDestroyShaderModule, _dev.get(), std::placeholders::_1, nullptr));
-    std::vector<std::unique_ptr<VkShaderModule_T, ShaderModuleDeleter>> _shaderModules;
-    std::vector<std::vector<char>> _shaderCodes;
 
     // Queue families. Needed to return queues.
     QueueFamily _graphicsQueueFamily = 0, _presentQueueFamily = 0, _transferQueueFamily = 0;

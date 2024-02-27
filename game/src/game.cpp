@@ -50,6 +50,10 @@
 #include <set>
 #include <vector>
 
+bool descritorSets(avocado::vulkan::LogicalDevice &logicalDevice, VkDescriptorType type, const uint32_t count) {
+    return true;
+}
+
 int main(int argc, char ** argv) {
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS) < 0) {
         std::cerr << "Can't init SDL." << std::endl;
@@ -59,7 +63,7 @@ int main(int argc, char ** argv) {
     std::unique_ptr<SDL_Window, void(*)(SDL_Window*)> sdlWindow(SDL_CreateWindow(
         Config::GAME_NAME,
         SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-        800, 600,
+        Config::RESOLUTION_WIDTH, Config::RESOLUTION_HEIGHT,
         SDL_WINDOW_SHOWN | SDL_WINDOW_VULKAN), SDL_DestroyWindow);
 
     if (sdlWindow == nullptr) {
@@ -210,27 +214,14 @@ int main(int argc, char ** argv) {
         std::cout << "File " << Config::SHADERS_PATH << "/triangle.vert.spv doesn't exist." << std::endl;
         return 1;
     }
-    const std::vector<char> &fragBuf = avocado::utils::readFile(Config::SHADERS_PATH + "/triangle.frag.spv");
-    const std::vector<char> &vertBuf = avocado::utils::readFile(Config::SHADERS_PATH + "/triangle.vert.spv");
-
-    // todo move to pipeline class.
-    const VkPipelineShaderStageCreateInfo &fragShaderModule =
-        logicalDevice.addShaderModule(fragBuf, avocado::vulkan::LogicalDevice::ShaderType::Fragment);
-    if (logicalDevice.hasError()) {
-        std::cout << "Can't add fragment shader module. " << logicalDevice.getErrorMessage() << std::endl;
-        return 1;
-    }
-    const VkPipelineShaderStageCreateInfo &vertShaderModule =
-        logicalDevice.addShaderModule(vertBuf, avocado::vulkan::LogicalDevice::ShaderType::Vertex);
-    if (logicalDevice.hasError()) {
-        std::cout << "Can't add vertex shader module. " << logicalDevice.getErrorMessage() << std::endl;
-        return 1;
-    }
-
-    const std::vector<VkPipelineShaderStageCreateInfo> pipelineShaderStageCIs = {fragShaderModule, vertShaderModule};
 
     // Building a pipeline.
-    avocado::vulkan::GraphicsPipelineBuilder pipelineBuilder(logicalDevice.getHandle());
+    avocado::vulkan::GraphicsPipelineBuilder pipelineBuilder(logicalDevice);
+
+    const std::vector<char> &fragBuf = avocado::utils::readFile(Config::SHADERS_PATH + "/triangle.frag.spv");
+    const std::vector<char> &vertBuf = avocado::utils::readFile(Config::SHADERS_PATH + "/triangle.vert.spv");
+    pipelineBuilder.addVertexShaderModules({vertBuf});
+    pipelineBuilder.addFragmentShaderModules({fragBuf});
 
     avocado::vulkan::DynamicState dynState({VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR});
     pipelineBuilder.setDynamicState(dynState);
@@ -352,7 +343,7 @@ int main(int argc, char ** argv) {
 
     UniformBufferObject ubo{};
     ubo.view = avocado::math::lookAt(avocado::math::vec3f(2.f, 2.f, 2.f), avocado::math::vec3f(0.f, 0.f, 0.f), avocado::math::vec3f(0.f, 0.f, 1.f));
-    ubo.proj = avocado::math::perspectiveProjection(45.f, 800.f / 600.f, 0.1f, 10.f); // todo Replace to consts with screen size
+    ubo.proj = avocado::math::perspectiveProjection(45.f, static_cast<float>(Config::RESOLUTION_WIDTH) / static_cast<float>(Config::RESOLUTION_HEIGHT), 0.1f, 10.f);
     uniformBuffer.fill(&ubo, sizeof(ubo));
     uniformBuffer.bindMemory();
 
@@ -362,7 +353,7 @@ int main(int argc, char ** argv) {
     avocado::vulkan::ViewportState viewportState(viewPorts, scissors);
     pipelineBuilder.setViewportState(viewportState);
 
-    avocado::vulkan::GraphicsPipelineBuilder::PipelineUniquePtr graphicsPipeline = pipelineBuilder.buildPipeline(pipelineShaderStageCIs, renderPassPtr.get());
+    avocado::vulkan::GraphicsPipelineBuilder::PipelineUniquePtr graphicsPipeline = pipelineBuilder.buildPipeline(renderPassPtr.get());
 
     if (graphicsPipeline == nullptr) {
         std::cout << "Error: invalid pipeline" << std::endl;
@@ -392,7 +383,6 @@ int main(int argc, char ** argv) {
         return 1;
     }
 
-
     commandBuffer.beginRenderPass(swapchain, renderPassPtr.get(), extent, {0, 0}, 0);
     commandBuffer.bindPipeline(graphicsPipeline.get(), avocado::vulkan::CommandBuffer::PipelineBindPoint::Graphics);
     // Binding vertex buffer.
@@ -406,8 +396,7 @@ int main(int argc, char ** argv) {
     descriptorPoolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     descriptorPoolSize.descriptorCount = 1;
 
-    VkDescriptorPoolCreateInfo dPoolCI{};
-    dPoolCI.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    auto dPoolCI = avocado::vulkan::createStruct<VkDescriptorPoolCreateInfo>();
     dPoolCI.poolSizeCount = 1;
     dPoolCI.pPoolSizes = &descriptorPoolSize;
     dPoolCI.maxSets = 1;
@@ -419,12 +408,11 @@ int main(int argc, char ** argv) {
         return 1;
     }
 
-
-    VkDescriptorSetAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    auto allocInfo = avocado::vulkan::createStruct<VkDescriptorSetAllocateInfo>();
     allocInfo.descriptorPool = descriptorPool;
     allocInfo.descriptorSetCount = 1;
-    allocInfo.pSetLayouts = &pipelineBuilder._descriptorSetLayout;
+    auto descriptorLayout = pipelineBuilder.getDescriptorSetLayout();
+    allocInfo.pSetLayouts = &descriptorLayout;
 
     VkDescriptorSet dSet;
     const VkResult ads = vkAllocateDescriptorSets(logicalDevice.getHandle(), &allocInfo, &dSet);
@@ -438,8 +426,7 @@ int main(int argc, char ** argv) {
     dBufInfo.offset = 0;
     dBufInfo.range = sizeof(UniformBufferObject);
 
-    VkWriteDescriptorSet descriptorWrite{};
-    descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    auto descriptorWrite = avocado::vulkan::createStruct<VkWriteDescriptorSet>();
     descriptorWrite.dstSet = dSet;
     descriptorWrite.dstBinding = 0;
     descriptorWrite.dstArrayElement = 0;
@@ -448,7 +435,7 @@ int main(int argc, char ** argv) {
     descriptorWrite.pBufferInfo = &dBufInfo;
 
     vkUpdateDescriptorSets(logicalDevice.getHandle(), 1, &descriptorWrite, 0, nullptr);
-    vkCmdBindDescriptorSets(commandBuffer.getHandle(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineBuilder._pipelineLayout, 0,1, &dSet, 0, nullptr);
+    commandBuffer.bindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineBuilder.getPipelineLayout(), 0,1, &dSet, 0, nullptr);
 
     commandBuffer.setViewports(viewPorts);
     commandBuffer.setScissors(scissors);
@@ -583,7 +570,7 @@ int main(int argc, char ** argv) {
         commandBuffer.bindVertexBuffers(0, 1, vertexBuffers, offsets);
         commandBuffer.bindIndexBuffer(indexBuffer.getHandle(), 0, avocado::vulkan::toIndexType<decltype(indices)::value_type>());
         commandBuffer.bindPipeline(graphicsPipeline.get(), avocado::vulkan::CommandBuffer::PipelineBindPoint::Graphics);
-        vkCmdBindDescriptorSets(commandBuffer.getHandle(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineBuilder._pipelineLayout, 0,1, &dSet, 0, nullptr);
+        commandBuffer.bindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineBuilder.getPipelineLayout(), 0,1, &dSet, 0, nullptr);
         commandBuffer.drawIndexed(static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 
         commandBuffer.endRenderPass();

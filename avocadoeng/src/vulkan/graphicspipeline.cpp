@@ -10,17 +10,20 @@
 #include "states/vertexinputstate.hpp"
 #include "states/viewportstate.hpp"
 
-#include <vulkan/vulkan.h>
-#include <vulkan/vulkan_core.h>
-
-#include <cassert>
-
 using namespace std::string_literals;
 
 namespace avocado::vulkan {
 
-GraphicsPipelineBuilder::GraphicsPipelineBuilder(VkDevice device):
-    _device(device) {
+GraphicsPipelineBuilder::GraphicsPipelineBuilder(LogicalDevice &device):
+    _logicalDevice(device) {
+}
+
+VkPipelineLayout GraphicsPipelineBuilder::getPipelineLayout() noexcept {
+    return _pipelineLayout;
+}
+
+VkDescriptorSetLayout GraphicsPipelineBuilder::getDescriptorSetLayout() noexcept {
+    return _descriptorSetLayout;
 }
 
 void GraphicsPipelineBuilder::setColorBlendState(ColorBlendState &state) noexcept {
@@ -51,13 +54,48 @@ void GraphicsPipelineBuilder::setViewportState(ViewportState &viewportState) noe
     _viewportState = &viewportState;
 }
 
+void GraphicsPipelineBuilder::addFragmentShaderModules(const std::vector<std::vector<char>> &shaderModules) {
+    for (std::vector<char> shaderModule: shaderModules)
+        _shaderModuleCIs.emplace_back(addShaderModule(shaderModule, VK_SHADER_STAGE_FRAGMENT_BIT));
+}
+
+void GraphicsPipelineBuilder::addVertexShaderModules(const std::vector<std::vector<char>> &shaderModules) {
+    for (std::vector<char> shaderModule: shaderModules)
+        _shaderModuleCIs.emplace_back(addShaderModule(shaderModule, VK_SHADER_STAGE_VERTEX_BIT));
+}
+
+VkPipelineShaderStageCreateInfo GraphicsPipelineBuilder::addShaderModule(const std::vector<char> &data, const VkShaderStageFlagBits shType) {
+    auto shaderStageCreateInfo = createStruct<VkPipelineShaderStageCreateInfo>();
+
+    auto shaderModuleCreateInfo = createStruct<VkShaderModuleCreateInfo>();
+    shaderModuleCreateInfo.codeSize = data.size();
+    shaderModuleCreateInfo.pCode = reinterpret_cast<const uint32_t*>(data.data());
+
+    VkShaderModule shaderModule = VK_NULL_HANDLE;
+    const VkResult result = vkCreateShaderModule(_logicalDevice.getHandle(), &shaderModuleCreateInfo, nullptr, &shaderModule);
+
+    setHasError(result != VK_SUCCESS);
+    if (hasError()) {
+        setErrorMessage("vkCreateShaderModule returned "s + getVkResultString(result));
+        return shaderStageCreateInfo;
+    }
+
+    _shaderModules.emplace_back(shaderModule,
+        std::bind(vkDestroyShaderModule, _logicalDevice.getHandle(), std::placeholders::_1, nullptr));
+
+    shaderStageCreateInfo.stage = shType;
+    shaderStageCreateInfo.module = _shaderModules.back().get();
+    shaderStageCreateInfo.pName = "main"; // Entry point.
+    return shaderStageCreateInfo;
+}
+
 // todo must create multiple pipelines.
 // vkCreateGraphicsPipeline(s)
-GraphicsPipelineBuilder::PipelineUniquePtr GraphicsPipelineBuilder::buildPipeline(const std::vector<VkPipelineShaderStageCreateInfo> &shaderStageCIs, VkRenderPass renderPass) {
+GraphicsPipelineBuilder::PipelineUniquePtr GraphicsPipelineBuilder::buildPipeline(VkRenderPass renderPass) {
     auto pipelineCI = createStruct<VkGraphicsPipelineCreateInfo>();
 
-    pipelineCI.stageCount = static_cast<uint32_t>(shaderStageCIs.size());
-    pipelineCI.pStages = shaderStageCIs.data();
+    pipelineCI.stageCount = static_cast<uint32_t>(_shaderModuleCIs.size());
+    pipelineCI.pStages = _shaderModuleCIs.data();
 
     VkPipelineDynamicStateCreateInfo dynamicStateCI{};
     dynamicStateCI.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
@@ -115,13 +153,13 @@ GraphicsPipelineBuilder::PipelineUniquePtr GraphicsPipelineBuilder::buildPipelin
     layoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
 
-    auto pipelineDestroyer = std::bind(vkDestroyPipeline, _device, std::placeholders::_1, nullptr);
+    auto pipelineDestroyer = std::bind(vkDestroyPipeline, _logicalDevice.getHandle(), std::placeholders::_1, nullptr);
 
     auto createInfo = createStruct<VkDescriptorSetLayoutCreateInfo>();
     createInfo.bindingCount = 1;
     createInfo.pBindings = &layoutBinding;
 
-    const VkResult result1 = vkCreateDescriptorSetLayout(_device, &createInfo, nullptr, &_descriptorSetLayout);
+    const VkResult result1 = vkCreateDescriptorSetLayout(_logicalDevice.getHandle(), &createInfo, nullptr, &_descriptorSetLayout);
     setHasError(result1 != VK_SUCCESS);
     if (hasError()) {
         setErrorMessage("vkCreateDescriptorSetLayout returned "s + getVkResultString(result1));
@@ -133,7 +171,7 @@ GraphicsPipelineBuilder::PipelineUniquePtr GraphicsPipelineBuilder::buildPipelin
 
     pipelineLayoutCreateInfo.setLayoutCount = 1;
     pipelineLayoutCreateInfo.pSetLayouts = &_descriptorSetLayout;
-    const VkResult pipelineCreationResult = vkCreatePipelineLayout(_device, &pipelineLayoutCreateInfo, nullptr, &_pipelineLayout);
+    const VkResult pipelineCreationResult = vkCreatePipelineLayout(_logicalDevice.getHandle(), &pipelineLayoutCreateInfo, nullptr, &_pipelineLayout);
     setHasError(pipelineCreationResult != VK_SUCCESS);
     if (hasError()) {
         setErrorMessage("vkCreatePipelineLayout returned "s + getVkResultString(pipelineCreationResult));
@@ -145,7 +183,12 @@ GraphicsPipelineBuilder::PipelineUniquePtr GraphicsPipelineBuilder::buildPipelin
 
     // Create the pipeline.
     VkPipeline pipeline = VK_NULL_HANDLE;
-    const VkResult result = vkCreateGraphicsPipelines(_device, VK_NULL_HANDLE, 1, &pipelineCI, nullptr, &pipeline);
+    const VkResult result = vkCreateGraphicsPipelines(_logicalDevice.getHandle(), VK_NULL_HANDLE, 1, &pipelineCI, nullptr, &pipeline);
+
+    // Free unneeded resources.
+    _shaderModuleCIs.clear();
+    _shaderModuleCIs.shrink_to_fit();
+
     setHasError(result != VK_SUCCESS);
     if (hasError()) {
         setErrorMessage("vkCreateGraphicsPipelines returned "s + getVkResultString(result));
@@ -156,8 +199,8 @@ GraphicsPipelineBuilder::PipelineUniquePtr GraphicsPipelineBuilder::buildPipelin
 }
 
 void GraphicsPipelineBuilder::destroyPipeline() {
-    vkDestroyDescriptorSetLayout(_device, _descriptorSetLayout, nullptr);
-    vkDestroyPipelineLayout(_device, _pipelineLayout, nullptr);
+    vkDestroyDescriptorSetLayout(_logicalDevice.getHandle(), _descriptorSetLayout, nullptr);
+    vkDestroyPipelineLayout(_logicalDevice.getHandle(), _pipelineLayout, nullptr);
 }
 
 } // namespace avocado::vulkan.

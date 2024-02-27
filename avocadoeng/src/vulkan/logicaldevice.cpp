@@ -25,16 +25,6 @@ bool LogicalDevice::isValid() const noexcept {
     return _dev.get() != VK_NULL_HANDLE;
 }
 
-VkPipelineShaderStageCreateInfo LogicalDevice::addShaderModule(const std::vector<char> &shaderCode, ShaderType shType) {
-    _shaderCodes.push_back(shaderCode);
-    return createShaderModule(shType);
-}
-
-VkPipelineShaderStageCreateInfo LogicalDevice::addShaderModule(std::vector<char> &&shaderCode, ShaderType shType) {
-    _shaderCodes.emplace_back(std::move(shaderCode));
-    return createShaderModule(shType);
-}
-
 VkDescriptorSetLayoutBinding LogicalDevice::createLayoutBinding(const uint32_t bindingNumber, const VkDescriptorType type,
     const uint32_t descriptorCount, const VkShaderStageFlags flags, const std::vector<VkSampler> &samplers) noexcept {
     VkDescriptorSetLayoutBinding layoutBinding{};
@@ -177,31 +167,6 @@ void LogicalDevice::waitIdle() noexcept {
     if (hasError()) {
         setErrorMessage("vkDeviceWaitIdle returned "s + getVkResultString(result));
     }
-}
-
-VkPipelineShaderStageCreateInfo LogicalDevice::createShaderModule(ShaderType shType) {
-    auto shaderStageCreateInfo = createStruct<VkPipelineShaderStageCreateInfo>();
-
-    auto shaderModuleCreateInfo = createStruct<VkShaderModuleCreateInfo>();
-    shaderModuleCreateInfo.codeSize = _shaderCodes.back().size();
-    shaderModuleCreateInfo.pCode = reinterpret_cast<const uint32_t*>(_shaderCodes.back().data());
-
-    VkShaderModule shaderModule;
-    const VkResult result = vkCreateShaderModule(_dev.get(), &shaderModuleCreateInfo, nullptr, &shaderModule);
-
-    setHasError(result != VK_SUCCESS);
-    if (hasError()) {
-        setErrorMessage("vkCreateShaderModule returned "s + getVkResultString(result));
-        return shaderStageCreateInfo;
-    }
-
-    _shaderModules.emplace_back(shaderModule,
-        std::bind(vkDestroyShaderModule, _dev.get(), std::placeholders::_1, nullptr));
-
-    shaderStageCreateInfo.stage = static_cast<VkShaderStageFlagBits>(shType);
-    shaderStageCreateInfo.module = _shaderModules.back().get();
-    shaderStageCreateInfo.pName = "main"; // Entry point.
-    return shaderStageCreateInfo;
 }
 
 // todo Refactor? Extract constants as parameters.
