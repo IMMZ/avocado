@@ -155,5 +155,10 @@ GraphicsPipelineBuilder::PipelineUniquePtr GraphicsPipelineBuilder::buildPipelin
     return PipelineUniquePtr(pipeline, pipelineDestroyer);
 }
 
+void GraphicsPipelineBuilder::destroyPipeline() {
+    vkDestroyDescriptorSetLayout(_device, _descriptorSetLayout, nullptr);
+    vkDestroyPipelineLayout(_device, _pipelineLayout, nullptr);
+}
+
 } // namespace avocado::vulkan.
 

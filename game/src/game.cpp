@@ -554,12 +554,7 @@ int main(int argc, char ** argv) {
     std::vector<VkSwapchainKHR> swapchainHandles(swapchains.size());
     std::transform(swapchains.begin(), swapchains.end(), swapchainHandles.begin(), [](avocado::vulkan::Swapchain &swapchain) { return swapchain.getHandle(); });
 
-
-
-
     auto startTime = std::chrono::high_resolution_clock::now();
-
-
 
     // Main loop.
     while (true) {
@@ -606,7 +601,8 @@ int main(int argc, char ** argv) {
     logicalDevice.waitIdle();
 
     // Destroy resources.
-    //vkDestroyDescriptorSetLayout(logicalDevice.getHandle(), layoutPtr, nullptr);
+    vkDestroyDescriptorPool(logicalDevice.getHandle(), descriptorPool, nullptr);
+    pipelineBuilder.destroyPipeline();
     vkDestroySemaphore(logicalDevice.getHandle(), imageAvailableSemaphore, nullptr);
     vkDestroySemaphore(logicalDevice.getHandle(), renderFinishedSemaphore, nullptr);
     vkDestroyFence(logicalDevice.getHandle(), fences.front(), nullptr);

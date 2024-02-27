@@ -57,6 +57,7 @@ public:
     using PipelineDestroyer = decltype(std::bind(vkDestroyPipeline, _device, std::placeholders::_1, nullptr));
     using PipelineUniquePtr = std::unique_ptr<std::remove_pointer_t<VkPipeline>, PipelineDestroyer>;
     PipelineUniquePtr buildPipeline(const std::vector<VkPipelineShaderStageCreateInfo> &shaderStageCIs, VkRenderPass renderPass);
+    void destroyPipeline();
 };
 
 } // namespace avocado::vulkan.
