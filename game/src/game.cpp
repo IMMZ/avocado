@@ -50,10 +50,6 @@
 #include <set>
 #include <vector>
 
-bool descritorSets(avocado::vulkan::LogicalDevice &logicalDevice, VkDescriptorType type, const uint32_t count) {
-    return true;
-}
-
 int main(int argc, char ** argv) {
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS) < 0) {
         std::cerr << "Can't init SDL." << std::endl;
@@ -374,7 +370,6 @@ int main(int argc, char ** argv) {
         return 1;
     }
 
-
     avocado::vulkan::CommandBuffer commandBuffer = cmdBuffers.front();
 
     commandBuffer.begin();
@@ -392,50 +387,12 @@ int main(int argc, char ** argv) {
     commandBuffer.bindVertexBuffers(0, 1, vertexBuffers, offsets);
     commandBuffer.bindIndexBuffer(indexBuffer.getHandle(), 0, avocado::vulkan::toIndexType<decltype(indices)::value_type>());
 
-    VkDescriptorPoolSize descriptorPoolSize{};
-    descriptorPoolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    descriptorPoolSize.descriptorCount = 1;
+    VkDescriptorPool descriptorPool = logicalDevice.createDescriptorPool();
+    VkDescriptorBufferInfo descriptorBufferInfo = logicalDevice.createDescriptorBufferInfo(uniformBuffer, sizeof(UniformBufferObject));
+    const auto [descriptorSet, descriptorWrite] = logicalDevice.createWriteDescriptorSet(descriptorPool, pipelineBuilder.getDescriptorSetLayout(),descriptorBufferInfo);
 
-    auto dPoolCI = avocado::vulkan::createStruct<VkDescriptorPoolCreateInfo>();
-    dPoolCI.poolSizeCount = 1;
-    dPoolCI.pPoolSizes = &descriptorPoolSize;
-    dPoolCI.maxSets = 1;
-
-    VkDescriptorPool descriptorPool;
-    const VkResult cdp = vkCreateDescriptorPool(logicalDevice.getHandle(), &dPoolCI, nullptr, &descriptorPool);
-    if (cdp != VK_SUCCESS) {
-        std::cout << "Can't create descriptor pool: " << static_cast<int>(cdp) << std::endl;
-        return 1;
-    }
-
-    auto allocInfo = avocado::vulkan::createStruct<VkDescriptorSetAllocateInfo>();
-    allocInfo.descriptorPool = descriptorPool;
-    allocInfo.descriptorSetCount = 1;
-    auto descriptorLayout = pipelineBuilder.getDescriptorSetLayout();
-    allocInfo.pSetLayouts = &descriptorLayout;
-
-    VkDescriptorSet dSet;
-    const VkResult ads = vkAllocateDescriptorSets(logicalDevice.getHandle(), &allocInfo, &dSet);
-    if (ads != VK_SUCCESS) {
-        std::cout << "Can't allocate descriptor sets: " << static_cast<int>(ads) << std::endl;
-        return 1;
-    }
-
-    VkDescriptorBufferInfo dBufInfo{};
-    dBufInfo.buffer = uniformBuffer.getHandle();
-    dBufInfo.offset = 0;
-    dBufInfo.range = sizeof(UniformBufferObject);
-
-    auto descriptorWrite = avocado::vulkan::createStruct<VkWriteDescriptorSet>();
-    descriptorWrite.dstSet = dSet;
-    descriptorWrite.dstBinding = 0;
-    descriptorWrite.dstArrayElement = 0;
-    descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    descriptorWrite.descriptorCount = 1;
-    descriptorWrite.pBufferInfo = &dBufInfo;
-
-    vkUpdateDescriptorSets(logicalDevice.getHandle(), 1, &descriptorWrite, 0, nullptr);
-    commandBuffer.bindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineBuilder.getPipelineLayout(), 0,1, &dSet, 0, nullptr);
+    logicalDevice.updateDescriptorSet({descriptorWrite});
+    commandBuffer.bindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineBuilder.getPipelineLayout(), 0,1, &descriptorSet, 0, nullptr);
 
     commandBuffer.setViewports(viewPorts);
     commandBuffer.setScissors(scissors);
@@ -559,7 +516,7 @@ int main(int argc, char ** argv) {
         ubo.model = avocado::math::Mat4x4::createIdentityMatrix() * avocado::math::createRotationMatrix(time * 90.f, avocado::math::vec3f(0.0f, 0.0f, 1.0f));
         uniformBuffer.fill(&ubo, sizeof(ubo));
 
-        vkUpdateDescriptorSets(logicalDevice.getHandle(), 1, &descriptorWrite, 0, nullptr);
+        logicalDevice.updateDescriptorSet({descriptorWrite});
 
         commandBuffer.reset(avocado::vulkan::CommandBuffer::ResetFlags::NoFlags);
         commandBuffer.begin();
@@ -570,7 +527,7 @@ int main(int argc, char ** argv) {
         commandBuffer.bindVertexBuffers(0, 1, vertexBuffers, offsets);
         commandBuffer.bindIndexBuffer(indexBuffer.getHandle(), 0, avocado::vulkan::toIndexType<decltype(indices)::value_type>());
         commandBuffer.bindPipeline(graphicsPipeline.get(), avocado::vulkan::CommandBuffer::PipelineBindPoint::Graphics);
-        commandBuffer.bindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineBuilder.getPipelineLayout(), 0,1, &dSet, 0, nullptr);
+        commandBuffer.bindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineBuilder.getPipelineLayout(), 0,1, &descriptorSet, 0, nullptr);
         commandBuffer.drawIndexed(static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 
         commandBuffer.endRenderPass();

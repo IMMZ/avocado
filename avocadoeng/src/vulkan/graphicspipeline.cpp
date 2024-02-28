@@ -166,7 +166,6 @@ GraphicsPipelineBuilder::PipelineUniquePtr GraphicsPipelineBuilder::buildPipelin
         return PipelineUniquePtr(VK_NULL_HANDLE, pipelineDestroyer);
     }
 
-
     auto pipelineLayoutCreateInfo = createStruct<VkPipelineLayoutCreateInfo>();
 
     pipelineLayoutCreateInfo.setLayoutCount = 1;

@@ -33,6 +33,11 @@ public:
         const uint32_t descriptorCount, const VkShaderStageFlags flags, const std::vector<VkSampler> &samplers = {}) noexcept;
 
     VkDescriptorSetLayout createDescriptorSetLayout(const std::vector<VkDescriptorSetLayoutBinding> &bindings);
+    void updateDescriptorSet(const std::vector<VkWriteDescriptorSet> &descriptorWriteSets) noexcept;
+    VkDescriptorBufferInfo createDescriptorBufferInfo(Buffer &buffer, const size_t bufferSize) noexcept;
+    std::pair<VkDescriptorSet, VkWriteDescriptorSet> createWriteDescriptorSet(
+        VkDescriptorPool descriptorPool, VkDescriptorSetLayout descriptorSetLayout, VkDescriptorBufferInfo &descriptorBufferInfo);
+    VkDescriptorPool createDescriptorPool();
 
     Queue getGraphicsQueue(const uint32_t index) noexcept;
     Queue getPresentQueue(const uint32_t index) noexcept;

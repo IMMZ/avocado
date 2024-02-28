@@ -1,7 +1,9 @@
 #include "logicaldevice.hpp"
 
+#include "buffer.hpp"
 #include "debugutils.hpp"
 #include "vkutils.hpp"
+#include "vulkan_core.h"
 
 #include <memory>
 
@@ -55,6 +57,60 @@ VkDescriptorSetLayout LogicalDevice::createDescriptorSetLayout(const std::vector
     return descriptorSetLayout;
 }
 
+void LogicalDevice::updateDescriptorSet(const std::vector<VkWriteDescriptorSet> &descriptorWriteSets) noexcept {
+    vkUpdateDescriptorSets(_dev.get(), descriptorWriteSets.size(), descriptorWriteSets.data(), 0, nullptr);
+}
+
+VkDescriptorBufferInfo LogicalDevice::createDescriptorBufferInfo(Buffer &buffer, const size_t bufferSize) noexcept {
+    return VkDescriptorBufferInfo {
+        buffer.getHandle(),
+        0,
+        bufferSize};
+}
+
+std::pair<VkDescriptorSet, VkWriteDescriptorSet> LogicalDevice::createWriteDescriptorSet(VkDescriptorPool descriptorPool, VkDescriptorSetLayout descriptorSetLayout, VkDescriptorBufferInfo &descriptorBufferInfo) {
+    auto descriptorWrite = avocado::vulkan::createStruct<VkWriteDescriptorSet>();
+    auto allocInfo = avocado::vulkan::createStruct<VkDescriptorSetAllocateInfo>();
+    allocInfo.descriptorPool = descriptorPool;
+    allocInfo.descriptorSetCount = 1;
+    allocInfo.pSetLayouts = &descriptorSetLayout;
+
+    VkDescriptorSet dSet;
+    const VkResult ads = vkAllocateDescriptorSets(_dev.get(), &allocInfo, &dSet);
+    setHasError(ads != VK_SUCCESS);
+    if (hasError()) {
+        setErrorMessage("vkAllocateDescriptorSets returned "s + getVkResultString(ads));
+        return {dSet, descriptorWrite};
+    }
+
+    descriptorWrite.dstSet = dSet;
+    descriptorWrite.dstBinding = 0;
+    descriptorWrite.dstArrayElement = 0;
+    descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    descriptorWrite.descriptorCount = 1;
+    descriptorWrite.pBufferInfo = &descriptorBufferInfo;
+    return {dSet, descriptorWrite};
+}
+
+VkDescriptorPool LogicalDevice::createDescriptorPool() {
+    VkDescriptorPoolSize descriptorPoolSize{};
+    descriptorPoolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    descriptorPoolSize.descriptorCount = 1;
+
+    auto dPoolCI = avocado::vulkan::createStruct<VkDescriptorPoolCreateInfo>();
+    dPoolCI.poolSizeCount = 1;
+    dPoolCI.pPoolSizes = &descriptorPoolSize;
+    dPoolCI.maxSets = 1;
+
+    VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
+    const VkResult cdp = vkCreateDescriptorPool(_dev.get(), &dPoolCI, nullptr, &descriptorPool);
+    setHasError(cdp != VK_SUCCESS);
+    if (hasError()) {
+        setErrorMessage("vkCreateDescriptorPool returned "s + getVkResultString(cdp));
+        return VK_NULL_HANDLE;
+    }
+    return descriptorPool;
+}
 Queue LogicalDevice::getGraphicsQueue(const uint32_t index) noexcept {
     VkQueue queue = VK_NULL_HANDLE;
     vkGetDeviceQueue(_dev.get(), _graphicsQueueFamily, index, &queue);
