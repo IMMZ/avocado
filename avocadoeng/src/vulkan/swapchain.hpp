@@ -28,6 +28,7 @@ public:
 
     void create(Surface &surface, VkSurfaceFormatKHR surfaceFormat, VkExtent2D extent, const uint32_t minImageCount, const std::vector<QueueFamily> &queueFamilies) noexcept;
     void getImages();
+    VkImageView createImageView(VkImage image, VkFormat format);
     void createImageViews(VkSurfaceFormatKHR surfaceFormat);
     void createFramebuffers(VkRenderPass renderPass, VkExtent2D extent);
     uint32_t acquireNextImage(VkSemaphore semaphore) noexcept;

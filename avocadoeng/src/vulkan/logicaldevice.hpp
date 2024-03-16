@@ -3,6 +3,7 @@
 
 #include "commandbuffer.hpp"
 #include "queue.hpp"
+#include "objectdeleter.hpp"
 #include "types.hpp"
 
 #include "../errorstorage.hpp"
@@ -19,6 +20,22 @@ using namespace std::string_literals;
 namespace avocado::vulkan {
 
 class DebugUtils;
+class LogicalDevice;
+
+template <typename O>
+void destroyObject(LogicalDevice &logicalDevice, O objHandle);
+
+template <typename T>
+struct Destroyer {
+    Destroyer(LogicalDevice &logicalDevice):
+        _logicalDevice(logicalDevice){}
+
+    void operator()(T objHandle) {
+        destroyObject<T>(_logicalDevice, objHandle);
+    }
+
+    LogicalDevice &_logicalDevice;
+};
 
 class LogicalDevice: public avocado::core::ErrorStorage {
 public:
@@ -54,6 +71,12 @@ public:
     void waitForFences(const std::vector<VkFence> &fences, const bool waitAll, uint64_t timeout) noexcept;
     void resetFences(const std::vector<VkFence> &fences) noexcept;
     VkSemaphore createSemaphore() noexcept;
+
+
+    template <typename T>
+    ObjectPtr<T> createObjectPointer(T objectHandle) {
+        return ObjectPtr<T>(objectHandle, ObjectDeleter<T>(*this));
+    }
 
     enum class CommandPoolCreationFlags {
         Transient = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,

@@ -104,26 +104,36 @@ void Swapchain::getImages() {
     }
 }
 
+VkImageView Swapchain::createImageView(VkImage image, VkFormat format) {
+    auto createInfo = createStruct<VkImageViewCreateInfo>();
+    createInfo.image = image;
+    createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    createInfo.format = format;
+    createInfo.components.r = createInfo.components.g
+        = createInfo.components.b = createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+    createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    createInfo.subresourceRange.baseMipLevel = 0;
+    createInfo.subresourceRange.levelCount = 1;
+    createInfo.subresourceRange.baseArrayLayer = 0;
+    createInfo.subresourceRange.layerCount = 1;
+
+    VkImageView imageView = VK_NULL_HANDLE;
+    const VkResult result = vkCreateImageView(_device, &createInfo, nullptr, &imageView);
+    setHasError(result != VK_SUCCESS);
+    if (hasError()) {
+        setErrorMessage("vkCreateImageView returned "s + getVkResultString(result));
+    }
+
+    return imageView;
+}
+
 void Swapchain::createImageViews(VkSurfaceFormatKHR surfaceFormat) {
     assert(_swapchain != VK_NULL_HANDLE);
 
     _imageViews.resize(_images.size());
     for (size_t i = 0; i < _images.size(); ++i) {
-        auto createInfo = createStruct<VkImageViewCreateInfo>();
-        createInfo.image = _images[i];
-        createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        createInfo.format = surfaceFormat.format;
-        createInfo.components.r = createInfo.components.g
-            = createInfo.components.b = createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-        createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        createInfo.subresourceRange.baseMipLevel = 0;
-        createInfo.subresourceRange.levelCount = 1;
-        createInfo.subresourceRange.baseArrayLayer = 0;
-        createInfo.subresourceRange.layerCount = 1;
-        const VkResult result = vkCreateImageView(_device, &createInfo, nullptr, &_imageViews[i]);
-        setHasError(result != VK_SUCCESS);
+        _imageViews[i] = createImageView(_images[i], surfaceFormat.format);
         if (hasError()) {
-            setErrorMessage("vkCreateImageView returned "s + getVkResultString(result));
             return;
         }
     }
@@ -134,7 +144,7 @@ void Swapchain::createFramebuffers(VkRenderPass renderPass, VkExtent2D extent) {
 
     _framebuffers.resize(_images.size());
     for (size_t i = 0; i < _imageViews.size(); i++) {
-        VkImageView attachments[] = {_imageViews[i]};
+        VkImageView attachments[] = {_imageViews[i]}; // todo Do we really need this line? We could take a pointer to _imageViews[i] directly.
         auto framebufferInfo = createStruct<VkFramebufferCreateInfo>();
         framebufferInfo.renderPass = renderPass;
         framebufferInfo.attachmentCount = 1;

@@ -15,11 +15,12 @@ using namespace std::string_literals;
 namespace avocado::vulkan {
 
 GraphicsPipelineBuilder::GraphicsPipelineBuilder(LogicalDevice &device):
-    _logicalDevice(device) {
+    _logicalDevice(device),
+    _pipelineLayout(device.createObjectPointer<VkPipelineLayout>(VK_NULL_HANDLE)) {
 }
 
 VkPipelineLayout GraphicsPipelineBuilder::getPipelineLayout() noexcept {
-    return _pipelineLayout;
+    return _pipelineLayout.get();
 }
 
 VkDescriptorSetLayout GraphicsPipelineBuilder::getDescriptorSetLayout() noexcept {
@@ -62,6 +63,10 @@ void GraphicsPipelineBuilder::addFragmentShaderModules(const std::vector<std::ve
 void GraphicsPipelineBuilder::addVertexShaderModules(const std::vector<std::vector<char>> &shaderModules) {
     for (std::vector<char> shaderModule: shaderModules)
         _shaderModuleCIs.emplace_back(addShaderModule(shaderModule, VK_SHADER_STAGE_VERTEX_BIT));
+}
+
+void GraphicsPipelineBuilder::setDescriptorSetLayout(VkDescriptorSetLayout dstl) {
+    _descriptorSetLayout = dstl;
 }
 
 VkPipelineShaderStageCreateInfo GraphicsPipelineBuilder::addShaderModule(const std::vector<char> &data, const VkShaderStageFlagBits shType) {
@@ -146,38 +151,24 @@ GraphicsPipelineBuilder::PipelineUniquePtr GraphicsPipelineBuilder::buildPipelin
         pipelineCI.pColorBlendState = &colorBlendStateCI;
     }
 
-    VkDescriptorSetLayoutBinding layoutBinding{};
-    layoutBinding.binding = 0;
-    layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutBinding.descriptorCount = 1;
-    layoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-
-
     auto pipelineDestroyer = std::bind(vkDestroyPipeline, _logicalDevice.getHandle(), std::placeholders::_1, nullptr);
-
-    auto createInfo = createStruct<VkDescriptorSetLayoutCreateInfo>();
-    createInfo.bindingCount = 1;
-    createInfo.pBindings = &layoutBinding;
-
-    const VkResult result1 = vkCreateDescriptorSetLayout(_logicalDevice.getHandle(), &createInfo, nullptr, &_descriptorSetLayout);
-    setHasError(result1 != VK_SUCCESS);
-    if (hasError()) {
-        setErrorMessage("vkCreateDescriptorSetLayout returned "s + getVkResultString(result1));
-        return PipelineUniquePtr(VK_NULL_HANDLE, pipelineDestroyer);
-    }
 
     auto pipelineLayoutCreateInfo = createStruct<VkPipelineLayoutCreateInfo>();
 
-    pipelineLayoutCreateInfo.setLayoutCount = 1;
-    pipelineLayoutCreateInfo.pSetLayouts = &_descriptorSetLayout;
-    const VkResult pipelineCreationResult = vkCreatePipelineLayout(_logicalDevice.getHandle(), &pipelineLayoutCreateInfo, nullptr, &_pipelineLayout);
+    pipelineLayoutCreateInfo.setLayoutCount = _dsLayouts.size();
+    pipelineLayoutCreateInfo.pSetLayouts = _dsLayouts.data();
+
+    VkPipelineLayout pipelineLayout;
+    const VkResult pipelineCreationResult = vkCreatePipelineLayout(_logicalDevice.getHandle(), &pipelineLayoutCreateInfo, nullptr, &pipelineLayout);
     setHasError(pipelineCreationResult != VK_SUCCESS);
     if (hasError()) {
         setErrorMessage("vkCreatePipelineLayout returned "s + getVkResultString(pipelineCreationResult));
         return PipelineUniquePtr(VK_NULL_HANDLE, pipelineDestroyer);
     }
 
-    pipelineCI.layout = _pipelineLayout;
+    _pipelineLayout.reset(pipelineLayout);
+
+    pipelineCI.layout = _pipelineLayout.get();
     pipelineCI.renderPass = renderPass;
 
     // Create the pipeline.
@@ -197,9 +188,13 @@ GraphicsPipelineBuilder::PipelineUniquePtr GraphicsPipelineBuilder::buildPipelin
     return PipelineUniquePtr(pipeline, pipelineDestroyer);
 }
 
+void GraphicsPipelineBuilder::setDSLayouts(std::vector<VkDescriptorSetLayout> &layouts)
+{
+    _dsLayouts = layouts;
+}
+
 void GraphicsPipelineBuilder::destroyPipeline() {
     vkDestroyDescriptorSetLayout(_logicalDevice.getHandle(), _descriptorSetLayout, nullptr);
-    vkDestroyPipelineLayout(_logicalDevice.getHandle(), _pipelineLayout, nullptr);
 }
 
 } // namespace avocado::vulkan.

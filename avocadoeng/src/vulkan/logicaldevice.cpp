@@ -93,14 +93,16 @@ std::pair<VkDescriptorSet, VkWriteDescriptorSet> LogicalDevice::createWriteDescr
 }
 
 VkDescriptorPool LogicalDevice::createDescriptorPool() {
-    VkDescriptorPoolSize descriptorPoolSize{};
-    descriptorPoolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    descriptorPoolSize.descriptorCount = 1;
+    std::array<VkDescriptorPoolSize, 2> descriptorPoolSizes{};
+    descriptorPoolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    descriptorPoolSizes[0].descriptorCount = 2;
+    descriptorPoolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptorPoolSizes[1].descriptorCount = 2;
 
     auto dPoolCI = avocado::vulkan::createStruct<VkDescriptorPoolCreateInfo>();
-    dPoolCI.poolSizeCount = 1;
-    dPoolCI.pPoolSizes = &descriptorPoolSize;
-    dPoolCI.maxSets = 1;
+    dPoolCI.poolSizeCount = descriptorPoolSizes.size();
+    dPoolCI.pPoolSizes = descriptorPoolSizes.data();
+    dPoolCI.maxSets = 2;
 
     VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
     const VkResult cdp = vkCreateDescriptorPool(_dev.get(), &dPoolCI, nullptr, &descriptorPool);

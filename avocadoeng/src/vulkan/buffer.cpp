@@ -4,7 +4,7 @@
 
 #include "vkutils.hpp"
 
-#include <cstring>
+#include <cstring>
 
 using namespace std::string_literals;
 
@@ -72,7 +72,6 @@ Buffer::~Buffer() {
 VkBuffer Buffer::getHandle() noexcept {
     return _buf;
 }
-
 void Buffer::allocateMemory(const VkMemoryPropertyFlags memoryFlags) noexcept {
     assert(_buf != VK_NULL_HANDLE && _dev != VK_NULL_HANDLE && _physDev != VK_NULL_HANDLE);
     assert(_devMem == VK_NULL_HANDLE);

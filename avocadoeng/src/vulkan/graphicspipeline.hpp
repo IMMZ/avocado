@@ -37,7 +37,9 @@ public:
     void setViewportState(ViewportState &viewportState) noexcept;
     void addFragmentShaderModules(const std::vector<std::vector<char>> &shaderModules);
     void addVertexShaderModules(const std::vector<std::vector<char>> &shaderModules);
+    void setDescriptorSetLayout(VkDescriptorSetLayout dstl);
 
+    void setDSLayouts(std::vector<VkDescriptorSetLayout> &layouts);
 private:
     template <typename T>
     inline auto createStateCreateInfo(T &state) {
@@ -59,8 +61,9 @@ private:
     MultisampleState *_multisampleState = nullptr;
     RasterizationState *_rasterizationState = nullptr;
     ViewportState *_viewportState = nullptr;
-    VkPipelineLayout _pipelineLayout = VK_NULL_HANDLE;
+    avocado::vulkan::ObjectPtr<VkPipelineLayout> _pipelineLayout;
     VkDescriptorSetLayout _descriptorSetLayout = VK_NULL_HANDLE;
+    std::vector<VkDescriptorSetLayout> _dsLayouts;
 
 public:
     // todo maybe replace it by handle + dtor? And rename class to GraphicsPipeline?
