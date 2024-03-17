@@ -1,6 +1,7 @@
 #ifndef AVOCADO_VULKAN_SWAPCHAIN
 #define AVOCADO_VULKAN_SWAPCHAIN
 
+#include "pointertypes.hpp"
 #include "types.hpp"
 
 #include "../errorstorage.hpp"
@@ -39,7 +40,7 @@ private:
     std::vector<VkImageView> _imageViews;
     std::vector<VkFramebuffer> _framebuffers;
     VkDevice _device = VK_NULL_HANDLE;
-    VkSwapchainKHR _swapchain = VK_NULL_HANDLE; //  todo What if we have two Swapchain objects with same handle?
+    SwapchainKHRPtr _swapchain;
 };
 
 }

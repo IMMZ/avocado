@@ -2,13 +2,6 @@
 
 #include "vkutils.hpp"
 
-#include "states/colorblendstate.hpp"
-#include "states/dynamicstate.hpp"
-#include "states/inputasmstate.hpp"
-#include "states/multisamplestate.hpp"
-#include "states/rasterizationstate.hpp"
-#include "states/vertexinputstate.hpp"
-#include "states/viewportstate.hpp"
 
 using namespace std::string_literals;
 
@@ -27,32 +20,32 @@ VkDescriptorSetLayout GraphicsPipelineBuilder::getDescriptorSetLayout() noexcept
     return _descriptorSetLayout;
 }
 
-void GraphicsPipelineBuilder::setColorBlendState(ColorBlendState &state) noexcept {
-    _colorBlendState = &state;
+void GraphicsPipelineBuilder::setColorBlendState(std::unique_ptr<ColorBlendState> state) noexcept {
+    _colorBlendState = std::move(state);
 }
 
-void GraphicsPipelineBuilder::setDynamicState(DynamicState &dynState) noexcept {
-    _dynamicState = &dynState;
+void GraphicsPipelineBuilder::setDynamicState(std::unique_ptr<DynamicState> dynState) noexcept {
+    _dynamicState = std::move(dynState);
 }
 
-void GraphicsPipelineBuilder::setInputAsmState(InputAsmState &inAsmState) noexcept {
-    _inputAsmState = &inAsmState;
+void GraphicsPipelineBuilder::setInputAsmState(std::unique_ptr<InputAsmState> inAsmState) noexcept {
+    _inputAsmState = std::move(inAsmState);
 }
 
-void GraphicsPipelineBuilder::setMultisampleState(MultisampleState &mss) noexcept {
-    _multisampleState = &mss;
+void GraphicsPipelineBuilder::setMultisampleState(std::unique_ptr<MultisampleState> mss) noexcept {
+    _multisampleState = std::move(mss);
 }
 
-void GraphicsPipelineBuilder::setRasterizationState(RasterizationState &rastState) noexcept {
-    _rasterizationState = &rastState;
+void GraphicsPipelineBuilder::setRasterizationState(std::unique_ptr<RasterizationState> rastState) noexcept {
+    _rasterizationState = std::move(rastState);
 }
 
-void GraphicsPipelineBuilder::setVertexInputState(VertexInputState &vertexInState) noexcept {
-    _vertexInputState = &vertexInState;
+void GraphicsPipelineBuilder::setVertexInputState(std::unique_ptr<VertexInputState> vertexInState) noexcept {
+    _vertexInputState = std::move(vertexInState);
 }
 
-void GraphicsPipelineBuilder::setViewportState(ViewportState &viewportState) noexcept {
-    _viewportState = &viewportState;
+void GraphicsPipelineBuilder::setViewportState(std::unique_ptr<ViewportState> viewportState) noexcept {
+    _viewportState = std::move(viewportState);
 }
 
 void GraphicsPipelineBuilder::addFragmentShaderModules(const std::vector<std::vector<char>> &shaderModules) {
@@ -85,8 +78,7 @@ VkPipelineShaderStageCreateInfo GraphicsPipelineBuilder::addShaderModule(const s
         return shaderStageCreateInfo;
     }
 
-    _shaderModules.emplace_back(shaderModule,
-        std::bind(vkDestroyShaderModule, _logicalDevice.getHandle(), std::placeholders::_1, nullptr));
+    _shaderModules.emplace_back(makeObjectPtr(_logicalDevice, shaderModule));
 
     shaderStageCreateInfo.stage = shType;
     shaderStageCreateInfo.module = _shaderModules.back().get();
@@ -94,9 +86,7 @@ VkPipelineShaderStageCreateInfo GraphicsPipelineBuilder::addShaderModule(const s
     return shaderStageCreateInfo;
 }
 
-// todo must create multiple pipelines.
-// vkCreateGraphicsPipeline(s)
-GraphicsPipelineBuilder::PipelineUniquePtr GraphicsPipelineBuilder::buildPipeline(VkRenderPass renderPass) {
+PipelinePtr GraphicsPipelineBuilder::buildPipeline(VkRenderPass renderPass) {
     auto pipelineCI = createStruct<VkGraphicsPipelineCreateInfo>();
 
     pipelineCI.stageCount = static_cast<uint32_t>(_shaderModuleCIs.size());
@@ -163,7 +153,7 @@ GraphicsPipelineBuilder::PipelineUniquePtr GraphicsPipelineBuilder::buildPipelin
     setHasError(pipelineCreationResult != VK_SUCCESS);
     if (hasError()) {
         setErrorMessage("vkCreatePipelineLayout returned "s + getVkResultString(pipelineCreationResult));
-        return PipelineUniquePtr(VK_NULL_HANDLE, pipelineDestroyer);
+        return makeObjectPtr<VkPipeline>(_logicalDevice, VK_NULL_HANDLE);
     }
 
     _pipelineLayout.reset(pipelineLayout);
@@ -178,14 +168,21 @@ GraphicsPipelineBuilder::PipelineUniquePtr GraphicsPipelineBuilder::buildPipelin
     // Free unneeded resources.
     _shaderModuleCIs.clear();
     _shaderModuleCIs.shrink_to_fit();
+    _colorBlendState = nullptr;
+    _dynamicState = nullptr;
+    _vertexInputState = nullptr;
+    _inputAsmState = nullptr;
+    _multisampleState = nullptr;
+    _rasterizationState = nullptr;
+    _viewportState = nullptr;
 
     setHasError(result != VK_SUCCESS);
     if (hasError()) {
         setErrorMessage("vkCreateGraphicsPipelines returned "s + getVkResultString(result));
-        return PipelineUniquePtr(VK_NULL_HANDLE, pipelineDestroyer);
+        return makeObjectPtr<VkPipeline>(_logicalDevice, VK_NULL_HANDLE);
     }
 
-    return PipelineUniquePtr(pipeline, pipelineDestroyer);
+    return makeObjectPtr(_logicalDevice, pipeline);
 }
 
 void GraphicsPipelineBuilder::setDSLayouts(std::vector<VkDescriptorSetLayout> &layouts)

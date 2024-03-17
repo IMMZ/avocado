@@ -50,11 +50,13 @@ void Vulkan::createInstance(const std::vector<std::string> &extensions,
     if (!extensions.empty())
         vulkan::setExtensions(instanceCreateInfo, extensionNamesCString);
 
-    const VkResult createInstanceResult = vkCreateInstance(&instanceCreateInfo, nullptr, &_instance);
+    VkInstance instance = VK_NULL_HANDLE;
+    const VkResult createInstanceResult = vkCreateInstance(&instanceCreateInfo, nullptr, &instance);
     setHasError(createInstanceResult != VK_SUCCESS);
-    if (hasError()) {
+    if (hasError())
         setErrorMessage("vkCreateInstance returned "s + getVkResultString(createInstanceResult));
-    }
+    else
+        _instance.reset(instance);
 }
 
 // todo change prototype.
@@ -138,7 +140,7 @@ std::vector<PhysicalDevice> Vulkan::getPhysicalDevices() {
     std::vector<VkPhysicalDevice> _result;
     std::vector<PhysicalDevice> result;
     uint32_t deviceCount = 0;
-    const VkResult enumerateResult1 = vkEnumeratePhysicalDevices(_instance, &deviceCount, nullptr);
+    const VkResult enumerateResult1 = vkEnumeratePhysicalDevices(_instance.get(), &deviceCount, nullptr);
     if (enumerateResult1 != VK_SUCCESS) {
         setHasError(true);
         if (hasError())
@@ -149,7 +151,7 @@ std::vector<PhysicalDevice> Vulkan::getPhysicalDevices() {
     if (deviceCount > 0) {
         _result.resize(deviceCount);
         result.resize(deviceCount);
-        const VkResult enumerateResult2 = vkEnumeratePhysicalDevices(_instance, &deviceCount, _result.data());
+        const VkResult enumerateResult2 = vkEnumeratePhysicalDevices(_instance.get(), &deviceCount, _result.data());
         if (enumerateResult2 != VK_SUCCESS) {
             setHasError(true);
             if (hasError())
@@ -192,18 +194,18 @@ Surface Vulkan::createSurface(SDL_Window *window, PhysicalDevice &physicalDevice
     setHasError(result != SDL_TRUE);
     if (hasError()) {
         setErrorMessage("SDL_GetWindowWMInfo returned SDL_FALSE");
-        return Surface(VK_NULL_HANDLE, _instance, physicalDevice);
+        return Surface(VK_NULL_HANDLE, _instance.get(), physicalDevice);
     }
 
     VkSurfaceKHR surface;
-    result = SDL_Vulkan_CreateSurface(window, _instance, &surface);
+    result = SDL_Vulkan_CreateSurface(window, _instance.get(), &surface);
     setHasError(result != SDL_TRUE);
     if (hasError()) {
         setErrorMessage("SDL_Vulkan_CreateSurface returned SDL_FALSE");
-        return Surface(VK_NULL_HANDLE, _instance, physicalDevice);
+        return Surface(VK_NULL_HANDLE, _instance.get(), physicalDevice);
     }
 
-    return Surface(surface, _instance, physicalDevice);
+    return Surface(surface, _instance.get(), physicalDevice);
 }
 
 

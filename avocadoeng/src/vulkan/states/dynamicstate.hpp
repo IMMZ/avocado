@@ -18,6 +18,7 @@ public:
     void setDynamicStates(const std::vector<VkDynamicState> &dynStates);
     void setDynamicStates(std::vector<VkDynamicState> &&dynStates) noexcept;
 
+    // todo extract to some template method.
     VkPipelineDynamicStateCreateInfo createCreateInfo() noexcept;
 
 private:

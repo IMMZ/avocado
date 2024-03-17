@@ -2,6 +2,7 @@
 
 #include "buffer.hpp"
 #include "debugutils.hpp"
+#include "objectdeleter.hpp"
 #include "vkutils.hpp"
 #include "vulkan_core.h"
 
@@ -12,11 +13,11 @@ using namespace std::string_literals;
 namespace avocado::vulkan {
 
 LogicalDevice::LogicalDevice():
-    _dev(VK_NULL_HANDLE, std::bind(vkDestroyDevice, std::placeholders::_1, nullptr)) {
+    _dev(makeFundamentalObjectPtr<VkDevice>(VK_NULL_HANDLE)) {
 }
 
 LogicalDevice::LogicalDevice(VkDevice dev):
-    _dev(dev, std::bind(vkDestroyDevice, std::placeholders::_1, nullptr)) {
+    _dev(makeFundamentalObjectPtr(dev)) {
 }
 
 VkDevice LogicalDevice::getHandle() noexcept {
@@ -182,9 +183,9 @@ VkSemaphore LogicalDevice::createSemaphore() noexcept {
     return semaphore;
 }
 
-VkCommandPool LogicalDevice::createCommandPool(const LogicalDevice::CommandPoolCreationFlags flags, const QueueFamily queueFamilyIndex) noexcept {
+VkCommandPool LogicalDevice::createCommandPool(const VkCommandPoolCreateFlags flags, const QueueFamily queueFamilyIndex) noexcept {
     auto poolCreateInfo = createStruct<VkCommandPoolCreateInfo>();
-    poolCreateInfo.flags = static_cast<VkCommandPoolCreateFlags>(flags);
+    poolCreateInfo.flags = flags;
     poolCreateInfo.queueFamilyIndex = queueFamilyIndex;
 
     VkCommandPool commandPool = VK_NULL_HANDLE;
@@ -197,8 +198,7 @@ VkCommandPool LogicalDevice::createCommandPool(const LogicalDevice::CommandPoolC
     return commandPool;
 }
 
-
-std::vector<CommandBuffer> LogicalDevice::allocateCommandBuffers(const uint32_t count, VkCommandPool cmdPool, const CommandBufferLevel bufLevel) {
+std::vector<CommandBuffer> LogicalDevice::allocateCommandBuffers(const uint32_t count, VkCommandPool cmdPool, const VkCommandBufferLevel bufLevel) {
     assert(count > 0);
 
     auto allocInfo = createStruct<VkCommandBufferAllocateInfo>();
@@ -228,7 +228,7 @@ void LogicalDevice::waitIdle() noexcept {
 }
 
 // todo Refactor? Extract constants as parameters.
-LogicalDevice::RenderPassUniquePtr LogicalDevice::createRenderPass(VkFormat format) {
+RenderPassPtr LogicalDevice::createRenderPass(VkFormat format) {
     // Attachment description.
     VkAttachmentReference attachmentRef{};
     attachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
@@ -254,15 +254,14 @@ LogicalDevice::RenderPassUniquePtr LogicalDevice::createRenderPass(VkFormat form
     renderPassCreateInfo.subpassCount = 1;
     renderPassCreateInfo.pSubpasses = &subpassDescription;
     VkRenderPass renderPass;
-    const auto &renderPassDestroyer = std::bind(vkDestroyRenderPass, _dev.get(), std::placeholders::_1, nullptr);
     const VkResult result = vkCreateRenderPass(_dev.get(), &renderPassCreateInfo, nullptr, &renderPass);
     setHasError(result != VK_SUCCESS);
     if (hasError()) {
         setErrorMessage("vkCreateRenderPass returned "s + getVkResultString(result));
-        return RenderPassUniquePtr(VK_NULL_HANDLE, renderPassDestroyer);
+        return RenderPassPtr(makeObjectPtr<VkRenderPass>(*this, VK_NULL_HANDLE));
     }
 
-    return RenderPassUniquePtr(renderPass, renderPassDestroyer);
+    return RenderPassPtr(makeObjectPtr(*this, renderPass));
 }
 
 } // namespace avocado::vulkan.

@@ -11,7 +11,8 @@ using namespace std::string_literals;
 namespace avocado::vulkan {
 
 Swapchain::Swapchain(LogicalDevice &logicalDevice):
-    _device(logicalDevice.getHandle()){
+    _device(logicalDevice.getHandle()),
+    _swapchain(logicalDevice.createObjectPointer<VkSwapchainKHR>(VK_NULL_HANDLE)) {
 }
 
 Swapchain::~Swapchain() {
@@ -23,7 +24,6 @@ Swapchain::~Swapchain() {
         // todo Do we need to remove images?
         //for (VkImage img: _images)
          //   vkDestroyImage(_device, img, nullptr);
-        vkDestroySwapchainKHR(_device, _swapchain, nullptr);
     }
 }
 
@@ -33,11 +33,12 @@ Swapchain::Swapchain(Swapchain &&other):
     _imageViews(std::move(other._imageViews)),
     _framebuffers(std::move(other._framebuffers)),
     _device(std::move(other._device)),
-    _swapchain(std::move(other._swapchain)){
+    _swapchain(std::move(other._swapchain)) {
     other._swapchain = VK_NULL_HANDLE;
 }
 
 Swapchain& Swapchain::operator=(Swapchain &&other) {
+    // todo check for self-assignment
     _images = std::move(other._images);
     _imageViews = std::move(other._imageViews);
     _framebuffers = std::move(other._framebuffers);
@@ -48,7 +49,7 @@ Swapchain& Swapchain::operator=(Swapchain &&other) {
 }
 
 VkSwapchainKHR Swapchain::getHandle() noexcept {
-    return _swapchain;
+    return _swapchain.get();
 }
 
 bool Swapchain::isValid() const noexcept {
@@ -70,24 +71,24 @@ void Swapchain::create(Surface &surface, VkSurfaceFormatKHR surfaceFormat, VkExt
     swapchainCreateInfo.clipped = VK_TRUE;
     swapchainCreateInfo.queueFamilyIndexCount = static_cast<uint32_t>(queueFamilies.size());
     swapchainCreateInfo.pQueueFamilyIndices = queueFamilies.data();
+    swapchainCreateInfo.imageSharingMode = (queueFamilies.size() > 1) ?
+        VK_SHARING_MODE_CONCURRENT : VK_SHARING_MODE_EXCLUSIVE;
 
-    if (queueFamilies.size() > 1) {
-        swapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
-    } else {
-        swapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    }
-    const VkResult result = vkCreateSwapchainKHR(_device, &swapchainCreateInfo, nullptr, &_swapchain);
+    VkSwapchainKHR swapchain = VK_NULL_HANDLE;
+    const VkResult result = vkCreateSwapchainKHR(_device, &swapchainCreateInfo, nullptr, &swapchain);
     setHasError(result != VK_SUCCESS);
     if (hasError()) {
         setErrorMessage("vkCreateSwapchainKHR returned "s + getVkResultString(result));
+        return;
     }
+    _swapchain.reset(swapchain);
 }
 
 void Swapchain::getImages() {
     assert(_swapchain != VK_NULL_HANDLE);
 
     uint32_t imageCount = std::numeric_limits<uint32_t>::max();
-    const VkResult result = vkGetSwapchainImagesKHR(_device, _swapchain, &imageCount, nullptr);
+    const VkResult result = vkGetSwapchainImagesKHR(_device, _swapchain.get(), &imageCount, nullptr);
     setHasError(result != VK_SUCCESS);
     if (hasError()) {
         setErrorMessage("vkGetSwapchainImagesKHR returned "s + getVkResultString(result));
@@ -95,7 +96,7 @@ void Swapchain::getImages() {
     }
 
     _images.resize(imageCount);
-    const VkResult result2 = vkGetSwapchainImagesKHR(_device, _swapchain, &imageCount, _images.data());
+    const VkResult result2 = vkGetSwapchainImagesKHR(_device, _swapchain.get(), &imageCount, _images.data());
     setHasError(result2 != VK_SUCCESS);
 
     if (hasError()) {
@@ -164,7 +165,7 @@ uint32_t Swapchain::acquireNextImage(VkSemaphore semaphore) noexcept {
     assert(_swapchain != VK_NULL_HANDLE);
 
     auto imageIndex = std::numeric_limits<uint32_t>::max();
-    const VkResult result = vkAcquireNextImageKHR(_device, _swapchain, UINT64_MAX, semaphore, VK_NULL_HANDLE, &imageIndex);
+    const VkResult result = vkAcquireNextImageKHR(_device, _swapchain.get(), UINT64_MAX, semaphore, VK_NULL_HANDLE, &imageIndex);
     setHasError(result != VK_SUCCESS);
     if (hasError()) {
         setErrorMessage("vkAcquireNextImageKHR returned "s + getVkResultString(result));

@@ -2,7 +2,7 @@
 #define VULKANTOOLS_HPP
 
 #include "errorstorage.hpp"
-
+#include "vulkan/pointertypes.hpp"
 #include "vulkan/physicaldevice.hpp"
 #include "vulkan/surface.hpp"
 
@@ -77,7 +77,7 @@ public:
     void createInstance(const std::vector<std::string> &extensions, const std::vector<std::string> &layers, const VulkanInstanceInfo &vio);
 
 private:
-    VkInstance _instance = VK_NULL_HANDLE;
+    InstancePtr _instance = VK_NULL_HANDLE;
 };
 
 template <typename T>

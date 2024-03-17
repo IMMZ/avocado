@@ -98,7 +98,6 @@ LogicalDevice PhysicalDevice::createLogicalDevice(
         layerNamesCString[i] = instanceLayers[i].c_str();
     }
 
-
     if (!instanceLayers.empty()) {
         devCreateInfo.enabledLayerCount = static_cast<uint32_t>(layerNamesCString.size());
         devCreateInfo.ppEnabledLayerNames = layerNamesCString.data();

@@ -4,7 +4,7 @@
 #include "swapchain.hpp"
 #include "vkutils.hpp"
 #include "vulkan_core.h"
-#include <iostream> // todo remove
+
 #include <cassert>
 
 using namespace std::string_literals;
