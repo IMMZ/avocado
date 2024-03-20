@@ -3,7 +3,7 @@
 #include "../vkutils.hpp"
 
 namespace avocado::vulkan {
-    
+
 DynamicState::DynamicState(const std::vector<VkDynamicState> &dynStates):
     _dynamicStates(dynStates) {
 }
@@ -29,7 +29,7 @@ void DynamicState::setDynamicStates(std::vector<VkDynamicState> &&dynStates) noe
 }
 
 VkPipelineDynamicStateCreateInfo DynamicState::createCreateInfo() noexcept {
-    auto dynamicStateCI = createStruct<VkPipelineDynamicStateCreateInfo>();
+    VkPipelineDynamicStateCreateInfo dynamicStateCI{}; FILL_S_TYPE(dynamicStateCI);
     dynamicStateCI.dynamicStateCount = getDynamicStateCount();
     dynamicStateCI.pDynamicStates = getDynamicStates();
     return dynamicStateCI;

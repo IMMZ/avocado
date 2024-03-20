@@ -1,9 +1,9 @@
 #include "commandbuffer.hpp"
 
 #include "buffer.hpp"
+#include "structuretypes.hpp"
 #include "swapchain.hpp"
 #include "vkutils.hpp"
-#include "vulkan_core.h"
 
 #include <cassert>
 
@@ -26,7 +26,7 @@ bool CommandBuffer::isValid() const noexcept {
 void CommandBuffer::begin(const VkCommandBufferUsageFlags flags) noexcept {
     assert(_buf != VK_NULL_HANDLE);
 
-    auto beginInfo = createStruct<VkCommandBufferBeginInfo>();
+    VkCommandBufferBeginInfo beginInfo{}; FILL_S_TYPE(beginInfo);
     beginInfo.flags = flags;
     const VkResult result = vkBeginCommandBuffer(_buf, &beginInfo);
     setHasError(result != VK_SUCCESS);
@@ -48,7 +48,7 @@ void CommandBuffer::end() noexcept {
 void CommandBuffer::beginRenderPass(Swapchain &swapchain, VkRenderPass renderPass, const VkExtent2D extent, const VkOffset2D offset, const uint32_t imageIndex) noexcept {
     assert(_buf != VK_NULL_HANDLE);
 
-    auto renderPassInfo = createStruct<VkRenderPassBeginInfo>();
+    VkRenderPassBeginInfo renderPassInfo{}; FILL_S_TYPE(renderPassInfo);
     renderPassInfo.renderPass = renderPass;
     renderPassInfo.framebuffer = swapchain.getFramebuffer(imageIndex);
     renderPassInfo.renderArea.offset = offset;

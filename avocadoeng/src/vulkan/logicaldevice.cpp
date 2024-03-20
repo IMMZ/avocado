@@ -43,7 +43,7 @@ VkDescriptorSetLayoutBinding LogicalDevice::createLayoutBinding(const uint32_t b
 VkDescriptorSetLayout LogicalDevice::createDescriptorSetLayout(const std::vector<VkDescriptorSetLayoutBinding> &bindings) {
     assert(_dev != nullptr);
 
-    auto createInfo = createStruct<VkDescriptorSetLayoutCreateInfo>();
+    VkDescriptorSetLayoutCreateInfo createInfo{}; FILL_S_TYPE(createInfo);
     createInfo.bindingCount = static_cast<uint32_t>(bindings.size());
     createInfo.pBindings = bindings.data();
 
@@ -70,8 +70,8 @@ VkDescriptorBufferInfo LogicalDevice::createDescriptorBufferInfo(Buffer &buffer,
 }
 
 std::pair<VkDescriptorSet, VkWriteDescriptorSet> LogicalDevice::createWriteDescriptorSet(VkDescriptorPool descriptorPool, VkDescriptorSetLayout descriptorSetLayout, VkDescriptorBufferInfo &descriptorBufferInfo) {
-    auto descriptorWrite = avocado::vulkan::createStruct<VkWriteDescriptorSet>();
-    auto allocInfo = avocado::vulkan::createStruct<VkDescriptorSetAllocateInfo>();
+    VkWriteDescriptorSet descriptorWrite{}; FILL_S_TYPE(descriptorWrite);
+    VkDescriptorSetAllocateInfo allocInfo{}; FILL_S_TYPE(allocInfo);
     allocInfo.descriptorPool = descriptorPool;
     allocInfo.descriptorSetCount = 1;
     allocInfo.pSetLayouts = &descriptorSetLayout;
@@ -100,7 +100,7 @@ VkDescriptorPool LogicalDevice::createDescriptorPool() {
     descriptorPoolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     descriptorPoolSizes[1].descriptorCount = 2;
 
-    auto dPoolCI = avocado::vulkan::createStruct<VkDescriptorPoolCreateInfo>();
+    VkDescriptorPoolCreateInfo dPoolCI{}; FILL_S_TYPE(dPoolCI);
     dPoolCI.poolSizeCount = descriptorPoolSizes.size();
     dPoolCI.pPoolSizes = descriptorPoolSizes.data();
     dPoolCI.maxSets = 2;
@@ -144,7 +144,7 @@ void LogicalDevice::setQueueFamilies(const QueueFamily graphicsQueueFamily, cons
 }
 
 VkFence LogicalDevice::createFence() noexcept {
-    auto fenceCI = createStruct<VkFenceCreateInfo>();
+    VkFenceCreateInfo fenceCI{}; FILL_S_TYPE(fenceCI);
     fenceCI.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
     VkFence fence;
@@ -174,7 +174,7 @@ void LogicalDevice::resetFences(const std::vector<VkFence> &fences) noexcept {
 
 VkSemaphore LogicalDevice::createSemaphore() noexcept {
     VkSemaphore semaphore;
-    auto semaphoreCI = createStruct<VkSemaphoreCreateInfo>();
+    VkSemaphoreCreateInfo semaphoreCI{}; FILL_S_TYPE(semaphoreCI);
     const VkResult result = vkCreateSemaphore(_dev.get(), &semaphoreCI, nullptr, &semaphore);
     setHasError(result != VK_SUCCESS);
     if (hasError()) {
@@ -184,7 +184,7 @@ VkSemaphore LogicalDevice::createSemaphore() noexcept {
 }
 
 VkCommandPool LogicalDevice::createCommandPool(const VkCommandPoolCreateFlags flags, const QueueFamily queueFamilyIndex) noexcept {
-    auto poolCreateInfo = createStruct<VkCommandPoolCreateInfo>();
+    VkCommandPoolCreateInfo poolCreateInfo{}; FILL_S_TYPE(poolCreateInfo);
     poolCreateInfo.flags = flags;
     poolCreateInfo.queueFamilyIndex = queueFamilyIndex;
 
@@ -201,7 +201,7 @@ VkCommandPool LogicalDevice::createCommandPool(const VkCommandPoolCreateFlags fl
 std::vector<CommandBuffer> LogicalDevice::allocateCommandBuffers(const uint32_t count, VkCommandPool cmdPool, const VkCommandBufferLevel bufLevel) {
     assert(count > 0);
 
-    auto allocInfo = createStruct<VkCommandBufferAllocateInfo>();
+    VkCommandBufferAllocateInfo allocInfo{}; FILL_S_TYPE(allocInfo);
     allocInfo.commandPool = cmdPool;
     allocInfo.level = static_cast<VkCommandBufferLevel>(bufLevel);
     allocInfo.commandBufferCount = count;
@@ -248,7 +248,7 @@ RenderPassPtr LogicalDevice::createRenderPass(VkFormat format) {
     attachmentDescription.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     attachmentDescription.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
-    auto renderPassCreateInfo = createStruct<VkRenderPassCreateInfo>();
+    VkRenderPassCreateInfo renderPassCreateInfo{}; FILL_S_TYPE(renderPassCreateInfo);
     renderPassCreateInfo.attachmentCount = 1;
     renderPassCreateInfo.pAttachments = &attachmentDescription;
     renderPassCreateInfo.subpassCount = 1;

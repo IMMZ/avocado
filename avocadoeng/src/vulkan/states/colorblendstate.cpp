@@ -37,7 +37,7 @@ VkPipelineColorBlendAttachmentState* ColorBlendState::getAttachments() noexcept 
 }
 
 VkPipelineColorBlendStateCreateInfo ColorBlendState::createCreateInfo() noexcept {
-    auto colorBlendStateCI = createStruct<VkPipelineColorBlendStateCreateInfo>();
+    VkPipelineColorBlendStateCreateInfo colorBlendStateCI{}; FILL_S_TYPE(colorBlendStateCI);
     colorBlendStateCI.logicOpEnable = isLogicOpEnabled();
     colorBlendStateCI.logicOp = getLogicOp();
     colorBlendStateCI.attachmentCount = getAttachmentCount();

@@ -48,7 +48,7 @@ void ViewportState::setScissors(std::vector<VkRect2D> &&scissors) noexcept {
 }
 
 VkPipelineViewportStateCreateInfo ViewportState::createCreateInfo() noexcept {
-    auto viewportStateCI = createStruct<VkPipelineViewportStateCreateInfo>();
+    VkPipelineViewportStateCreateInfo viewportStateCI{}; FILL_S_TYPE(viewportStateCI);
     viewportStateCI.viewportCount = getViewportCount();
     if (getViewportCount() > 0)
         viewportStateCI.pViewports = getViewports();

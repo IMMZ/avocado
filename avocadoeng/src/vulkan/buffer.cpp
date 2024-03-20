@@ -15,7 +15,7 @@ Buffer::Buffer(const VkDeviceSize size, const VkBufferUsageFlagBits usage, const
     _dev(logicalDevice.getHandle()),
     _physDev(physDevice.getHandle()),
     _bufSize(size) {
-    auto bufferCI = avocado::vulkan::createStruct<VkBufferCreateInfo>();
+    VkBufferCreateInfo bufferCI{}; FILL_S_TYPE(bufferCI);
     bufferCI.size = _bufSize;
     bufferCI.usage = usage;
     bufferCI.sharingMode = sharingMode;
@@ -95,7 +95,7 @@ void Buffer::allocateMemory(const VkMemoryPropertyFlags memoryFlags) noexcept {
     }
 
     // Allocate memory.
-    VkMemoryAllocateInfo memAllocInfo = avocado::vulkan::createStruct<VkMemoryAllocateInfo>();
+    VkMemoryAllocateInfo memAllocInfo{}; FILL_S_TYPE(memAllocInfo);
     memAllocInfo.allocationSize = memReq.size;
     memAllocInfo.memoryTypeIndex = foundType;
 

@@ -61,7 +61,7 @@ void RasterizationState::setFrontFace(const VkFrontFace frontFace) noexcept {
 }
 
 VkPipelineRasterizationStateCreateInfo RasterizationState::createCreateInfo() noexcept {
-    auto rasterizationCI = createStruct<VkPipelineRasterizationStateCreateInfo>();
+    VkPipelineRasterizationStateCreateInfo rasterizationCI{}; FILL_S_TYPE(rasterizationCI);
     rasterizationCI.depthClampEnable = isDepthClampEnabled();
     rasterizationCI.rasterizerDiscardEnable = isRasterizerDiscardEnabled();
     rasterizationCI.polygonMode = getPolygonMode();

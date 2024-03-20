@@ -57,7 +57,7 @@ bool Swapchain::isValid() const noexcept {
 }
 
 void Swapchain::create(Surface &surface, VkSurfaceFormatKHR surfaceFormat, VkExtent2D extent, const uint32_t minImageCount, const std::vector<QueueFamily> &queueFamilies) noexcept {
-    auto swapchainCreateInfo = createStruct<VkSwapchainCreateInfoKHR>();
+    VkSwapchainCreateInfoKHR swapchainCreateInfo{}; FILL_S_TYPE(swapchainCreateInfo);
     swapchainCreateInfo.surface = surface.getHandle();
     swapchainCreateInfo.minImageCount = minImageCount;
     swapchainCreateInfo.imageFormat = surfaceFormat.format;
@@ -106,7 +106,7 @@ void Swapchain::getImages() {
 }
 
 VkImageView Swapchain::createImageView(VkImage image, VkFormat format) {
-    auto createInfo = createStruct<VkImageViewCreateInfo>();
+    VkImageViewCreateInfo createInfo{}; FILL_S_TYPE(createInfo);
     createInfo.image = image;
     createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
     createInfo.format = format;
@@ -146,14 +146,14 @@ void Swapchain::createFramebuffers(VkRenderPass renderPass, VkExtent2D extent) {
     _framebuffers.resize(_images.size());
     for (size_t i = 0; i < _imageViews.size(); i++) {
         VkImageView attachments[] = {_imageViews[i]}; // todo Do we really need this line? We could take a pointer to _imageViews[i] directly.
-        auto framebufferInfo = createStruct<VkFramebufferCreateInfo>();
-        framebufferInfo.renderPass = renderPass;
-        framebufferInfo.attachmentCount = 1;
-        framebufferInfo.pAttachments = attachments;
-        framebufferInfo.width = extent.width;
-        framebufferInfo.height = extent.height;
-        framebufferInfo.layers = 1;
-        const VkResult result = vkCreateFramebuffer(_device, &framebufferInfo, nullptr, &_framebuffers[i]);
+        VkFramebufferCreateInfo framebufferCI{}; FILL_S_TYPE(framebufferCI);
+        framebufferCI.renderPass = renderPass;
+        framebufferCI.attachmentCount = 1;
+        framebufferCI.pAttachments = attachments;
+        framebufferCI.width = extent.width;
+        framebufferCI.height = extent.height;
+        framebufferCI.layers = 1;
+        const VkResult result = vkCreateFramebuffer(_device, &framebufferCI, nullptr, &_framebuffers[i]);
         setHasError(result != VK_SUCCESS);
         if (hasError()) {
             setErrorMessage("vkCreateFramebuffer returned "s +  getVkResultString(result));

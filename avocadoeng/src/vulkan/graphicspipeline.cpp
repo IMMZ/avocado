@@ -63,9 +63,9 @@ void GraphicsPipelineBuilder::setDescriptorSetLayout(VkDescriptorSetLayout dstl)
 }
 
 VkPipelineShaderStageCreateInfo GraphicsPipelineBuilder::addShaderModule(const std::vector<char> &data, const VkShaderStageFlagBits shType) {
-    auto shaderStageCreateInfo = createStruct<VkPipelineShaderStageCreateInfo>();
+    VkPipelineShaderStageCreateInfo shaderStageCreateInfo{}; FILL_S_TYPE(shaderStageCreateInfo);
 
-    auto shaderModuleCreateInfo = createStruct<VkShaderModuleCreateInfo>();
+    VkShaderModuleCreateInfo shaderModuleCreateInfo{}; FILL_S_TYPE(shaderModuleCreateInfo);
     shaderModuleCreateInfo.codeSize = data.size();
     shaderModuleCreateInfo.pCode = reinterpret_cast<const uint32_t*>(data.data());
 
@@ -87,7 +87,7 @@ VkPipelineShaderStageCreateInfo GraphicsPipelineBuilder::addShaderModule(const s
 }
 
 PipelinePtr GraphicsPipelineBuilder::buildPipeline(VkRenderPass renderPass) {
-    auto pipelineCI = createStruct<VkGraphicsPipelineCreateInfo>();
+    VkGraphicsPipelineCreateInfo pipelineCI{}; FILL_S_TYPE(pipelineCI);
 
     pipelineCI.stageCount = static_cast<uint32_t>(_shaderModuleCIs.size());
     pipelineCI.pStages = _shaderModuleCIs.data();
@@ -143,7 +143,7 @@ PipelinePtr GraphicsPipelineBuilder::buildPipeline(VkRenderPass renderPass) {
 
     auto pipelineDestroyer = std::bind(vkDestroyPipeline, _logicalDevice.getHandle(), std::placeholders::_1, nullptr);
 
-    auto pipelineLayoutCreateInfo = createStruct<VkPipelineLayoutCreateInfo>();
+    VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo{}; FILL_S_TYPE(pipelineLayoutCreateInfo);
 
     pipelineLayoutCreateInfo.setLayoutCount = _dsLayouts.size();
     pipelineLayoutCreateInfo.pSetLayouts = _dsLayouts.data();

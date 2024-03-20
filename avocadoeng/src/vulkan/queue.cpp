@@ -27,7 +27,9 @@ void Queue::waitIdle() noexcept {
 
 VkSubmitInfo Queue::createSubmitInfo(const std::vector<VkSemaphore> &waitSemaphores, const std::vector<VkSemaphore> &signalSemaphores,
     const std::vector<VkCommandBuffer> &commandBuffers, const std::vector<VkPipelineStageFlags> &flags) {
-    auto submitInfo = createStruct<VkSubmitInfo>();
+    VkSubmitInfo submitInfo{};
+    FILL_S_TYPE(submitInfo);
+
     if (!waitSemaphores.empty()) {
         submitInfo.waitSemaphoreCount = static_cast<decltype(submitInfo.waitSemaphoreCount)>(waitSemaphores.size());
         submitInfo.pWaitSemaphores = waitSemaphores.data();
@@ -62,7 +64,7 @@ void Queue::submit(const VkSubmitInfo &submitInfo, VkFence fence) noexcept {
 void Queue::present(const std::vector<VkSemaphore> &waitSemaphores,
     const std::vector<uint32_t> &imageIndices,
     std::vector<VkSwapchainKHR> &swapchains) {
-    auto presentInfo = createStruct<VkPresentInfoKHR>();
+    VkPresentInfoKHR presentInfo{}; FILL_S_TYPE(presentInfo);
 
     presentInfo.waitSemaphoreCount = static_cast<decltype(presentInfo.waitSemaphoreCount)>(waitSemaphores.size());
     presentInfo.pWaitSemaphores = waitSemaphores.data();

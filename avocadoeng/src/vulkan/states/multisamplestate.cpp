@@ -21,7 +21,7 @@ void MultisampleState::setRasterizationSamples(const VkSampleCountFlagBits rastS
 }
 
 VkPipelineMultisampleStateCreateInfo MultisampleState::createCreateInfo() noexcept {
-    auto multisamplingCI = createStruct<VkPipelineMultisampleStateCreateInfo>();
+    VkPipelineMultisampleStateCreateInfo multisamplingCI{}; FILL_S_TYPE(multisamplingCI);
     multisamplingCI.rasterizationSamples = getRasterizationSamples();
     multisamplingCI.minSampleShading = getMinSampleShading();
     return multisamplingCI;

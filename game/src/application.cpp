@@ -13,6 +13,7 @@
 #include <vulkan/clipping.hpp>
 #include <vulkan/commandbuffer.hpp>
 #include <vulkan/debugutils.hpp>
+#include <vulkan/image.hpp>
 #include <vulkan/logicaldevice.hpp>
 #include <vulkan/pointertypes.hpp>
 #include <vulkan/surface.hpp>
@@ -37,6 +38,7 @@
 
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_core.h>
+#include <vulkan/structuretypes.hpp>
 
 #include <filesystem>
 #include <iostream>
@@ -44,7 +46,8 @@
 
 VkCommandBuffer beginSingleTimeCommands(avocado::vulkan::LogicalDevice &logicalDevice, VkCommandPool commandPool) {
     VkCommandBufferAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    FILL_S_TYPE(allocInfo);
+
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     allocInfo.commandPool = commandPool;
     allocInfo.commandBufferCount = 1;
@@ -396,8 +399,7 @@ int Application::run() {
         return 1;
     }
 
-    vertexBuffer.fill(quad.data(), quad.size() * sizeof(avocado::Vertex));
-
+    vertexBuffer.fill(quad.data());
     vertexBuffer.bindMemory();
 
     avocado::vulkan::Buffer indexBuffer(indicesSizeBytes,
@@ -413,10 +415,7 @@ int Application::run() {
         return 1;
     }
 
-
-
-    indexBuffer.fill(indices.data(), indices.size() * sizeof(uint16_t));
-
+    indexBuffer.fill(indices.data());
     indexBuffer.bindMemory();
     if (indexBuffer.hasError()) {
         std::cout << "Can't bind memory of index buffer: " << indexBuffer.getErrorMessage() << std::endl;
@@ -437,10 +436,9 @@ int Application::run() {
     uniformBuffer1.bindMemory();
 
     UniformBufferObject ubo{};
-    //ubo.view = avocado::math::lookAt(avocado::math::vec3f(2.f, 2.f, 2.f), avocado::math::vec3f(0.f, 0.f, 0.f), avocado::math::vec3f(0.f, 0.f, 1.f));
     ubo.view = avocado::math::lookAt(avocado::math::vec3f(0.f, 0.f, 2.f), avocado::math::vec3f(0.f, 0.f, 0.f), avocado::math::vec3f(0.f, 1.f, 0.f));
     ubo.proj = avocado::math::perspectiveProjection(45.f, static_cast<float>(Config::RESOLUTION_WIDTH) / static_cast<float>(Config::RESOLUTION_HEIGHT), 0.1f, 10.f);
-    uniformBuffer.fill(&ubo, sizeof(ubo));
+    uniformBuffer.fill(&ubo);
     uniformBuffer.bindMemory();
 
     auto renderPassPtr = _logicalDevice.createRenderPass(surfaceFormat.format);
@@ -517,8 +515,6 @@ int Application::run() {
         return 1;
     }
 
-    VkBuffer vertexBuffers[] {vertexBuffer.getHandle()};
-    VkDeviceSize offsets[] {0};
     avocado::vulkan::CommandBuffer commandBuffer = cmdBuffers.front();
 
     // Synchronization objects.
@@ -549,13 +545,11 @@ int Application::run() {
 
     std::vector cmdBufferHandles = avocado::vulkan::getCommandBufferHandles(cmdBuffers);
 
-    const uint32_t imgIndex = swapChain.acquireNextImage(imageAvailableSemaphore.get());
     if (swapChain.hasError()) {
         std::cout << "Can't get img index " << swapChain.getErrorMessage() << std::endl;
     }
 
-    std::vector imageIndices {imgIndex};
-
+    std::vector imageIndices {swapChain.acquireNextImage(imageAvailableSemaphore.get())};
     std::vector<VkPipelineStageFlags> flags = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
     auto submitInfo = graphicsQueue.createSubmitInfo(waitSemaphores, signalSemaphores, cmdBufferHandles, flags);
     SDL_Event event;
@@ -583,36 +577,33 @@ int Application::run() {
 
     avocado::vulkan::Buffer imgTransferBuffer(imgSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_SHARING_MODE_EXCLUSIVE, _logicalDevice, _physicalDevice);
     imgTransferBuffer.allocateMemory(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    imgTransferBuffer.fill(convertedSurface->pixels, imgSize);
+    imgTransferBuffer.fill(convertedSurface->pixels);
     imgTransferBuffer.bindMemory();
+    convertedSurface.reset();
 
     // Create image.
-    VkImage textureImage;
-    VkDeviceMemory textureImageMemory;
-    auto vkImageCI = avocado::vulkan::createStruct<VkImageCreateInfo>();
-    vkImageCI.imageType = VK_IMAGE_TYPE_2D;
-    vkImageCI.extent.width = imgW;
-    vkImageCI.extent.height = imgH;
-    vkImageCI.extent.depth = 1;
-    vkImageCI.mipLevels = 1;
-    vkImageCI.arrayLayers = 1;
-    vkImageCI.format = VK_FORMAT_R8G8B8A8_SRGB;
-    vkImageCI.tiling = VK_IMAGE_TILING_OPTIMAL;
-    vkImageCI.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    vkImageCI.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-    vkImageCI.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    vkImageCI.samples = VK_SAMPLE_COUNT_1_BIT;
-    VkResult v1 = vkCreateImage(_logicalDevice.getHandle(), &vkImageCI, nullptr, &textureImage);
-    if (v1 != VK_SUCCESS) {
-        std::cout << "vkCreateImage error" << std::endl;
+    avocado::vulkan::Image textureImage(_logicalDevice, imgW, imgH, VK_IMAGE_TYPE_2D);
+    textureImage.setDepth(1);
+    textureImage.setFormat(VK_FORMAT_R8G8B8A8_SRGB);
+    textureImage.setMipLevels(1);
+    textureImage.setImageTiling(VK_IMAGE_TILING_OPTIMAL);
+    textureImage.setUsage(VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+    textureImage.setSampleCount(VK_SAMPLE_COUNT_1_BIT);
+    textureImage.setArrayLayerCount(1);
+    textureImage.setSharingMode(VK_SHARING_MODE_EXCLUSIVE);
+    textureImage.create();
+    if (textureImage.hasError()) {
+        std::cout << "Image creation error: " << textureImage.getErrorMessage() << std::endl;
         return 1;
     }
 
+    VkDeviceMemory textureImageMemory;
+
     // Setup image memory. Allocate and bind it.
     VkMemoryRequirements memRequirements;
-    vkGetImageMemoryRequirements(_logicalDevice.getHandle(), textureImage, &memRequirements);
+    vkGetImageMemoryRequirements(_logicalDevice.getHandle(), textureImage.getHandle(), &memRequirements);
 
-    auto imageMemAI = avocado::vulkan::createStruct<VkMemoryAllocateInfo>();
+    VkMemoryAllocateInfo imageMemAI{}; FILL_S_TYPE(imageMemAI);
     imageMemAI.allocationSize = memRequirements.size;
 
     // todo Do the func for buffer & image for found type index.
@@ -636,18 +627,18 @@ int Application::run() {
         return 1;
     }
 
-    const VkResult v3 = vkBindImageMemory(_logicalDevice.getHandle(), textureImage, textureImageMemory, 0);
+    const VkResult v3 = vkBindImageMemory(_logicalDevice.getHandle(), textureImage.getHandle(), textureImageMemory, 0);
     if (v3 != VK_SUCCESS) {
         std::cout << "vkBindImageMemory error" << std::endl;
         return 1;
     }
 
-    avocado::vulkan::ImageViewPtr textureImageView = _logicalDevice.createObjectPointer(swapChain.createImageView(textureImage, VK_FORMAT_R8G8B8A8_SRGB));
+    avocado::vulkan::ImageViewPtr textureImageView = _logicalDevice.createObjectPointer(swapChain.createImageView(textureImage.getHandle(), VK_FORMAT_R8G8B8A8_SRGB));
     swapChain.createFramebuffers(renderPassPtr.get(), extent);
 
-    transitionImageLayout(_logicalDevice, commandPool.get(), graphicsQueue, textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-    copyBufferToImage(_logicalDevice, commandPool.get(), graphicsQueue, imgTransferBuffer.getHandle(), textureImage, static_cast<uint32_t>(imgW), static_cast<uint32_t>(imgH));
-    transitionImageLayout(_logicalDevice, commandPool.get(), graphicsQueue, textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    transitionImageLayout(_logicalDevice, commandPool.get(), graphicsQueue, textureImage.getHandle(), VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    copyBufferToImage(_logicalDevice, commandPool.get(), graphicsQueue, imgTransferBuffer.getHandle(), textureImage.getHandle(), static_cast<uint32_t>(imgW), static_cast<uint32_t>(imgH));
+    transitionImageLayout(_logicalDevice, commandPool.get(), graphicsQueue, textureImage.getHandle(), VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     VkSamplerCreateInfo samplerInfo{};
     samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -690,7 +681,6 @@ int Application::run() {
         descriptorWrites[0].descriptorCount = 1;
         descriptorWrites[0].pBufferInfo = &bufferInfo;
 
-
         VkDescriptorImageInfo imageInfo{};
         imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         imageInfo.imageView = textureImageView.get();
@@ -708,6 +698,8 @@ int Application::run() {
         vkUpdateDescriptorSets(_logicalDevice.getHandle(), descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
     }
 
+    VkBuffer vertexBufferHandle = vertexBuffer.getHandle();
+    VkDeviceSize offset = 0;
     auto startTime = std::chrono::high_resolution_clock::now();
 
     // Main loop.
@@ -724,7 +716,7 @@ int Application::run() {
         auto currentTime = std::chrono::high_resolution_clock::now();
         float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
         ubo.model = avocado::math::Mat4x4::createIdentityMatrix() * avocado::math::createRotationMatrix(time * 90.f, avocado::math::vec3f(0.0f, 0.0f, 1.0f));
-        uniformBuffer.fill(&ubo, sizeof(ubo));
+        uniformBuffer.fill(&ubo);
 
         commandBuffer.reset(avocado::vulkan::CommandBuffer::ResetFlags::NoFlags);
         commandBuffer.begin();
@@ -732,7 +724,7 @@ int Application::run() {
 
         commandBuffer.setViewports(viewPorts);
         commandBuffer.setScissors(scissors);
-        commandBuffer.bindVertexBuffers(0, 1, vertexBuffers, offsets);
+        commandBuffer.bindVertexBuffers(0, 1, &vertexBufferHandle, &offset);
         commandBuffer.bindIndexBuffer(indexBuffer.getHandle(), 0, avocado::vulkan::toIndexType<decltype(indices)::value_type>());
         commandBuffer.bindPipeline(graphicsPipeline.get(), avocado::vulkan::CommandBuffer::PipelineBindPoint::Graphics);
         commandBuffer.bindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineBuilder.getPipelineLayout(), 0,descriptorSets.size(), descriptorSets.data(), 0, nullptr);
@@ -748,13 +740,12 @@ int Application::run() {
 
         presentQueue.present(signalSemaphores, imageIndices, swapChainHandles);
         imageIndices[0] = swapChain.acquireNextImage(imageAvailableSemaphore.get());
-    } // main loop.
+    } // Main loop.
 
     _logicalDevice.waitIdle();
 
     // Destroy resources.
     vkFreeMemory(_logicalDevice.getHandle(), textureImageMemory, nullptr);
-    vkDestroyImage(_logicalDevice.getHandle(), textureImage, nullptr);
     pipelineBuilder.destroyPipeline();
 
     return 0;

@@ -4,7 +4,7 @@
 #include "logicaldevice.hpp"
 #include "vkutils.hpp"
 
-#include "internal/structuretypes.hpp"
+#include "structuretypes.hpp"
 
 #include <memory>
 
@@ -14,12 +14,12 @@ class DebugUtils: public core::ErrorStorage {
 public:
     template <typename T>
     void setObjectName(T object, const char *objectName) noexcept {
-        static_assert(internal::ObjectType<T> != VK_OBJECT_TYPE_MAX_ENUM, "This type is not supported");
+        static_assert(ObjectType<T> != VK_OBJECT_TYPE_MAX_ENUM, "This type is not supported");
 
         assert(_dev.getHandle() != VK_NULL_HANDLE);
 
-        auto objNameInfo = createStruct<VkDebugUtilsObjectNameInfoEXT>();
-        objNameInfo.objectType = internal::ObjectType<T>;
+        VkDebugUtilsObjectNameInfoEXT objNameInfo{}; FILL_S_TYPE(objNameInfo);
+        objNameInfo.objectType = ObjectType<T>;
         objNameInfo.objectHandle = reinterpret_cast<uint64_t>(object);
         objNameInfo.pObjectName = objectName;
         auto fnPointer = reinterpret_cast<PFN_vkSetDebugUtilsObjectNameEXT>(vkGetDeviceProcAddr(_dev.getHandle(), "vkSetDebugUtilsObjectNameEXT"));
@@ -36,8 +36,8 @@ public:
 
     template <typename T, typename Tag>
     void setObjectTag(T object, const uint64_t tagName, const Tag *tag, const size_t tagSize) noexcept {
-        auto tagInfo = createStruct<VkDebugUtilsObjectTagInfoEXT>();
-        tagInfo.objectType = internal::ObjectType<T>;
+        VkDebugUtilsObjectTagInfoEXT tagInfo{}; FILL_S_TYPE(tagInfo);
+        tagInfo.objectType = ObjectType<T>;
         tagInfo.objectHandle = reinterpret_cast<uint64_t>(object);
         tagInfo.tagName = tagName;
         tagInfo.tagSize = tagSize;

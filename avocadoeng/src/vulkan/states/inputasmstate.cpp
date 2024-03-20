@@ -13,7 +13,7 @@ VkPrimitiveTopology InputAsmState::getTopology() const noexcept {
 }
 
 VkPipelineInputAssemblyStateCreateInfo InputAsmState::createCreateInfo() noexcept {
-    auto inputAsmStateCI = createStruct<VkPipelineInputAssemblyStateCreateInfo>();
+    VkPipelineInputAssemblyStateCreateInfo inputAsmStateCI{}; FILL_S_TYPE(inputAsmStateCI);
     inputAsmStateCI.topology = getTopology();
     return inputAsmStateCI;
 }

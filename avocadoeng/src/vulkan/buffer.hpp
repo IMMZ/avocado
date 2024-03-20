@@ -27,6 +27,9 @@ public:
     void allocateMemory(const VkMemoryPropertyFlags flags) noexcept;
     void bindMemory(const VkDeviceSize offset = 0) noexcept;
     void fill(const void * const dataToCopy, const VkDeviceSize dataSize, const size_t offset = 0);
+    inline void fill(const void * const dataToCopy) {
+        fill(dataToCopy, _bufSize, 0);
+    }
     VkDeviceSize getSize() const noexcept;
 
 private:

@@ -30,7 +30,7 @@ uint32_t VertexInputState::getAttributeDescriptionsCount() const noexcept {
 }
 
 VkPipelineVertexInputStateCreateInfo VertexInputState::createCreateInfo() noexcept {
-    auto vertexInStateCI = createStruct<VkPipelineVertexInputStateCreateInfo>();
+    VkPipelineVertexInputStateCreateInfo vertexInStateCI{}; FILL_S_TYPE(vertexInStateCI);
     vertexInStateCI.pVertexAttributeDescriptions = getAttributeDescriptionData();
     vertexInStateCI.vertexAttributeDescriptionCount = getAttributeDescriptionsCount();
     vertexInStateCI.pVertexBindingDescriptions = getBindingDescriptionData();
