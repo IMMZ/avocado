@@ -1,13 +1,15 @@
 #include "image.hpp"
 
 #include "logicaldevice.hpp"
-
+#include "physicaldevice.hpp"
+#include "structuretypes.hpp"
 
 namespace avocado::vulkan
 {
 
 Image::Image(LogicalDevice &device, const uint32_t width, const uint32_t height, const VkImageType imageType):
     _handle(device.createObjectPointer<VkImage>(VK_NULL_HANDLE)),
+    _textureImageMemory(device.createAllocatedObjectPointer<VkDeviceMemory>(VK_NULL_HANDLE)),
     _createInfo{},
     _device(device) {
     _createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -15,6 +17,33 @@ Image::Image(LogicalDevice &device, const uint32_t width, const uint32_t height,
     _createInfo.extent.height = height;
     _createInfo.imageType = imageType;
     _createInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+}
+
+void Image::allocateMemory(PhysicalDevice &physDevice, const VkMemoryPropertyFlags memoryFlags) {
+    // todo Same code with Buffer class. Extract somewhere.
+    VkMemoryRequirements memRequirements{};
+    vkGetImageMemoryRequirements(_device.getHandle(), _handle.get(), &memRequirements);
+
+    const uint32_t foundType = physDevice.findMemoryTypeIndex(memoryFlags, memRequirements.memoryTypeBits);
+
+    VkMemoryAllocateInfo imageMemAI{}; FILL_S_TYPE(imageMemAI);
+    imageMemAI.allocationSize = memRequirements.size;
+    imageMemAI.memoryTypeIndex = foundType;
+
+    VkDeviceMemory deviceMemory;
+    const VkResult allocationResult = vkAllocateMemory(_device.getHandle(), &imageMemAI, nullptr, &deviceMemory);
+    setHasError(allocationResult != VK_SUCCESS);
+    if (!hasError())
+        _textureImageMemory.reset(deviceMemory);
+    else
+        setErrorMessage("vkAllocateMemory returned "s + getVkResultString(allocationResult));
+}
+
+void Image::bindMemory() {
+    const VkResult bindResult = vkBindImageMemory(_device.getHandle(), _handle.get(), _textureImageMemory.get(), 0);
+    setHasError(bindResult != VK_SUCCESS);
+    if (hasError())
+        setErrorMessage("vkBindImageMemory returned "s + getVkResultString(bindResult));
 }
 
 void Image::create() {
@@ -32,7 +61,7 @@ void Image::create() {
     _handle.reset(imageToCreate);
 }
 
-VkImage Image::getHandle() {
+VkImage Image::getHandle() noexcept {
     return _handle.get();
 }
 

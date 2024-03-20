@@ -1,7 +1,6 @@
 #include "objectdeleter.hpp"
 
 #include "logicaldevice.hpp"
-#include "vulkan_core.h"
 
 #define DEFINE_SPECIALIZATION(ObjectName) template<> void destroyObject<Vk##ObjectName>(LogicalDevice &logicalDevice, Vk##ObjectName objHandle) {\
     vkDestroy##ObjectName(logicalDevice.getHandle(), objHandle, nullptr);\
@@ -29,5 +28,10 @@ DEFINE_SPECIALIZATION(Sampler)
 DEFINE_SPECIALIZATION(Semaphore)
 DEFINE_SPECIALIZATION(ShaderModule)
 DEFINE_SPECIALIZATION(SwapchainKHR)
+
+template <>
+void freeAllocation<VkDeviceMemory>(LogicalDevice &device, VkDeviceMemory allocatedObjectHandle) noexcept {
+    vkFreeMemory(device.getHandle(), allocatedObjectHandle, nullptr);
+}
 
 } // namespace avocado::vulkan::internal.

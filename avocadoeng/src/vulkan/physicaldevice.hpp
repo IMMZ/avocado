@@ -25,6 +25,7 @@ public:
     VkPhysicalDevice getHandle() noexcept;
     bool isValid() const noexcept;
     std::vector<std::string> getPhysicalDeviceExtensions() const;
+    uint32_t findMemoryTypeIndex(const VkMemoryPropertyFlags memoryFlags, const uint32_t memoryTypeBits);
 
     void initQueueFamilies(Surface &surface);
     QueueFamily getGraphicsQueueFamily() const noexcept;

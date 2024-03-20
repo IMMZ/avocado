@@ -35,12 +35,7 @@ public:
     void drawIndexed(const uint32_t indexCount, const uint32_t instanceCount,
         const uint32_t firstIndex, const int32_t vertexOffset, const uint32_t firstInstance) noexcept;
 
-    enum class ResetFlags: uint32_t {
-        NoFlags = 0
-        , ReleaseResources = 0x00000001
-    };
-    void reset(const ResetFlags flags);
-
+    void reset(const VkCommandPoolResetFlagBits flags);
     void setViewports(const std::vector<VkViewport> &vps, const uint32_t firstIndex, const uint32_t count) noexcept;
     inline void setViewports(const std::vector<VkViewport> &vps) {
         setViewports(vps, 0, static_cast<uint32_t>(vps.size()));
@@ -51,14 +46,7 @@ public:
         setScissors(scissors, 0, static_cast<uint32_t>(scissors.size()));
     }
 
-    enum class PipelineBindPoint {
-        Graphics = VK_PIPELINE_BIND_POINT_GRAPHICS,
-        Compute = VK_PIPELINE_BIND_POINT_COMPUTE,
-        RayTracing = VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR,
-        SubpassShadingHuawei = VK_PIPELINE_BIND_POINT_SUBPASS_SHADING_HUAWEI,
-        RayTracingNV = VK_PIPELINE_BIND_POINT_RAY_TRACING_NV
-    };
-    void bindPipeline(VkPipeline pipeline, const PipelineBindPoint bindPoint) noexcept;
+    void bindPipeline(VkPipeline pipeline, const VkPipelineBindPoint bindPoint) noexcept;
 
 private:
     VkCommandBuffer _buf = VK_NULL_HANDLE;

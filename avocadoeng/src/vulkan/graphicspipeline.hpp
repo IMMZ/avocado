@@ -35,7 +35,6 @@ public:
     explicit GraphicsPipelineBuilder(LogicalDevice &device);
 
     VkPipelineLayout getPipelineLayout() noexcept;
-    VkDescriptorSetLayout getDescriptorSetLayout() noexcept;
     void setColorBlendState(std::unique_ptr<ColorBlendState> state) noexcept;
     void setDynamicState(std::unique_ptr<DynamicState> dynState) noexcept;
     void setInputAsmState(std::unique_ptr<InputAsmState> inAsmState) noexcept;
@@ -45,9 +44,8 @@ public:
     void setViewportState(std::unique_ptr<ViewportState> viewportState) noexcept;
     void addFragmentShaderModules(const std::vector<std::vector<char>> &shaderModules);
     void addVertexShaderModules(const std::vector<std::vector<char>> &shaderModules);
-    void setDescriptorSetLayout(VkDescriptorSetLayout dstl);
+    void setDescriptorSetLayouts(std::vector<VkDescriptorSetLayout> &layouts);
 
-    void setDSLayouts(std::vector<VkDescriptorSetLayout> &layouts);
 private:
     template <typename T>
     inline auto createStateCreateInfo(T &state) {
@@ -69,8 +67,7 @@ private:
     std::unique_ptr<RasterizationState> _rasterizationState = nullptr;
     std::unique_ptr<ViewportState> _viewportState = nullptr;
     avocado::vulkan::ObjectPtr<VkPipelineLayout> _pipelineLayout;
-    VkDescriptorSetLayout _descriptorSetLayout = VK_NULL_HANDLE;
-    std::vector<VkDescriptorSetLayout> _dsLayouts;
+    std::vector<VkDescriptorSetLayout> _descriptorSetLayouts;
 
 public:
     PipelinePtr buildPipeline(VkRenderPass renderPass);

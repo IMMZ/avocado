@@ -143,6 +143,21 @@ std::vector<std::string> PhysicalDevice::getPhysicalDeviceExtensions() const {
     return extensions;
 }
 
+uint32_t PhysicalDevice::findMemoryTypeIndex(const VkMemoryPropertyFlags memoryFlags, const uint32_t memoryTypeBits) {
+    VkPhysicalDeviceMemoryProperties memProps{};
+    vkGetPhysicalDeviceMemoryProperties(_device, &memProps);
+
+    uint32_t foundIndex = 0;
+    for (uint32_t i = 0; i < memProps.memoryTypeCount; ++i) {
+        if (memoryTypeBits & (1 << i) && (memProps.memoryTypes[i].propertyFlags & memoryFlags) == memoryFlags) {
+            foundIndex = i;
+            break;
+        }
+    }
+
+    return foundIndex;
+}
+
 bool PhysicalDevice::areExtensionsSupported(const std::vector<std::string> &extNames) const {
     std::vector<std::string> deviceExtensions = getPhysicalDeviceExtensions();
     if (hasError()) {

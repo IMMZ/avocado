@@ -104,7 +104,7 @@ VkExtent2D Surface::getCapabilities(SDL_Window *sdlWindow) noexcept {
     return extent;
 }
 
-VkSurfaceFormatKHR Surface::findFormat(Format sf, ColorSpace cs) const {
+VkSurfaceFormatKHR Surface::findFormat(VkFormat surfFormat, VkColorSpaceKHR colorSpace) const {
     assert(_surface != VK_NULL_HANDLE);
 
     VkSurfaceFormatKHR resultFormat{};
@@ -115,8 +115,8 @@ VkSurfaceFormatKHR Surface::findFormat(Format sf, ColorSpace cs) const {
     }
 
     const auto &findResult = std::find_if(surfaceFormats.cbegin(), surfaceFormats.cend(),
-        [sf, cs] (VkSurfaceFormatKHR surfaceFormat) {
-        return (surfaceFormat.format == static_cast<VkFormat>(sf) && surfaceFormat.colorSpace == static_cast<VkColorSpaceKHR>(cs));
+        [surfFormat, colorSpace] (VkSurfaceFormatKHR surfaceFormat) {
+        return (surfaceFormat.format == surfFormat && surfaceFormat.colorSpace == colorSpace);
     });
     setHasError(findResult == surfaceFormats.cend());
     if (!hasError()) {

@@ -16,6 +16,7 @@ public:
 private:
     void createInstance(SDL_Window &window, const std::vector<std::string> &instanceLayers);
     void createPhysicalDevice();
+    avocado::vulkan::SamplerPtr createSampler();
     avocado::vulkan::Swapchain createSwapchain(avocado::vulkan::Surface &surface, const VkSurfaceFormatKHR surfaceFormat, const VkExtent2D extent,
         const std::vector<avocado::vulkan::QueueFamily> &queueFamilies);
     std::unique_ptr<SDL_Window, void(*)(SDL_Window*)> createWindow();
@@ -27,11 +28,12 @@ private:
         std::vector<VkDescriptorSetLayout> &layouts, const std::vector<VkViewport> &viewPorts,
         const std::vector<VkRect2D> &scissors);
 
+    void updateDescriptorSets(std::vector<avocado::vulkan::Buffer*> &uniformBuffers, const VkDeviceSize range, std::vector<VkDescriptorSet> &descriptorSets,
+        avocado::vulkan::ImageViewPtr &textureImageView, avocado::vulkan::SamplerPtr &textureSampler);
+
     avocado::vulkan::Vulkan _vulkan;
     avocado::vulkan::PhysicalDevice _physicalDevice;
     avocado::vulkan::LogicalDevice _logicalDevice;
-
-
 };
 
 #endif // APPLICATION_HPP

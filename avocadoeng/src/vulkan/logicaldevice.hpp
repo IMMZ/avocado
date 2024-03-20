@@ -21,6 +21,7 @@ using namespace std::string_literals;
 namespace avocado::vulkan {
 
 class DebugUtils;
+class PhysicalDevice;
 
 class LogicalDevice: public avocado::core::ErrorStorage {
 public:
@@ -54,9 +55,16 @@ public:
     void resetFences(const std::vector<VkFence> &fences) noexcept;
     VkSemaphore createSemaphore() noexcept;
 
+    SamplerPtr createSampler(PhysicalDevice &physicalDevice);
+
     template <typename T>
     ObjectPtr<T> createObjectPointer(T objectHandle) {
         return ObjectPtr<T>(objectHandle, ObjectDeleter<T>(*this));
+    }
+
+    template <typename T>
+    AllocatedObjectPtr<T> createAllocatedObjectPointer(T objectHandle) {
+        return AllocatedObjectPtr<T>(objectHandle, AllocatedObjectDeleter<T>(*this));
     }
 
     VkCommandPool createCommandPool(const VkCommandPoolCreateFlags flags, const QueueFamily queueFamilyIndex) noexcept;

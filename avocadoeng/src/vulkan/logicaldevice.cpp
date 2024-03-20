@@ -3,6 +3,7 @@
 #include "buffer.hpp"
 #include "debugutils.hpp"
 #include "objectdeleter.hpp"
+#include "physicaldevice.hpp"
 #include "vkutils.hpp"
 #include "vulkan_core.h"
 
@@ -177,10 +178,41 @@ VkSemaphore LogicalDevice::createSemaphore() noexcept {
     VkSemaphoreCreateInfo semaphoreCI{}; FILL_S_TYPE(semaphoreCI);
     const VkResult result = vkCreateSemaphore(_dev.get(), &semaphoreCI, nullptr, &semaphore);
     setHasError(result != VK_SUCCESS);
-    if (hasError()) {
+    if (hasError())
         setErrorMessage("vkCreateSemaphore returned "s + getVkResultString(result));
-    }
+
     return semaphore;
+}
+
+SamplerPtr LogicalDevice::createSampler(PhysicalDevice &physicalDevice) {
+    VkSamplerCreateInfo samplerInfo{};
+    samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    samplerInfo.magFilter = VK_FILTER_LINEAR;
+    samplerInfo.minFilter = VK_FILTER_LINEAR;
+    samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+    samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+    samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+    samplerInfo.anisotropyEnable = VK_FALSE;
+
+    VkPhysicalDeviceProperties properties{};
+    vkGetPhysicalDeviceProperties(physicalDevice.getHandle(), &properties);
+    samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
+    samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+    samplerInfo.unnormalizedCoordinates = VK_FALSE;
+    samplerInfo.compareEnable = VK_FALSE;
+    samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    samplerInfo.mipLodBias = 0.0f;
+    samplerInfo.minLod = 0.0f;
+    samplerInfo.maxLod = 0.0f;
+
+    VkSampler textureSampler;
+    const VkResult samplerCreateResult = vkCreateSampler(_dev.get(), &samplerInfo, nullptr, &textureSampler);
+    setHasError(samplerCreateResult != VK_SUCCESS);
+    if (hasError())
+        setErrorMessage("vkCreateSampler returned "s + getVkResultString(samplerCreateResult));
+
+    return createObjectPointer(textureSampler);
 }
 
 VkCommandPool LogicalDevice::createCommandPool(const VkCommandPoolCreateFlags flags, const QueueFamily queueFamilyIndex) noexcept {

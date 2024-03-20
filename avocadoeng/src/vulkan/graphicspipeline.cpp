@@ -16,10 +16,6 @@ VkPipelineLayout GraphicsPipelineBuilder::getPipelineLayout() noexcept {
     return _pipelineLayout.get();
 }
 
-VkDescriptorSetLayout GraphicsPipelineBuilder::getDescriptorSetLayout() noexcept {
-    return _descriptorSetLayout;
-}
-
 void GraphicsPipelineBuilder::setColorBlendState(std::unique_ptr<ColorBlendState> state) noexcept {
     _colorBlendState = std::move(state);
 }
@@ -56,10 +52,6 @@ void GraphicsPipelineBuilder::addFragmentShaderModules(const std::vector<std::ve
 void GraphicsPipelineBuilder::addVertexShaderModules(const std::vector<std::vector<char>> &shaderModules) {
     for (std::vector<char> shaderModule: shaderModules)
         _shaderModuleCIs.emplace_back(addShaderModule(shaderModule, VK_SHADER_STAGE_VERTEX_BIT));
-}
-
-void GraphicsPipelineBuilder::setDescriptorSetLayout(VkDescriptorSetLayout dstl) {
-    _descriptorSetLayout = dstl;
 }
 
 VkPipelineShaderStageCreateInfo GraphicsPipelineBuilder::addShaderModule(const std::vector<char> &data, const VkShaderStageFlagBits shType) {
@@ -145,8 +137,8 @@ PipelinePtr GraphicsPipelineBuilder::buildPipeline(VkRenderPass renderPass) {
 
     VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo{}; FILL_S_TYPE(pipelineLayoutCreateInfo);
 
-    pipelineLayoutCreateInfo.setLayoutCount = _dsLayouts.size();
-    pipelineLayoutCreateInfo.pSetLayouts = _dsLayouts.data();
+    pipelineLayoutCreateInfo.setLayoutCount = _descriptorSetLayouts.size();
+    pipelineLayoutCreateInfo.pSetLayouts = _descriptorSetLayouts.data();
 
     VkPipelineLayout pipelineLayout;
     const VkResult pipelineCreationResult = vkCreatePipelineLayout(_logicalDevice.getHandle(), &pipelineLayoutCreateInfo, nullptr, &pipelineLayout);
@@ -185,13 +177,9 @@ PipelinePtr GraphicsPipelineBuilder::buildPipeline(VkRenderPass renderPass) {
     return makeObjectPtr(_logicalDevice, pipeline);
 }
 
-void GraphicsPipelineBuilder::setDSLayouts(std::vector<VkDescriptorSetLayout> &layouts)
+void GraphicsPipelineBuilder::setDescriptorSetLayouts(std::vector<VkDescriptorSetLayout> &layouts)
 {
-    _dsLayouts = layouts;
-}
-
-void GraphicsPipelineBuilder::destroyPipeline() {
-    vkDestroyDescriptorSetLayout(_logicalDevice.getHandle(), _descriptorSetLayout, nullptr);
+    _descriptorSetLayouts = layouts;
 }
 
 } // namespace avocado::vulkan.

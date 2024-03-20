@@ -122,26 +122,33 @@ void transitionImageLayout(avocado::vulkan::LogicalDevice &logicalDevice, VkComm
     endSingleTimeCommands(logicalDevice, commandPool, queue, commandBuffer);
 }
 
-void copyBufferToImage(avocado::vulkan::LogicalDevice &logicalDevice, VkCommandPool commandPool, avocado::vulkan::Queue &queue, VkBuffer buffer, VkImage image, uint32_t width, uint32_t height) {
-    VkCommandBuffer commandBuffer = beginSingleTimeCommands(logicalDevice, commandPool);
+void copyBufferToImage(avocado::vulkan::LogicalDevice &logicalDevice, VkCommandPool commandPool, avocado::vulkan::Queue &queue, avocado::vulkan::Buffer &buffer,
+    avocado::vulkan::Image &image, uint32_t width, uint32_t height) {
+    const std::vector commandBuffers = logicalDevice.allocateCommandBuffers(1, commandPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+    avocado::vulkan::CommandBuffer commandBuffer = commandBuffers.front();
 
-    VkBufferImageCopy region{};
+    // todo Shouldn't be in that way. It's possible to forget to begin command buffer and no info about it.
+    // copyToImage is a command for command buffer.
+    commandBuffer.begin();
+    buffer.copyToImage(image, width, height, commandBuffer);
+    commandBuffer.end();
 
-    region.bufferOffset = 0;
-    region.bufferRowLength = 0;
-    region.bufferImageHeight = 0;
+    VkCommandBuffer bufferHandle = commandBuffer.getHandle();
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &bufferHandle;
+    queue.submit(submitInfo);
+    if (queue.hasError()) {
+        std::cout << "Queue submit error (" << queue.getErrorMessage() << ')' << std::endl;
+        return;
+    }
 
-    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    region.imageSubresource.mipLevel = 0;
-    region.imageSubresource.baseArrayLayer = 0;
-    region.imageSubresource.layerCount = 1;
-
-    region.imageOffset = {0, 0, 0};
-    region.imageExtent = { width, height, 1 };
-
-    vkCmdCopyBufferToImage(commandBuffer, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-
-    endSingleTimeCommands(logicalDevice, commandPool, queue, commandBuffer);
+    queue.waitIdle();
+    if (queue.hasError()) {
+        std::cout << "Queue wait idle error (" << queue.getErrorMessage() << ')' << std::endl;
+        return;
+    }
 }
 
 void Application::createInstance(SDL_Window &window, const std::vector<std::string> &instanceLayers) {
@@ -297,10 +304,43 @@ avocado::vulkan::GraphicsPipelineBuilder Application::preparePipeline(const VkEx
 
     auto viewportState = std::make_unique<avocado::vulkan::ViewportState>(viewPorts, scissors);
     pipelineBuilder.setViewportState(std::move(viewportState));
-
-    pipelineBuilder.setDSLayouts(layouts); // todo rename this method
+    pipelineBuilder.setDescriptorSetLayouts(layouts);
 
     return pipelineBuilder;
+}
+
+void Application::updateDescriptorSets(std::vector<avocado::vulkan::Buffer*> &uniformBuffers, const VkDeviceSize range, std::vector<VkDescriptorSet> &descriptorSets,
+    avocado::vulkan::ImageViewPtr &textureImageView, avocado::vulkan::SamplerPtr &textureSampler) {
+    std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
+    for (size_t i = 0; i < 2; i++) {
+        VkDescriptorBufferInfo bufferInfo{};
+        bufferInfo.buffer = uniformBuffers[i]->getHandle();
+        bufferInfo.offset = 0;
+        bufferInfo.range = range;
+
+        descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrites[0].dstSet = descriptorSets[i];
+        descriptorWrites[0].dstBinding = 0;
+        descriptorWrites[0].dstArrayElement = 0;
+        descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        descriptorWrites[0].descriptorCount = 1;
+        descriptorWrites[0].pBufferInfo = &bufferInfo;
+
+        VkDescriptorImageInfo imageInfo{};
+        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        imageInfo.imageView = textureImageView.get();
+        imageInfo.sampler = textureSampler.get();
+
+        descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrites[1].dstSet = descriptorSets[i];
+        descriptorWrites[1].dstBinding = 1;
+        descriptorWrites[1].dstArrayElement = 0;
+        descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        descriptorWrites[1].descriptorCount = 1;
+        descriptorWrites[1].pImageInfo = &imageInfo;
+
+        vkUpdateDescriptorSets(_logicalDevice.getHandle(), descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
+    }
 }
 
 int Application::run() {
@@ -366,11 +406,8 @@ int Application::run() {
     extent.height = std::clamp(extent.height, surface.getMinExtentH(), surface.getMaxExtentH());
 
     // Creating swapchain.
-    const VkSurfaceFormatKHR surfaceFormat = surface.findFormat(
-        avocado::vulkan::Format::B8G8R8A8SRGB,
-        avocado::vulkan::Surface::ColorSpace::SRGBNonlinearKHR);
+    const VkSurfaceFormatKHR surfaceFormat = surface.findFormat(VK_FORMAT_B8G8R8A8_SRGB, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR);
     avocado::vulkan::Swapchain swapChain = createSwapchain(surface, surfaceFormat, extent, queueFamilies);
-
 
     constexpr std::array<avocado::Vertex, 4> quad = {{
         /* { pos, color, textureCoordinates } */
@@ -386,14 +423,14 @@ int Application::run() {
     avocado::vulkan::Buffer vertexBuffer(verticesSizeBytes,
         static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT),
         VK_SHARING_MODE_EXCLUSIVE,
-        _logicalDevice, _physicalDevice);
+        _logicalDevice);
 
     if (vertexBuffer.hasError()) {
         std::cout << "Can't create vertex buf: " << vertexBuffer.getErrorMessage() << std::endl;
         return 1;
     }
 
-    vertexBuffer.allocateMemory(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+    vertexBuffer.allocateMemory(_physicalDevice, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
     if (vertexBuffer.hasError()) {
         std::cout << "Can't allocate memory on vertex buf: " << vertexBuffer.getErrorMessage() << std::endl;
         return 1;
@@ -404,12 +441,12 @@ int Application::run() {
 
     avocado::vulkan::Buffer indexBuffer(indicesSizeBytes,
         static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT),
-        VK_SHARING_MODE_EXCLUSIVE, _logicalDevice, _physicalDevice);
+        VK_SHARING_MODE_EXCLUSIVE, _logicalDevice);
     if (indexBuffer.hasError()) {
         std::cout << "Can't create index buffer: " << indexBuffer.getErrorMessage() << std::endl;
         return 1;
     }
-    indexBuffer.allocateMemory(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+    indexBuffer.allocateMemory(_physicalDevice, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
     if (indexBuffer.hasError()) {
         std::cout << "Can't allocate memory on index buffer: " << indexBuffer.getErrorMessage() << std::endl;
         return 1;
@@ -428,11 +465,11 @@ int Application::run() {
         alignas(16) avocado::math::Mat4x4 view;
     };
 
-    avocado::vulkan::Buffer uniformBuffer(sizeof(UniformBufferObject), static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT), VK_SHARING_MODE_EXCLUSIVE, _logicalDevice, _physicalDevice);
-    uniformBuffer.allocateMemory(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    avocado::vulkan::Buffer uniformBuffer(sizeof(UniformBufferObject), static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT), VK_SHARING_MODE_EXCLUSIVE, _logicalDevice);
+    uniformBuffer.allocateMemory(_physicalDevice, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
-    avocado::vulkan::Buffer uniformBuffer1(sizeof(UniformBufferObject), static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT), VK_SHARING_MODE_EXCLUSIVE, _logicalDevice, _physicalDevice);
-    uniformBuffer1.allocateMemory(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    avocado::vulkan::Buffer uniformBuffer1(sizeof(UniformBufferObject), static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT), VK_SHARING_MODE_EXCLUSIVE, _logicalDevice);
+    uniformBuffer1.allocateMemory(_physicalDevice, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     uniformBuffer1.bindMemory();
 
     UniformBufferObject ubo{};
@@ -442,7 +479,6 @@ int Application::run() {
     uniformBuffer.bindMemory();
 
     auto renderPassPtr = _logicalDevice.createRenderPass(surfaceFormat.format);
-
 
     // Create descriptor set layout.
     VkDescriptorSetLayout descriptorSetLayout;
@@ -477,7 +513,7 @@ int Application::run() {
     std::vector<VkDescriptorSet> descriptorSets;
     avocado::vulkan::DescriptorPoolPtr descriptorPool = _logicalDevice.createObjectPointer(_logicalDevice.createDescriptorPool());
 
-    std::array<avocado::vulkan::Buffer*, 2> uniformBuffers = {&uniformBuffer, &uniformBuffer1};
+    std::vector<avocado::vulkan::Buffer*> uniformBuffers = {&uniformBuffer, &uniformBuffer1};
 
     // Create descriptor sets.
     std::vector<VkDescriptorSetLayout> layouts(2, descriptorSetLayoutPtr.get());
@@ -575,11 +611,12 @@ int Application::run() {
     imgH = convertedSurface->h;
     imgSize = imgW * imgH * convertedSurface->format->BytesPerPixel;
 
-    avocado::vulkan::Buffer imgTransferBuffer(imgSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_SHARING_MODE_EXCLUSIVE, _logicalDevice, _physicalDevice);
-    imgTransferBuffer.allocateMemory(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    avocado::vulkan::Buffer imgTransferBuffer(imgSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_SHARING_MODE_EXCLUSIVE, _logicalDevice);
+    imgTransferBuffer.allocateMemory(_physicalDevice, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     imgTransferBuffer.fill(convertedSurface->pixels);
     imgTransferBuffer.bindMemory();
-    convertedSurface.reset();
+
+    convertedSurface.reset(); // Free resources.
 
     // Create image.
     avocado::vulkan::Image textureImage(_logicalDevice, imgW, imgH, VK_IMAGE_TYPE_2D);
@@ -597,107 +634,23 @@ int Application::run() {
         return 1;
     }
 
-    VkDeviceMemory textureImageMemory;
-
-    // Setup image memory. Allocate and bind it.
-    VkMemoryRequirements memRequirements;
-    vkGetImageMemoryRequirements(_logicalDevice.getHandle(), textureImage.getHandle(), &memRequirements);
-
-    VkMemoryAllocateInfo imageMemAI{}; FILL_S_TYPE(imageMemAI);
-    imageMemAI.allocationSize = memRequirements.size;
-
-    // todo Do the func for buffer & image for found type index.
-    VkPhysicalDeviceMemoryProperties memProps{};
-    vkGetPhysicalDeviceMemoryProperties(_physicalDevice.getHandle(), &memProps);
-
-    const uint32_t typeFilter = memRequirements.memoryTypeBits;
-
-    uint32_t foundType = 0;
-    for (uint32_t i = 0; i < memProps.memoryTypeCount; ++i) {
-        if (typeFilter & (1 << i) && (memProps.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) == VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) {
-            foundType = i;
-            break;
-        }
-    }
-
-    imageMemAI.memoryTypeIndex = foundType;
-    const VkResult v2 = vkAllocateMemory(_logicalDevice.getHandle(), &imageMemAI, nullptr, &textureImageMemory);
-    if (v2 != VK_SUCCESS) {
-        std::cout << "vkAllocateMemory error" << std::endl;
-        return 1;
-    }
-
-    const VkResult v3 = vkBindImageMemory(_logicalDevice.getHandle(), textureImage.getHandle(), textureImageMemory, 0);
-    if (v3 != VK_SUCCESS) {
-        std::cout << "vkBindImageMemory error" << std::endl;
-        return 1;
-    }
+    textureImage.allocateMemory(_physicalDevice, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    textureImage.bindMemory();
 
     avocado::vulkan::ImageViewPtr textureImageView = _logicalDevice.createObjectPointer(swapChain.createImageView(textureImage.getHandle(), VK_FORMAT_R8G8B8A8_SRGB));
     swapChain.createFramebuffers(renderPassPtr.get(), extent);
 
     transitionImageLayout(_logicalDevice, commandPool.get(), graphicsQueue, textureImage.getHandle(), VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-    copyBufferToImage(_logicalDevice, commandPool.get(), graphicsQueue, imgTransferBuffer.getHandle(), textureImage.getHandle(), static_cast<uint32_t>(imgW), static_cast<uint32_t>(imgH));
+    copyBufferToImage(_logicalDevice, commandPool.get(), graphicsQueue, imgTransferBuffer, textureImage, static_cast<uint32_t>(imgW), static_cast<uint32_t>(imgH));
     transitionImageLayout(_logicalDevice, commandPool.get(), graphicsQueue, textureImage.getHandle(), VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-    VkSamplerCreateInfo samplerInfo{};
-    samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-    samplerInfo.magFilter = VK_FILTER_LINEAR;
-    samplerInfo.minFilter = VK_FILTER_LINEAR;
-
-    samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
-    samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
-    samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
-    samplerInfo.anisotropyEnable = VK_FALSE;
-
-    VkPhysicalDeviceProperties properties{};
-    vkGetPhysicalDeviceProperties(_physicalDevice.getHandle(), &properties);
-    samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
-    samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-    samplerInfo.unnormalizedCoordinates = VK_FALSE;
-    samplerInfo.compareEnable = VK_FALSE;
-    samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-    samplerInfo.mipLodBias = 0.0f;
-    samplerInfo.minLod = 0.0f;
-    samplerInfo.maxLod = 0.0f;
-
-    VkSampler textureSampler;
-    vkCreateSampler(_logicalDevice.getHandle(), &samplerInfo, nullptr, &textureSampler);
-    avocado::vulkan::SamplerPtr textureSamplerPtr = _logicalDevice.createObjectPointer(textureSampler);
-
-    std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
-    for (size_t i = 0; i < 2; i++) {
-        VkDescriptorBufferInfo bufferInfo{};
-        bufferInfo.buffer = uniformBuffers[i]->getHandle();
-        bufferInfo.offset = 0;
-        bufferInfo.range = sizeof(UniformBufferObject);
-
-        descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrites[0].dstSet = descriptorSets[i];
-        descriptorWrites[0].dstBinding = 0;
-        descriptorWrites[0].dstArrayElement = 0;
-        descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        descriptorWrites[0].descriptorCount = 1;
-        descriptorWrites[0].pBufferInfo = &bufferInfo;
-
-        VkDescriptorImageInfo imageInfo{};
-        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        imageInfo.imageView = textureImageView.get();
-        imageInfo.sampler = textureSamplerPtr.get();
-
-        descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrites[1].dstSet = descriptorSets[i];
-        descriptorWrites[1].dstBinding = 1;
-        descriptorWrites[1].dstArrayElement = 0;
-        descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        descriptorWrites[1].descriptorCount = 1;
-        descriptorWrites[1].pImageInfo = &imageInfo;
-
-
-        vkUpdateDescriptorSets(_logicalDevice.getHandle(), descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
+    avocado::vulkan::SamplerPtr textureSamplerPtr = _logicalDevice.createSampler(_physicalDevice);
+    if (_logicalDevice.hasError()) {
+        std::cout << "Error while creating sampler (" << _logicalDevice.getErrorMessage() << ")" << std::endl;
+        return 1;
     }
 
+    updateDescriptorSets(uniformBuffers, sizeof(UniformBufferObject), descriptorSets, textureImageView, textureSamplerPtr);
     VkBuffer vertexBufferHandle = vertexBuffer.getHandle();
     VkDeviceSize offset = 0;
     auto startTime = std::chrono::high_resolution_clock::now();
@@ -718,7 +671,7 @@ int Application::run() {
         ubo.model = avocado::math::Mat4x4::createIdentityMatrix() * avocado::math::createRotationMatrix(time * 90.f, avocado::math::vec3f(0.0f, 0.0f, 1.0f));
         uniformBuffer.fill(&ubo);
 
-        commandBuffer.reset(avocado::vulkan::CommandBuffer::ResetFlags::NoFlags);
+        commandBuffer.reset(static_cast<VkCommandPoolResetFlagBits>(0));
         commandBuffer.begin();
         commandBuffer.beginRenderPass(swapChain, renderPassPtr.get(), extent, {0, 0}, imageIndices.front());
 
@@ -726,7 +679,7 @@ int Application::run() {
         commandBuffer.setScissors(scissors);
         commandBuffer.bindVertexBuffers(0, 1, &vertexBufferHandle, &offset);
         commandBuffer.bindIndexBuffer(indexBuffer.getHandle(), 0, avocado::vulkan::toIndexType<decltype(indices)::value_type>());
-        commandBuffer.bindPipeline(graphicsPipeline.get(), avocado::vulkan::CommandBuffer::PipelineBindPoint::Graphics);
+        commandBuffer.bindPipeline(graphicsPipeline.get(), VK_PIPELINE_BIND_POINT_GRAPHICS);
         commandBuffer.bindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineBuilder.getPipelineLayout(), 0,descriptorSets.size(), descriptorSets.data(), 0, nullptr);
         commandBuffer.drawIndexed(static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 
@@ -743,10 +696,5 @@ int Application::run() {
     } // Main loop.
 
     _logicalDevice.waitIdle();
-
-    // Destroy resources.
-    vkFreeMemory(_logicalDevice.getHandle(), textureImageMemory, nullptr);
-    pipelineBuilder.destroyPipeline();
-
     return 0;
 }

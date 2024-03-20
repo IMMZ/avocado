@@ -9,12 +9,15 @@ namespace avocado::vulkan
 {
 
 class LogicalDevice;
+class PhysicalDevice;
 
 class Image: public core::ErrorStorage {
 public:
     explicit Image(LogicalDevice &device, const uint32_t width, const uint32_t height, const VkImageType imageType);
+    void allocateMemory(PhysicalDevice &physDevice, const VkMemoryPropertyFlags memoryFlags);
+    void bindMemory();
     void create();
-    VkImage getHandle();
+    VkImage getHandle() noexcept;
     void setArrayLayerCount(const uint32_t count);
     void setDepth(const uint32_t depth);
     void setFormat(const VkFormat format);
@@ -26,6 +29,7 @@ public:
 
 private:
     ImagePtr _handle;
+    DeviceMemoryPtr _textureImageMemory;
     VkImageCreateInfo _createInfo;
     LogicalDevice &_device;
 };

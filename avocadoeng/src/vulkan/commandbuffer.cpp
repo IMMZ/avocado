@@ -108,14 +108,13 @@ void CommandBuffer::drawIndexed(const uint32_t indexCount, const uint32_t instan
     vkCmdDrawIndexed(_buf, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
 }
 
-void CommandBuffer::reset(const CommandBuffer::ResetFlags flags) {
+void CommandBuffer::reset(const VkCommandPoolResetFlagBits flags) {
     assert(_buf != VK_NULL_HANDLE);
 
-    const VkResult result = vkResetCommandBuffer(_buf, static_cast<uint32_t>(flags));
+    const VkResult result = vkResetCommandBuffer(_buf, flags);
     setHasError(result != VK_SUCCESS);
-    if (hasError()) {
+    if (hasError())
         setErrorMessage("vkResetCommandBuffer returned "s + getVkResultString(result));
-    }
 }
 
 void CommandBuffer::setViewports(const std::vector<VkViewport> &vps, const uint32_t firstIndex, const uint32_t count) noexcept {
@@ -130,10 +129,10 @@ void CommandBuffer::setScissors(const std::vector<VkRect2D> &scissors, const uin
     vkCmdSetScissor(_buf, firstIndex, count, scissors.data());
 }
 
-void CommandBuffer::bindPipeline(VkPipeline pipeline, const CommandBuffer::PipelineBindPoint bindPoint) noexcept {
+void CommandBuffer::bindPipeline(VkPipeline pipeline, const VkPipelineBindPoint bindPoint) noexcept {
     assert(_buf != VK_NULL_HANDLE);
 
-    vkCmdBindPipeline(_buf, static_cast<VkPipelineBindPoint>(bindPoint), pipeline);
+    vkCmdBindPipeline(_buf, bindPoint, pipeline);
 }
 
 }

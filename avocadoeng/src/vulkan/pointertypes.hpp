@@ -5,6 +5,7 @@
 
 #define DECLARE_POINTER_TYPE(Type) using Type##Ptr = ObjectPtr<Vk##Type>;
 #define DECLARE_POINTER_FUNDAMENTAL_TYPE(Type) using Type##Ptr = FundamentalObjectPtr<Vk##Type>;
+#define DECLARE_POINTER_ALLOCATED_TYPE(Type) using Type##Ptr = AllocatedObjectPtr<Vk##Type>;
 
 namespace avocado::vulkan
 {
@@ -13,6 +14,7 @@ DECLARE_POINTER_TYPE(CommandPool)
 DECLARE_POINTER_TYPE(DescriptorPool)
 DECLARE_POINTER_TYPE(DescriptorSetLayout)
 DECLARE_POINTER_FUNDAMENTAL_TYPE(Device)
+DECLARE_POINTER_ALLOCATED_TYPE(DeviceMemory)
 DECLARE_POINTER_TYPE(Fence)
 DECLARE_POINTER_TYPE(Image)
 DECLARE_POINTER_TYPE(ImageView)
