@@ -34,6 +34,7 @@ private:
     avocado::vulkan::Vulkan _vulkan;
     avocado::vulkan::PhysicalDevice _physicalDevice;
     avocado::vulkan::LogicalDevice _logicalDevice;
+    static constexpr size_t FRAMES_IN_FLIGHT = 2;
 };
 
 #endif // APPLICATION_HPP

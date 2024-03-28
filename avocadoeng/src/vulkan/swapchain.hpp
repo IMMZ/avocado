@@ -15,10 +15,9 @@ namespace avocado::vulkan {
 class LogicalDevice;
 class Surface;
 
-class Swapchain: public core::ErrorStorage {
+class Swapchain final: public core::ErrorStorage {
 public:
-    Swapchain() = default;
-    Swapchain(LogicalDevice &logicalDevice);
+    explicit Swapchain(LogicalDevice &logicalDevice);
     ~Swapchain();
 
     Swapchain(Swapchain &&other);

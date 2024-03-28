@@ -21,9 +21,6 @@ Swapchain::~Swapchain() {
             vkDestroyFramebuffer(_device, fb, nullptr);
         for (VkImageView iv: _imageViews)
             vkDestroyImageView(_device, iv, nullptr);
-        // todo Do we need to remove images?
-        //for (VkImage img: _images)
-         //   vkDestroyImage(_device, img, nullptr);
     }
 }
 

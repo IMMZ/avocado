@@ -467,16 +467,15 @@ int Application::run() {
 
     avocado::vulkan::Buffer uniformBuffer(sizeof(UniformBufferObject), static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT), VK_SHARING_MODE_EXCLUSIVE, _logicalDevice);
     uniformBuffer.allocateMemory(_physicalDevice, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    uniformBuffer.bindMemory();
 
-    avocado::vulkan::Buffer uniformBuffer1(sizeof(UniformBufferObject), static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT), VK_SHARING_MODE_EXCLUSIVE, _logicalDevice);
-    uniformBuffer1.allocateMemory(_physicalDevice, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    uniformBuffer1.bindMemory();
+    avocado::vulkan::Buffer uniformBufferForFrame2(sizeof(UniformBufferObject), static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT), VK_SHARING_MODE_EXCLUSIVE, _logicalDevice);
+    uniformBufferForFrame2.allocateMemory(_physicalDevice, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    uniformBufferForFrame2.bindMemory();
 
     UniformBufferObject ubo{};
     ubo.view = avocado::math::lookAt(avocado::math::vec3f(0.f, 0.f, 2.f), avocado::math::vec3f(0.f, 0.f, 0.f), avocado::math::vec3f(0.f, 1.f, 0.f));
     ubo.proj = avocado::math::perspectiveProjection(45.f, static_cast<float>(Config::RESOLUTION_WIDTH) / static_cast<float>(Config::RESOLUTION_HEIGHT), 0.1f, 10.f);
-    uniformBuffer.fill(&ubo);
-    uniformBuffer.bindMemory();
 
     auto renderPassPtr = _logicalDevice.createRenderPass(surfaceFormat.format);
 
@@ -511,19 +510,19 @@ int Application::run() {
     avocado::vulkan::DescriptorSetLayoutPtr descriptorSetLayoutPtr = _logicalDevice.createObjectPointer(descriptorSetLayout);
 
     std::vector<VkDescriptorSet> descriptorSets;
-    avocado::vulkan::DescriptorPoolPtr descriptorPool = _logicalDevice.createObjectPointer(_logicalDevice.createDescriptorPool());
+    avocado::vulkan::DescriptorPoolPtr descriptorPool = _logicalDevice.createObjectPointer(_logicalDevice.createDescriptorPool(FRAMES_IN_FLIGHT));
 
-    std::vector<avocado::vulkan::Buffer*> uniformBuffers = {&uniformBuffer, &uniformBuffer1};
+    std::vector<avocado::vulkan::Buffer*> uniformBuffers = {&uniformBuffer, &uniformBufferForFrame2};
 
     // Create descriptor sets.
-    std::vector<VkDescriptorSetLayout> layouts(2, descriptorSetLayoutPtr.get());
+    std::vector<VkDescriptorSetLayout> layouts(FRAMES_IN_FLIGHT, descriptorSetLayoutPtr.get());
     VkDescriptorSetAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     allocInfo.descriptorPool = descriptorPool.get();
-    allocInfo.descriptorSetCount = static_cast<uint32_t>(2);
+    allocInfo.descriptorSetCount = static_cast<uint32_t>(FRAMES_IN_FLIGHT);
     allocInfo.pSetLayouts = layouts.data();
 
-    descriptorSets.resize(2);
+    descriptorSets.resize(FRAMES_IN_FLIGHT);
     const VkResult ads = vkAllocateDescriptorSets(_logicalDevice.getHandle(), &allocInfo, descriptorSets.data());
     if (ads != VK_SUCCESS) {
         throw std::runtime_error("Can't allocate descriptor sets"s + std::to_string(static_cast<int>(ads)));
@@ -545,50 +544,46 @@ int Application::run() {
         return 1;
     }
 
-    std::vector<avocado::vulkan::CommandBuffer> cmdBuffers = _logicalDevice.allocateCommandBuffers(1, commandPool.get(), VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+    std::vector<avocado::vulkan::CommandBuffer> cmdBuffers = _logicalDevice.allocateCommandBuffers(FRAMES_IN_FLIGHT, commandPool.get(), VK_COMMAND_BUFFER_LEVEL_PRIMARY);
     if (_logicalDevice.hasError()) {
         std::cout << "Can't allocate command buffers (" << _logicalDevice.getErrorMessage() << ")." << std::endl;
         return 1;
     }
 
-    avocado::vulkan::CommandBuffer commandBuffer = cmdBuffers.front();
-
     // Synchronization objects.
-    avocado::vulkan::SemaphorePtr imageAvailableSemaphore = _logicalDevice.createObjectPointer(_logicalDevice.createSemaphore());
+    std::array<avocado::vulkan::SemaphorePtr, FRAMES_IN_FLIGHT> imageAvailableSemaphores = {
+        _logicalDevice.createObjectPointer(_logicalDevice.createSemaphore()),
+        _logicalDevice.createObjectPointer(_logicalDevice.createSemaphore())};
     if (_logicalDevice.hasError()) {
         std::cout << "Can't create semaphore: " << _logicalDevice.getErrorMessage() << std::endl;
         return 1;
     }
 
-    avocado::vulkan::SemaphorePtr renderFinishedSemaphore = _logicalDevice.createObjectPointer(_logicalDevice.createSemaphore());
+    std::array<avocado::vulkan::SemaphorePtr, FRAMES_IN_FLIGHT> renderFinishedSemaphores = {
+        _logicalDevice.createObjectPointer(_logicalDevice.createSemaphore()),
+        _logicalDevice.createObjectPointer(_logicalDevice.createSemaphore())};
     if (_logicalDevice.hasError()) {
         std::cout << "Can't create semaphore: " << _logicalDevice.getErrorMessage() << std::endl;
         return 1;
     }
 
-    avocado::vulkan::FencePtr fence = _logicalDevice.createObjectPointer(_logicalDevice.createFence());
-    std::vector<VkFence> fences {fence.get()};
+    std::array<avocado::vulkan::FencePtr, FRAMES_IN_FLIGHT> fences = {
+        _logicalDevice.createObjectPointer(_logicalDevice.createFence()),
+        _logicalDevice.createObjectPointer(_logicalDevice.createFence())};
+    std::vector<VkFence> fenceHandles {fences[0].get(), fences[1].get()};
     if (_logicalDevice.hasError()) {
         std::cout << "Can't create fence: " << _logicalDevice.getErrorMessage() << std::endl;
         return 1;
     }
 
-    const std::vector<VkSemaphore> waitSemaphores {imageAvailableSemaphore.get()};
-    const std::vector<VkSemaphore> signalSemaphores {renderFinishedSemaphore.get()};
-
     avocado::vulkan::Queue graphicsQueue(_logicalDevice.getGraphicsQueue(0));
     debugUtilsPtr->setObjectName(graphicsQueue.getHandle(), "Graphics queue");
 
-    std::vector cmdBufferHandles = avocado::vulkan::getCommandBufferHandles(cmdBuffers);
 
     if (swapChain.hasError()) {
         std::cout << "Can't get img index " << swapChain.getErrorMessage() << std::endl;
     }
 
-    std::vector imageIndices {swapChain.acquireNextImage(imageAvailableSemaphore.get())};
-    std::vector<VkPipelineStageFlags> flags = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-    auto submitInfo = graphicsQueue.createSubmitInfo(waitSemaphores, signalSemaphores, cmdBufferHandles, flags);
-    SDL_Event event;
     std::vector<VkSwapchainKHR> swapChainHandles{swapChain.getHandle()};
 
     // Load image
@@ -655,6 +650,15 @@ int Application::run() {
     VkDeviceSize offset = 0;
     auto startTime = std::chrono::high_resolution_clock::now();
 
+    std::vector<VkPipelineStageFlags> flags = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+    std::vector<VkSemaphore> waitSemaphores {imageAvailableSemaphores[0].get(), imageAvailableSemaphores[1].get()};
+    std::vector<VkSemaphore> signalSemaphores {renderFinishedSemaphores[0].get(), renderFinishedSemaphores[1].get()};
+    std::vector cmdBufferHandles = avocado::vulkan::getCommandBufferHandles(cmdBuffers);
+
+    SDL_Event event;
+    uint32_t imageIndex = 0;//swapChain.acquireNextImage(imageAvailableSemaphores[0].get());
+    uint32_t currentFrame = 0;
+
     // Main loop.
     while (true) {
         if (SDL_PollEvent(&event)) {
@@ -662,39 +666,45 @@ int Application::run() {
                 break;
         }
 
-        _logicalDevice.waitForFences(fences, true);
-        _logicalDevice.resetFences(fences);
+        std::vector<VkFence> fenceToWait{fences[currentFrame].get()};
+        _logicalDevice.waitForFences(fenceToWait, true);
+        imageIndex = swapChain.acquireNextImage(imageAvailableSemaphores[currentFrame].get());
+        _logicalDevice.resetFences(fenceToWait);
 
         // Update uniform buffer.
         auto currentTime = std::chrono::high_resolution_clock::now();
         float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
         ubo.model = avocado::math::Mat4x4::createIdentityMatrix() * avocado::math::createRotationMatrix(time * 90.f, avocado::math::vec3f(0.0f, 0.0f, 1.0f));
-        uniformBuffer.fill(&ubo);
+        uniformBuffers[currentFrame]->fill(&ubo);
 
+        avocado::vulkan::CommandBuffer commandBuffer = cmdBuffers[currentFrame];
         commandBuffer.reset(static_cast<VkCommandPoolResetFlagBits>(0));
         commandBuffer.begin();
-        commandBuffer.beginRenderPass(swapChain, renderPassPtr.get(), extent, {0, 0}, imageIndices.front());
+        commandBuffer.beginRenderPass(swapChain, renderPassPtr.get(), extent, {0, 0}, imageIndex);
 
         commandBuffer.setViewports(viewPorts);
         commandBuffer.setScissors(scissors);
         commandBuffer.bindVertexBuffers(0, 1, &vertexBufferHandle, &offset);
         commandBuffer.bindIndexBuffer(indexBuffer.getHandle(), 0, avocado::vulkan::toIndexType<decltype(indices)::value_type>());
         commandBuffer.bindPipeline(graphicsPipeline.get(), VK_PIPELINE_BIND_POINT_GRAPHICS);
-        commandBuffer.bindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineBuilder.getPipelineLayout(), 0,descriptorSets.size(), descriptorSets.data(), 0, nullptr);
+        commandBuffer.bindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineBuilder.getPipelineLayout(), 0, 1, &descriptorSets[currentFrame], 0, nullptr);
         commandBuffer.drawIndexed(static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 
         commandBuffer.endRenderPass();
         commandBuffer.end();
 
-        graphicsQueue.submit(submitInfo, fences.front());
+        auto submitInfo = graphicsQueue.createSubmitInfo(waitSemaphores[currentFrame], signalSemaphores[currentFrame], cmdBufferHandles[currentFrame], flags);
+        graphicsQueue.submit(submitInfo, fenceToWait[0]);
         if (graphicsQueue.hasError()) {
             std::cout << "Can't submit graphics queue: " << graphicsQueue.getErrorMessage() << std::endl;
+            break;
         }
 
-        presentQueue.present(signalSemaphores, imageIndices, swapChainHandles);
-        imageIndices[0] = swapChain.acquireNextImage(imageAvailableSemaphore.get());
+        presentQueue.present(signalSemaphores[currentFrame], imageIndex, swapChainHandles[0]);
+        currentFrame = (currentFrame + 1) % FRAMES_IN_FLIGHT;
     } // Main loop.
 
     _logicalDevice.waitIdle();
     return 0;
 }
+

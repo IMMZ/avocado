@@ -25,25 +25,17 @@ void Queue::waitIdle() noexcept {
         setErrorMessage("vkQueueWaitIdle returned "s + getVkResultString(res));
 }
 
-VkSubmitInfo Queue::createSubmitInfo(const std::vector<VkSemaphore> &waitSemaphores, const std::vector<VkSemaphore> &signalSemaphores,
-    const std::vector<VkCommandBuffer> &commandBuffers, const std::vector<VkPipelineStageFlags> &flags) {
+VkSubmitInfo Queue::createSubmitInfo(VkSemaphore &waitSemaphore, VkSemaphore &signalSemaphore,
+    VkCommandBuffer &commandBuffer, const std::vector<VkPipelineStageFlags> &flags) {
     VkSubmitInfo submitInfo{};
     FILL_S_TYPE(submitInfo);
 
-    if (!waitSemaphores.empty()) {
-        submitInfo.waitSemaphoreCount = static_cast<decltype(submitInfo.waitSemaphoreCount)>(waitSemaphores.size());
-        submitInfo.pWaitSemaphores = waitSemaphores.data();
-    }
-
-    if (!signalSemaphores.empty()) {
-        submitInfo.signalSemaphoreCount = static_cast<decltype(submitInfo.signalSemaphoreCount)>(signalSemaphores.size());
-        submitInfo.pSignalSemaphores = signalSemaphores.data();
-    }
-
-    if (!commandBuffers.empty()) {
-        submitInfo.commandBufferCount = static_cast<decltype(submitInfo.commandBufferCount)>(commandBuffers.size());
-        submitInfo.pCommandBuffers = commandBuffers.data();
-    }
+    submitInfo.waitSemaphoreCount = 1;
+    submitInfo.pWaitSemaphores = &waitSemaphore;
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores = &signalSemaphore;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBuffer;
 
     if (!flags.empty())
         submitInfo.pWaitDstStageMask = flags.data();
@@ -61,18 +53,16 @@ void Queue::submit(const VkSubmitInfo &submitInfo, VkFence fence) noexcept {
     }
 }
 
-void Queue::present(const std::vector<VkSemaphore> &waitSemaphores,
-    const std::vector<uint32_t> &imageIndices,
-    std::vector<VkSwapchainKHR> &swapchains) {
+void Queue::present(VkSemaphore &waitSemaphore, uint32_t &imageIndex, VkSwapchainKHR &swapchain) {
     VkPresentInfoKHR presentInfo{}; FILL_S_TYPE(presentInfo);
 
-    presentInfo.waitSemaphoreCount = static_cast<decltype(presentInfo.waitSemaphoreCount)>(waitSemaphores.size());
-    presentInfo.pWaitSemaphores = waitSemaphores.data();
+    presentInfo.waitSemaphoreCount = 1;
+    presentInfo.pWaitSemaphores = &waitSemaphore;
 
-    presentInfo.pImageIndices = imageIndices.data();
+    presentInfo.pImageIndices = &imageIndex;
 
-    presentInfo.swapchainCount = static_cast<decltype(presentInfo.swapchainCount)>(swapchains.size());
-    presentInfo.pSwapchains = swapchains.data();
+    presentInfo.swapchainCount = 1;
+    presentInfo.pSwapchains = &swapchain;
 
     const VkResult result = vkQueuePresentKHR(getHandle(), &presentInfo);
     setHasError(result != VK_SUCCESS);

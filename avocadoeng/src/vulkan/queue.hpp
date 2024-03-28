@@ -18,14 +18,11 @@ public:
 
     VkQueue getHandle() noexcept;
     void waitIdle() noexcept;
-    VkSubmitInfo createSubmitInfo(const std::vector<VkSemaphore> &waitSemaphores,
-        const std::vector<VkSemaphore> &signalSemaphores,
-        const std::vector<VkCommandBuffer> &commandBuffers,
+
+    VkSubmitInfo createSubmitInfo(VkSemaphore &waitSemaphore, VkSemaphore &signalSemaphore, VkCommandBuffer &commandBuffer,
         const std::vector<VkPipelineStageFlags> &flags);
     void submit(const VkSubmitInfo &submitInfo, VkFence fence = VK_NULL_HANDLE) noexcept;
-    void present(const std::vector<VkSemaphore> &waitSemaphores,
-        const std::vector<uint32_t> &imageIndices,
-        std::vector<VkSwapchainKHR> &swapchains);
+    void present(VkSemaphore &waitSemaphore, uint32_t &imageIndex, VkSwapchainKHR &swapchain);
 
 private:
     VkQueue _queue = VK_NULL_HANDLE;

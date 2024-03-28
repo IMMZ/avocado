@@ -40,7 +40,7 @@ public:
     VkDescriptorBufferInfo createDescriptorBufferInfo(Buffer &buffer, const size_t bufferSize) noexcept;
     std::pair<VkDescriptorSet, VkWriteDescriptorSet> createWriteDescriptorSet(
         VkDescriptorPool descriptorPool, VkDescriptorSetLayout descriptorSetLayout, VkDescriptorBufferInfo &descriptorBufferInfo);
-    VkDescriptorPool createDescriptorPool();
+    VkDescriptorPool createDescriptorPool(const size_t descriptorCount);
     RenderPassPtr createRenderPass(VkFormat format);
     Queue getGraphicsQueue(const uint32_t index) noexcept;
     Queue getPresentQueue(const uint32_t index) noexcept;

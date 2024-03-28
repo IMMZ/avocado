@@ -7,6 +7,7 @@
 #include "vkutils.hpp"
 #include "vulkan_core.h"
 
+#include <cstdint>
 #include <memory>
 
 using namespace std::string_literals;
@@ -94,17 +95,17 @@ std::pair<VkDescriptorSet, VkWriteDescriptorSet> LogicalDevice::createWriteDescr
     return {dSet, descriptorWrite};
 }
 
-VkDescriptorPool LogicalDevice::createDescriptorPool() {
+VkDescriptorPool LogicalDevice::createDescriptorPool(const size_t descriptorCount) {
     std::array<VkDescriptorPoolSize, 2> descriptorPoolSizes{};
     descriptorPoolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    descriptorPoolSizes[0].descriptorCount = 2;
+    descriptorPoolSizes[0].descriptorCount = descriptorCount;
     descriptorPoolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    descriptorPoolSizes[1].descriptorCount = 2;
+    descriptorPoolSizes[1].descriptorCount = descriptorCount;
 
     VkDescriptorPoolCreateInfo dPoolCI{}; FILL_S_TYPE(dPoolCI);
     dPoolCI.poolSizeCount = descriptorPoolSizes.size();
     dPoolCI.pPoolSizes = descriptorPoolSizes.data();
-    dPoolCI.maxSets = 2;
+    dPoolCI.maxSets = static_cast<uint32_t>(descriptorCount);
 
     VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
     const VkResult cdp = vkCreateDescriptorPool(_dev.get(), &dPoolCI, nullptr, &descriptorPool);
@@ -115,6 +116,7 @@ VkDescriptorPool LogicalDevice::createDescriptorPool() {
     }
     return descriptorPool;
 }
+
 Queue LogicalDevice::getGraphicsQueue(const uint32_t index) noexcept {
     VkQueue queue = VK_NULL_HANDLE;
     vkGetDeviceQueue(_dev.get(), _graphicsQueueFamily, index, &queue);
