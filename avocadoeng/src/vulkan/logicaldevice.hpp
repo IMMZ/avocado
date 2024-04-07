@@ -41,7 +41,7 @@ public:
     std::pair<VkDescriptorSet, VkWriteDescriptorSet> createWriteDescriptorSet(
         VkDescriptorPool descriptorPool, VkDescriptorSetLayout descriptorSetLayout, VkDescriptorBufferInfo &descriptorBufferInfo);
     VkDescriptorPool createDescriptorPool(const size_t descriptorCount);
-    RenderPassPtr createRenderPass(VkFormat format);
+    RenderPassPtr createRenderPass(VkFormat format, VkFormat depthFormat);
     Queue getGraphicsQueue(const uint32_t index) noexcept;
     Queue getPresentQueue(const uint32_t index) noexcept;
     Queue getTransferQueue(const uint32_t index) noexcept;

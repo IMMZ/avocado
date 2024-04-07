@@ -6,7 +6,7 @@
 namespace avocado {
 
 struct Vertex {
-    math::vec2f position;
+    math::vec3f position;
     math::vec3f color;
     math::vec2f textureCoordinate;
 };

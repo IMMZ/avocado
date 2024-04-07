@@ -13,6 +13,8 @@
 namespace avocado::vulkan {
 
 class LogicalDevice;
+class PhysicalDevice;
+class Queue;
 class Surface;
 
 class Swapchain final: public core::ErrorStorage {
@@ -28,8 +30,12 @@ public:
 
     void create(Surface &surface, VkSurfaceFormatKHR surfaceFormat, VkExtent2D extent, const uint32_t minImageCount, const std::vector<QueueFamily> &queueFamilies) noexcept;
     void getImages();
-    VkImageView createImageView(VkImage image, VkFormat format);
+    VkFormat findSupportedFormat(const std::vector<VkFormat>& candidates, VkPhysicalDevice physDevice, const VkImageTiling tiling, const VkFormatFeatureFlags features);
+    void createDepthImage(const uint32_t imgW, const uint32_t imgH, PhysicalDevice &physDevice, const VkMemoryPropertyFlags memoryFlags);
+    VkImage getDepthImage() noexcept;
+    VkImageView createImageView(VkImage image, VkFormat format, const VkImageAspectFlags aspectFlags);
     void createImageViews(VkSurfaceFormatKHR surfaceFormat);
+    void createDepthImageView(VkSurfaceFormatKHR surfaceFormat);
     void createFramebuffers(VkRenderPass renderPass, VkExtent2D extent);
     uint32_t acquireNextImage(VkSemaphore semaphore) noexcept;
     VkFramebuffer getFramebuffer(size_t index);
@@ -37,6 +43,9 @@ public:
 private:
     std::vector<VkImage> _images;
     std::vector<VkImageView> _imageViews;
+    VkImage _depthImage;
+    VkImageView _depthImageView;
+    VkDeviceMemory _depthImageMemory;
     std::vector<VkFramebuffer> _framebuffers;
     VkDevice _device = VK_NULL_HANDLE;
     SwapchainKHRPtr _swapchain;

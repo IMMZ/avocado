@@ -14,6 +14,8 @@ public:
     int run();
 
 private:
+    VkFormat findSupportedFormat(const std::vector<VkFormat>& candidates, const VkImageTiling tiling, const VkFormatFeatureFlags features);
+    bool createDepthImage(const uint32_t imageW, const uint32_t imageH, avocado::vulkan::Swapchain &swapchain, avocado::vulkan::CommandPoolPtr &commandPool, avocado::vulkan::Queue &graphicsQueue);
     void createInstance(SDL_Window &window, const std::vector<std::string> &instanceLayers);
     void createPhysicalDevice();
     avocado::vulkan::SamplerPtr createSampler();

@@ -5,6 +5,7 @@
 #include "swapchain.hpp"
 #include "vkutils.hpp"
 
+#include <array>
 #include <cassert>
 
 using namespace std::string_literals;
@@ -54,10 +55,12 @@ void CommandBuffer::beginRenderPass(Swapchain &swapchain, VkRenderPass renderPas
     renderPassInfo.renderArea.offset = offset;
     renderPassInfo.renderArea.extent = extent;
 
-    VkClearValue clearColor = {{{0.f, 0.f, 0.f, 0.f}}}; // todo extract as parameter?
+    std::array<VkClearValue, 2> clearColors{};
+    clearColors[0].color = {{0.f, 0.f, 0.f, 0.f}}; // todo extract as parameter?
+    clearColors[1].depthStencil = {1.f, 0};
 
-    renderPassInfo.clearValueCount = 1;
-    renderPassInfo.pClearValues = &clearColor;
+    renderPassInfo.clearValueCount = static_cast<uint32_t>(clearColors.size());
+    renderPassInfo.pClearValues = clearColors.data();
     vkCmdBeginRenderPass(_buf, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 }
 

@@ -42,6 +42,7 @@ public:
     void setRasterizationState(std::unique_ptr<RasterizationState> rasterizationState) noexcept;
     void setVertexInputState(std::unique_ptr<VertexInputState> vertexInState) noexcept;
     void setViewportState(std::unique_ptr<ViewportState> viewportState) noexcept;
+    void setDepthStencilState(std::unique_ptr<VkPipelineDepthStencilStateCreateInfo> depthStencilState) noexcept;
     void addFragmentShaderModules(const std::vector<std::vector<char>> &shaderModules);
     void addVertexShaderModules(const std::vector<std::vector<char>> &shaderModules);
     void setDescriptorSetLayouts(std::vector<VkDescriptorSetLayout> &layouts);
@@ -66,6 +67,7 @@ private:
     std::unique_ptr<MultisampleState> _multisampleState = nullptr;
     std::unique_ptr<RasterizationState> _rasterizationState = nullptr;
     std::unique_ptr<ViewportState> _viewportState = nullptr;
+    std::unique_ptr<VkPipelineDepthStencilStateCreateInfo> _depthStencilState = nullptr;
     avocado::vulkan::ObjectPtr<VkPipelineLayout> _pipelineLayout;
     std::vector<VkDescriptorSetLayout> _descriptorSetLayouts;
 

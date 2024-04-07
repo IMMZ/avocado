@@ -10,7 +10,6 @@ void VertexInputState::addBindingDescription(const uint32_t binding, const uint3
 
 void VertexInputState::addAttributeDescription(const uint32_t loc, const uint32_t binding, const VkFormat format, const uint32_t offset) {
     _attributeDescriptions.push_back({loc, binding, format, offset});
-
 }
 
 VkVertexInputBindingDescription* VertexInputState::getBindingDescriptionData() noexcept {

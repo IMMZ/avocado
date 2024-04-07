@@ -12,7 +12,6 @@ ViewportState::ViewportState(const std::vector<VkViewport> &viewports, const std
 ViewportState::ViewportState(std::vector<VkViewport> &&viewports, std::vector<VkRect2D> &&scissors):
     _viewports(std::move(viewports)),
     _scissors(std::move(scissors)) {
-
 }
 
 uint32_t ViewportState::getViewportCount() const noexcept {

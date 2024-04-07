@@ -3,6 +3,8 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <cassert>
+
 namespace avocado::vulkan {
 
 struct Clipping {
@@ -15,11 +17,13 @@ struct Clipping {
             static_cast<uint32_t>(viewport.width), static_cast<uint32_t>(viewport.height));
     }
 
-    inline static VkViewport createViewport(const float x, const float y, const float w, const float h, const float minDepth = 1.0f, const float maxDepth = 1.0f) noexcept {
+    inline static VkViewport createViewport(const float x, const float y, const float w, const float h, const float minDepth = 0.f, const float maxDepth = 1.f) noexcept {
+        assert((minDepth < maxDepth) && "Min depth of viewport must be < than max depth.");
         return {x, y, w, h, minDepth, maxDepth};
     }
 
-    static VkViewport createViewport(const float x, const float y, const VkExtent2D extent, const float minDepth = 1.0f, const float maxDepth = 1.0f) noexcept {
+    static VkViewport createViewport(const float x, const float y, const VkExtent2D extent, const float minDepth = 0.f, const float maxDepth = 1.f) noexcept {
+        assert((minDepth < maxDepth) && "Min depth of viewport must be < than max depth.");
         return createViewport(x, y, static_cast<float>(extent.width), static_cast<float>(extent.height), minDepth, maxDepth);
     }
 };

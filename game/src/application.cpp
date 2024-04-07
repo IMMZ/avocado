@@ -86,16 +86,15 @@ void endSingleTimeCommands(avocado::vulkan::LogicalDevice &logicalDevice, VkComm
     vkFreeCommandBuffers(logicalDevice.getHandle(), commandPool, 1, &commandBuffer);
 }
 
-void transitionImageLayout(avocado::vulkan::LogicalDevice &logicalDevice, VkCommandPool commandPool, avocado::vulkan::Queue &queue, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout) {
+void transitionImageLayout(avocado::vulkan::LogicalDevice &logicalDevice, VkCommandPool commandPool, avocado::vulkan::Queue &queue, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, const VkImageAspectFlags aspectFlags) {
     VkCommandBuffer commandBuffer = beginSingleTimeCommands(logicalDevice, commandPool);
-    VkImageMemoryBarrier barrier{};
-    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    VkImageMemoryBarrier barrier{}; FILL_S_TYPE(barrier);
     barrier.oldLayout = oldLayout;
     barrier.newLayout = newLayout;
     barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.image = image;
-    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.subresourceRange.aspectMask = aspectFlags;
     barrier.subresourceRange.baseMipLevel = 0;
     barrier.subresourceRange.levelCount = 1;
     barrier.subresourceRange.baseArrayLayer = 0;
@@ -114,11 +113,17 @@ void transitionImageLayout(avocado::vulkan::LogicalDevice &logicalDevice, VkComm
 
             srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
             dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+        } else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
+            barrier.srcAccessMask = 0;
+            barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+            srcStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+            dstStage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
         } else {
-            throw std::invalid_argument("unsupported layout transition!");
+            throw std::invalid_argument("unsupported layout transition!"); // todo No exceptions!
         }
 
-    vkCmdPipelineBarrier( commandBuffer, srcStage, dstStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+    vkCmdPipelineBarrier(commandBuffer, srcStage, dstStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
     endSingleTimeCommands(logicalDevice, commandPool, queue, commandBuffer);
 }
 
@@ -261,7 +266,7 @@ avocado::vulkan::GraphicsPipelineBuilder Application::preparePipeline(const VkEx
         return pipelineBuilder;
     }
 
-    { // Clear vector buffers immediatly after use.
+    { // Clear vector buffers immediately after use.
         const std::vector<char> &fragBuf = avocado::utils::readFile(Config::SHADERS_PATH + "/triangle.frag.spv");
         const std::vector<char> &vertBuf = avocado::utils::readFile(Config::SHADERS_PATH + "/triangle.vert.spv");
         pipelineBuilder.addVertexShaderModules({vertBuf});
@@ -271,15 +276,28 @@ avocado::vulkan::GraphicsPipelineBuilder Application::preparePipeline(const VkEx
     auto dynState = std::make_unique<avocado::vulkan::DynamicState>(std::vector<VkDynamicState>{VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR});
     pipelineBuilder.setDynamicState(std::move(dynState));
 
-    auto inAsmState = std::make_unique<avocado::vulkan::InputAsmState>(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN);
+    auto inAsmState = std::make_unique<avocado::vulkan::InputAsmState>(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
     pipelineBuilder.setInputAsmState(std::move(inAsmState));
 
     auto rastState = std::make_unique<avocado::vulkan::RasterizationState>();
+    rastState->setDepthClampEnabled(VK_FALSE);
+    rastState->setRasterizerDiscardEnabled(VK_FALSE);
     rastState->setDepthBiasEnabled(VK_FALSE);
     rastState->setPolygonMode(VK_POLYGON_MODE_FILL);
     rastState->setCullMode(VK_CULL_MODE_BACK_BIT);
     rastState->setFrontFace(VK_FRONT_FACE_CLOCKWISE);
     pipelineBuilder.setRasterizationState(std::move(rastState));
+
+    std::unique_ptr<VkPipelineDepthStencilStateCreateInfo> depthStencilState(new VkPipelineDepthStencilStateCreateInfo{});
+    depthStencilState->sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    depthStencilState->depthTestEnable = VK_TRUE;
+    depthStencilState->minDepthBounds = 0.f;
+    depthStencilState->maxDepthBounds = 1.f;
+    depthStencilState->depthWriteEnable = VK_TRUE;
+    depthStencilState->depthCompareOp = VK_COMPARE_OP_LESS;
+    depthStencilState->depthBoundsTestEnable = VK_FALSE;
+    depthStencilState->stencilTestEnable = VK_FALSE;
+    pipelineBuilder.setDepthStencilState(std::move(depthStencilState));
 
     auto multisampleState = std::make_unique<avocado::vulkan::MultisampleState>();
     multisampleState->setRasterizationSamples(VK_SAMPLE_COUNT_1_BIT);
@@ -296,7 +314,7 @@ avocado::vulkan::GraphicsPipelineBuilder Application::preparePipeline(const VkEx
     pipelineBuilder.setColorBlendState(std::move(colorBlendState));
 
     auto vertexInState = std::make_unique<avocado::vulkan::VertexInputState>();
-    vertexInState->addAttributeDescription(0, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(avocado::Vertex, position));
+    vertexInState->addAttributeDescription(0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(avocado::Vertex, position));
     vertexInState->addAttributeDescription(1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(avocado::Vertex, color));
     vertexInState->addAttributeDescription(2, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(avocado::Vertex, textureCoordinate));
     vertexInState->addBindingDescription(0, sizeof(avocado::Vertex), VK_VERTEX_INPUT_RATE_VERTEX);
@@ -409,15 +427,24 @@ int Application::run() {
     const VkSurfaceFormatKHR surfaceFormat = surface.findFormat(VK_FORMAT_B8G8R8A8_SRGB, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR);
     avocado::vulkan::Swapchain swapChain = createSwapchain(surface, surfaceFormat, extent, queueFamilies);
 
-    constexpr std::array<avocado::Vertex, 4> quad = {{
-        /* { pos, color, textureCoordinates } */
-        {avocado::math::vec2f(-.5f, -.5f), avocado::math::vec3f(1.f, 0.f, 0.f), avocado::math::vec2f(1.f, 0.f)},
-        {avocado::math::vec2f( .5f, -.5f), avocado::math::vec3f(0.f, 1.f, 0.f), avocado::math::vec2f(0.f, 0.f)},
-        {avocado::math::vec2f( .5f,  .5f), avocado::math::vec3f(0.f, 0.f, 1.f), avocado::math::vec2f(0.f, 1.f)},
-        {avocado::math::vec2f(-.5f,  .5f), avocado::math::vec3f(1.f, 1.f, 1.f), avocado::math::vec2f(1.f, 1.f)}
+    constexpr std::array<avocado::Vertex, 8> myModel = {{
+        // { pos, color, textureCoordinates }
+        {avocado::math::vec3f(-.5f, -.5f, 0.f), avocado::math::vec3f(1.f, 0.f, 0.f), avocado::math::vec2f(1.f, 0.f)},
+        {avocado::math::vec3f( .5f, -.5f, 0.f), avocado::math::vec3f(0.f, 1.f, 0.f), avocado::math::vec2f(0.f, 0.f)},
+        {avocado::math::vec3f( .5f,  .5f, 0.f), avocado::math::vec3f(0.f, 0.f, 1.f), avocado::math::vec2f(0.f, 1.f)},
+        {avocado::math::vec3f(-.5f,  .5f, 0.f), avocado::math::vec3f(1.f, 1.f, 1.f), avocado::math::vec2f(1.f, 1.f)},
+
+        {avocado::math::vec3f(-.5f, -.5f, -.5f), avocado::math::vec3f(1.f, 0.f, 0.f), avocado::math::vec2f(1.f, 0.f)},
+        {avocado::math::vec3f( .5f, -.5f, -.5f), avocado::math::vec3f(0.f, 1.f, 0.f), avocado::math::vec2f(0.f, 0.f)},
+        {avocado::math::vec3f( .5f,  .5f, -.5f), avocado::math::vec3f(0.f, 0.f, 1.f), avocado::math::vec2f(0.f, 1.f)},
+        {avocado::math::vec3f(-.5f,  .5f, -.5f), avocado::math::vec3f(1.f, 1.f, 1.f), avocado::math::vec2f(1.f, 1.f)}
     }};
-    constexpr VkDeviceSize verticesSizeBytes = sizeof(decltype(quad)::value_type) * quad.size();
-    constexpr std::array<uint16_t, 6> indices {0, 1, 2, 2, 3, 0};
+
+    constexpr VkDeviceSize verticesSizeBytes = sizeof(decltype(myModel)::value_type) * myModel.size();
+    constexpr std::array<uint16_t, 12> indices {
+        0, 1, 2, 2, 3, 0, // Draw 1st plane.
+        4, 5, 6, 6, 7, 4 // Draw 2nd one.
+    };
     constexpr size_t indicesSizeBytes = indices.size() * sizeof(decltype(indices)::value_type);
 
     avocado::vulkan::Buffer vertexBuffer(verticesSizeBytes,
@@ -436,7 +463,7 @@ int Application::run() {
         return 1;
     }
 
-    vertexBuffer.fill(quad.data());
+    vertexBuffer.fill(myModel.data());
     vertexBuffer.bindMemory();
 
     avocado::vulkan::Buffer indexBuffer(indicesSizeBytes,
@@ -474,10 +501,15 @@ int Application::run() {
     uniformBufferForFrame2.bindMemory();
 
     UniformBufferObject ubo{};
-    ubo.view = avocado::math::lookAt(avocado::math::vec3f(0.f, 0.f, 2.f), avocado::math::vec3f(0.f, 0.f, 0.f), avocado::math::vec3f(0.f, 1.f, 0.f));
+    ubo.view = avocado::math::lookAt(avocado::math::vec3f(2.f, 2.f, 2.f), avocado::math::vec3f(0.f, 0.f, 0.f), avocado::math::vec3f(0.f, 0.f, 1.f));
     ubo.proj = avocado::math::perspectiveProjection(45.f, static_cast<float>(Config::RESOLUTION_WIDTH) / static_cast<float>(Config::RESOLUTION_HEIGHT), 0.1f, 10.f);
 
-    auto renderPassPtr = _logicalDevice.createRenderPass(surfaceFormat.format);
+    const VkFormat depthFormat = swapChain.findSupportedFormat(
+        {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT},
+        _physicalDevice.getHandle(),
+        VK_IMAGE_TILING_OPTIMAL,
+        VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+    auto renderPassPtr = _logicalDevice.createRenderPass(surfaceFormat.format, depthFormat);
 
     // Create descriptor set layout.
     VkDescriptorSetLayout descriptorSetLayout;
@@ -538,6 +570,17 @@ int Application::run() {
         return 1;
     }
 
+    swapChain.createDepthImage(extent.width, extent.height, _physicalDevice, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    if (swapChain.hasError()) {
+        std::cout << "Error: can't create depth image (" << swapChain.getErrorMessage() << ")" << std::endl;
+        return 1;
+    }
+
+    debugUtilsPtr->setObjectName(swapChain.getDepthImage(), "Depth image");
+
+    avocado::vulkan::Queue graphicsQueue(_logicalDevice.getGraphicsQueue(0));
+    debugUtilsPtr->setObjectName(graphicsQueue.getHandle(), "Graphics queue");
+
     avocado::vulkan::CommandPoolPtr commandPool = _logicalDevice.createObjectPointer(_logicalDevice.createCommandPool(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, graphicsQueueFamily));
     if (_logicalDevice.hasError()) {
         std::cout << "Can't create command pool: " << _logicalDevice.getErrorMessage() << std::endl;
@@ -575,9 +618,6 @@ int Application::run() {
         std::cout << "Can't create fence: " << _logicalDevice.getErrorMessage() << std::endl;
         return 1;
     }
-
-    avocado::vulkan::Queue graphicsQueue(_logicalDevice.getGraphicsQueue(0));
-    debugUtilsPtr->setObjectName(graphicsQueue.getHandle(), "Graphics queue");
 
 
     if (swapChain.hasError()) {
@@ -632,12 +672,12 @@ int Application::run() {
     textureImage.allocateMemory(_physicalDevice, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     textureImage.bindMemory();
 
-    avocado::vulkan::ImageViewPtr textureImageView = _logicalDevice.createObjectPointer(swapChain.createImageView(textureImage.getHandle(), VK_FORMAT_R8G8B8A8_SRGB));
+    avocado::vulkan::ImageViewPtr textureImageView = _logicalDevice.createObjectPointer(swapChain.createImageView(textureImage.getHandle(), VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT));
     swapChain.createFramebuffers(renderPassPtr.get(), extent);
 
-    transitionImageLayout(_logicalDevice, commandPool.get(), graphicsQueue, textureImage.getHandle(), VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    transitionImageLayout(_logicalDevice, commandPool.get(), graphicsQueue, textureImage.getHandle(), VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
     copyBufferToImage(_logicalDevice, commandPool.get(), graphicsQueue, imgTransferBuffer, textureImage, static_cast<uint32_t>(imgW), static_cast<uint32_t>(imgH));
-    transitionImageLayout(_logicalDevice, commandPool.get(), graphicsQueue, textureImage.getHandle(), VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    transitionImageLayout(_logicalDevice, commandPool.get(), graphicsQueue, textureImage.getHandle(), VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
     avocado::vulkan::SamplerPtr textureSamplerPtr = _logicalDevice.createSampler(_physicalDevice);
     if (_logicalDevice.hasError()) {
@@ -656,7 +696,7 @@ int Application::run() {
     std::vector cmdBufferHandles = avocado::vulkan::getCommandBufferHandles(cmdBuffers);
 
     SDL_Event event;
-    uint32_t imageIndex = 0;//swapChain.acquireNextImage(imageAvailableSemaphores[0].get());
+    uint32_t imageIndex = 0;
     uint32_t currentFrame = 0;
 
     // Main loop.
@@ -672,7 +712,7 @@ int Application::run() {
         _logicalDevice.resetFences(fenceToWait);
 
         // Update uniform buffer.
-        auto currentTime = std::chrono::high_resolution_clock::now();
+        const auto& currentTime = std::chrono::high_resolution_clock::now();
         float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
         ubo.model = avocado::math::Mat4x4::createIdentityMatrix() * avocado::math::createRotationMatrix(time * 90.f, avocado::math::vec3f(0.0f, 0.0f, 1.0f));
         uniformBuffers[currentFrame]->fill(&ubo);
@@ -680,17 +720,15 @@ int Application::run() {
         avocado::vulkan::CommandBuffer commandBuffer = cmdBuffers[currentFrame];
         commandBuffer.reset(static_cast<VkCommandPoolResetFlagBits>(0));
         commandBuffer.begin();
-        commandBuffer.beginRenderPass(swapChain, renderPassPtr.get(), extent, {0, 0}, imageIndex);
-
-        commandBuffer.setViewports(viewPorts);
-        commandBuffer.setScissors(scissors);
-        commandBuffer.bindVertexBuffers(0, 1, &vertexBufferHandle, &offset);
-        commandBuffer.bindIndexBuffer(indexBuffer.getHandle(), 0, avocado::vulkan::toIndexType<decltype(indices)::value_type>());
-        commandBuffer.bindPipeline(graphicsPipeline.get(), VK_PIPELINE_BIND_POINT_GRAPHICS);
-        commandBuffer.bindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineBuilder.getPipelineLayout(), 0, 1, &descriptorSets[currentFrame], 0, nullptr);
-        commandBuffer.drawIndexed(static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
-
-        commandBuffer.endRenderPass();
+            commandBuffer.beginRenderPass(swapChain, renderPassPtr.get(), extent, {0, 0}, imageIndex);
+                commandBuffer.setViewports(viewPorts);
+                commandBuffer.setScissors(scissors);
+                commandBuffer.bindVertexBuffers(0, 1, &vertexBufferHandle, &offset);
+                commandBuffer.bindIndexBuffer(indexBuffer.getHandle(), 0, avocado::vulkan::toIndexType<decltype(indices)::value_type>());
+                commandBuffer.bindPipeline(graphicsPipeline.get(), VK_PIPELINE_BIND_POINT_GRAPHICS);
+                commandBuffer.bindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineBuilder.getPipelineLayout(), 0, 1, &descriptorSets[currentFrame], 0, nullptr);
+                commandBuffer.drawIndexed(static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+            commandBuffer.endRenderPass();
         commandBuffer.end();
 
         auto submitInfo = graphicsQueue.createSubmitInfo(waitSemaphores[currentFrame], signalSemaphores[currentFrame], cmdBufferHandles[currentFrame], flags);

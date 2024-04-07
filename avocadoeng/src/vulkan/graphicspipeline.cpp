@@ -44,6 +44,10 @@ void GraphicsPipelineBuilder::setViewportState(std::unique_ptr<ViewportState> vi
     _viewportState = std::move(viewportState);
 }
 
+void GraphicsPipelineBuilder::setDepthStencilState(std::unique_ptr<VkPipelineDepthStencilStateCreateInfo> depthStencilState) noexcept {
+    _depthStencilState = std::move(depthStencilState);
+}
+
 void GraphicsPipelineBuilder::addFragmentShaderModules(const std::vector<std::vector<char>> &shaderModules) {
     for (std::vector<char> shaderModule: shaderModules)
         _shaderModuleCIs.emplace_back(addShaderModule(shaderModule, VK_SHADER_STAGE_FRAGMENT_BIT));
@@ -81,6 +85,7 @@ VkPipelineShaderStageCreateInfo GraphicsPipelineBuilder::addShaderModule(const s
 PipelinePtr GraphicsPipelineBuilder::buildPipeline(VkRenderPass renderPass) {
     VkGraphicsPipelineCreateInfo pipelineCI{}; FILL_S_TYPE(pipelineCI);
 
+    pipelineCI.subpass = 0;
     pipelineCI.stageCount = static_cast<uint32_t>(_shaderModuleCIs.size());
     pipelineCI.pStages = _shaderModuleCIs.data();
 
@@ -133,10 +138,12 @@ PipelinePtr GraphicsPipelineBuilder::buildPipeline(VkRenderPass renderPass) {
         pipelineCI.pColorBlendState = &colorBlendStateCI;
     }
 
+    if (_depthStencilState != nullptr)
+        pipelineCI.pDepthStencilState = _depthStencilState.get();
+
     auto pipelineDestroyer = std::bind(vkDestroyPipeline, _logicalDevice.getHandle(), std::placeholders::_1, nullptr);
 
     VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo{}; FILL_S_TYPE(pipelineLayoutCreateInfo);
-
     pipelineLayoutCreateInfo.setLayoutCount = _descriptorSetLayouts.size();
     pipelineLayoutCreateInfo.pSetLayouts = _descriptorSetLayouts.data();
 
