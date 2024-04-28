@@ -18,5 +18,18 @@ std::vector<char> readFile(const std::string &filePath) {
     return buffer;
 }
 
+bool endsWith(const std::string_view &str, const std::string_view &target) {
+    if (target.size() > 0 && str.size() >= target.size()) {
+        for (size_t i = 0, j = str.size() - target.size(); i < target.size(); ++i, ++j) {
+            if (str[j] != target[i])
+                return false;
+        }
+
+        return true;
+    }
+
+    return false;
+}
+
 } // namespace avocado::utils.
 

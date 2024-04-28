@@ -43,7 +43,7 @@ VkDescriptorSetLayoutBinding LogicalDevice::createLayoutBinding(const uint32_t b
 }
 
 VkDescriptorSetLayout LogicalDevice::createDescriptorSetLayout(const std::vector<VkDescriptorSetLayoutBinding> &bindings) {
-    assert(_dev != nullptr);
+    assert(_dev != nullptr && "Device handle mustn't be null.");
 
     VkDescriptorSetLayoutCreateInfo createInfo{}; FILL_S_TYPE(createInfo);
     createInfo.bindingCount = static_cast<uint32_t>(bindings.size());
@@ -233,7 +233,7 @@ VkCommandPool LogicalDevice::createCommandPool(const VkCommandPoolCreateFlags fl
 }
 
 std::vector<CommandBuffer> LogicalDevice::allocateCommandBuffers(const uint32_t count, VkCommandPool cmdPool, const VkCommandBufferLevel bufLevel) {
-    assert(count > 0);
+    assert(count > 0 && "Command buffer count must be > 0.");
 
     VkCommandBufferAllocateInfo allocInfo{}; FILL_S_TYPE(allocInfo);
     allocInfo.commandPool = cmdPool;
@@ -261,7 +261,6 @@ void LogicalDevice::waitIdle() noexcept {
     }
 }
 
-// todo Refactor? Extract constants as parameters.
 RenderPassPtr LogicalDevice::createRenderPass(VkFormat format, VkFormat depthFormat) {
     // Attachment description.
     VkAttachmentReference colorAttachmentRef{};

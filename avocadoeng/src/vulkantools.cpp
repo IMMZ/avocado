@@ -15,8 +15,6 @@
 #include <vulkan/vulkan_win32.h>
 #endif
 
-#define VKRESULT_TO_STRING(VKRES) #VKRES // todo need this?
-
 using namespace std::literals::string_literals;
 
 namespace avocado::vulkan {

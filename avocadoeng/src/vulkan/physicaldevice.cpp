@@ -108,7 +108,7 @@ LogicalDevice PhysicalDevice::createLogicalDevice(
     setHasError(createDeviceResult != VK_SUCCESS);
     if (hasError()) {
         setErrorMessage("vkCreateDevice() returned "s + getVkResultString(createDeviceResult));
-        return LogicalDevice();
+        return LogicalDevice(VK_NULL_HANDLE);
     }
 
     LogicalDevice logicalDevice(logicDevHandle);

@@ -5,75 +5,71 @@
 
 #include "logicaldevice.hpp"
 #include "pointertypes.hpp"
-#include "vulkan_core.h"
-#include "states/colorblendstate.hpp"
-#include "states/dynamicstate.hpp"
-#include "states/inputasmstate.hpp"
-#include "states/multisamplestate.hpp"
-#include "states/rasterizationstate.hpp"
-#include "states/vertexinputstate.hpp"
-#include "states/viewportstate.hpp"
 
 #include <vulkan/vulkan.h>
 
-#include <functional>
-#include <memory>
 #include <vector>
 
 namespace avocado::vulkan {
-
-class ColorBlendState;
-class DynamicState;
-class InputAsmState;
-class MultisampleState;
-class RasterizationState;
-class VertexInputState;
-class ViewportState;
 
 class GraphicsPipelineBuilder: public avocado::core::ErrorStorage {
 public:
     explicit GraphicsPipelineBuilder(LogicalDevice &device);
 
+    PipelinePtr createPipeline(VkRenderPass renderPass);
     VkPipelineLayout getPipelineLayout() noexcept;
-    void setColorBlendState(std::unique_ptr<ColorBlendState> state) noexcept;
-    void setDynamicState(std::unique_ptr<DynamicState> dynState) noexcept;
-    void setInputAsmState(std::unique_ptr<InputAsmState> inAsmState) noexcept;
-    void setMultisampleState(std::unique_ptr<MultisampleState> multisampleState) noexcept;
-    void setRasterizationState(std::unique_ptr<RasterizationState> rasterizationState) noexcept;
-    void setVertexInputState(std::unique_ptr<VertexInputState> vertexInState) noexcept;
-    void setViewportState(std::unique_ptr<ViewportState> viewportState) noexcept;
-    void setDepthStencilState(std::unique_ptr<VkPipelineDepthStencilStateCreateInfo> depthStencilState) noexcept;
+    void addColorBlendAttachment(const VkPipelineColorBlendAttachmentState &state);
+    void addColorBlendAttachment(VkPipelineColorBlendAttachmentState &&state);
+    void setDynamicStates(const std::vector<VkDynamicState> &dynStates);
+    void setDynamicStates(std::vector<VkDynamicState> &&dynStates);
+    void addBindingDescription(uint32_t binding, uint32_t stride, VkVertexInputRate inRate);
+    void addAttributeDescription(const uint32_t loc, const uint32_t binding, const VkFormat format, const uint32_t offset);
+    VkPipelineColorBlendStateCreateInfo& createColorBlendState();
+    VkPipelineDepthStencilStateCreateInfo& createDepthStencilState();
+    VkPipelineDynamicStateCreateInfo& createDynamicState();
+    VkPipelineInputAssemblyStateCreateInfo& createInputAssmeblyState();
+    VkPipelineMultisampleStateCreateInfo& createMultisampleState();
+    VkPipelineRasterizationStateCreateInfo& createRasterizationState();
+    VkPipelineVertexInputStateCreateInfo& createVertexInputState();
+    VkPipelineViewportStateCreateInfo& createViewportState();
+    void setViewPorts(const std::vector<VkViewport> &viewports);
+    void setViewPorts(std::vector<VkViewport> &&viewports);
+    void setScissors(const std::vector<VkRect2D> &scissors);
+    void setScissors(std::vector<VkRect2D> &&scissors);
     void addFragmentShaderModules(const std::vector<std::vector<char>> &shaderModules);
     void addVertexShaderModules(const std::vector<std::vector<char>> &shaderModules);
     void setDescriptorSetLayouts(std::vector<VkDescriptorSetLayout> &layouts);
+    void loadShaders(const std::string &shaderPath);
 
 private:
-    template <typename T>
-    inline auto createStateCreateInfo(T &state) {
-        // todo check if T has createCreateInfo() function and do static_assert.
-        return state.createCreateInfo();
-    }
-
     VkPipelineShaderStageCreateInfo addShaderModule(const std::vector<char> &data, const VkShaderStageFlagBits shType);
+    void bindStages(VkGraphicsPipelineCreateInfo &pipelineCreateInfo) noexcept;
+    void createLayout(VkGraphicsPipelineCreateInfo &pipelineCreateInfo) noexcept;
 
-    LogicalDevice &_logicalDevice;
-    std::vector<ShaderModulePtr> _shaderModules;
-
+    std::vector<VkPipelineColorBlendAttachmentState> _colorBlendAttachments; // For color blend state.
     std::vector<VkPipelineShaderStageCreateInfo> _shaderModuleCIs;
-    std::unique_ptr<ColorBlendState> _colorBlendState = nullptr;
-    std::unique_ptr<DynamicState> _dynamicState = nullptr;
-    std::unique_ptr<VertexInputState> _vertexInputState = nullptr;
-    std::unique_ptr<InputAsmState> _inputAsmState = nullptr;
-    std::unique_ptr<MultisampleState> _multisampleState = nullptr;
-    std::unique_ptr<RasterizationState> _rasterizationState = nullptr;
-    std::unique_ptr<ViewportState> _viewportState = nullptr;
-    std::unique_ptr<VkPipelineDepthStencilStateCreateInfo> _depthStencilState = nullptr;
-    avocado::vulkan::ObjectPtr<VkPipelineLayout> _pipelineLayout;
-    std::vector<VkDescriptorSetLayout> _descriptorSetLayouts;
+    std::vector<ShaderModulePtr> _shaderModules;
+    std::vector<VkDynamicState> _dynamicStates; // For dynamic state.
 
-public:
-    PipelinePtr buildPipeline(VkRenderPass renderPass);
-    void destroyPipeline();
+    // For vertex input state.
+    std::vector<VkVertexInputBindingDescription> _bindingDescriptions;
+    std::vector<VkVertexInputAttributeDescription> _attributeDescriptions;
+
+    // For viewport state.
+    std::vector<VkViewport> _viewports;
+    std::vector<VkRect2D> _scissors;
+
+    std::unique_ptr<VkPipelineColorBlendStateCreateInfo> _colorBlendState;
+    std::unique_ptr<VkPipelineDynamicStateCreateInfo> _dynamicState;
+    std::unique_ptr<VkPipelineVertexInputStateCreateInfo> _vertexInputState;
+    std::unique_ptr<VkPipelineInputAssemblyStateCreateInfo> _inputAsmState;
+    std::unique_ptr<VkPipelineMultisampleStateCreateInfo> _multisampleState;
+    std::unique_ptr<VkPipelineRasterizationStateCreateInfo> _rasterizationState;
+    std::unique_ptr<VkPipelineViewportStateCreateInfo> _viewportState;
+    std::unique_ptr<VkPipelineDepthStencilStateCreateInfo> _depthStencilState;
+    std::vector<VkDescriptorSetLayout> _descriptorSetLayouts;
+    PipelineLayoutPtr _pipelineLayout;
+    LogicalDevice &_logicalDevice;
 };
 
 } // namespace avocado::vulkan.

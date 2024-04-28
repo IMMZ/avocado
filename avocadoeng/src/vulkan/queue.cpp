@@ -17,7 +17,7 @@ VkQueue Queue::getHandle() noexcept {
 }
 
 void Queue::waitIdle() noexcept {
-    assert(_queue != VK_NULL_HANDLE);
+    assert(_queue != VK_NULL_HANDLE && "Queue handle mustn't be null.");
 
     const VkResult res = vkQueueWaitIdle(_queue);
     setHasError(res != VK_SUCCESS);
@@ -44,7 +44,7 @@ VkSubmitInfo Queue::createSubmitInfo(VkSemaphore &waitSemaphore, VkSemaphore &si
 }
 
 void Queue::submit(const VkSubmitInfo &submitInfo, VkFence fence) noexcept {
-    assert(getHandle() != VK_NULL_HANDLE);
+    assert((getHandle() != VK_NULL_HANDLE) && "Queue handle mustn't be null.");
 
     const VkResult result = vkQueueSubmit(getHandle(), 1, &submitInfo, fence);
     setHasError(result != VK_SUCCESS);

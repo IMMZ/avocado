@@ -3,7 +3,7 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include "structuretypes.hpp" // todo rename this file.
+#include "structuretypes.hpp"
 
 #include <vector>
 

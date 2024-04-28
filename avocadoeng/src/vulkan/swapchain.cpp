@@ -41,13 +41,14 @@ Swapchain::Swapchain(Swapchain &&other):
 }
 
 Swapchain& Swapchain::operator=(Swapchain &&other) {
-    // todo check for self-assignment
-    _images = std::move(other._images);
-    _imageViews = std::move(other._imageViews);
-    _framebuffers = std::move(other._framebuffers);
-    _device = std::move(other._device);
-    _swapchain = std::move(other._swapchain);
-    other._swapchain = VK_NULL_HANDLE;
+    if (this != &other) {
+        _images = std::move(other._images);
+        _imageViews = std::move(other._imageViews);
+        _framebuffers = std::move(other._framebuffers);
+        _device = std::move(other._device);
+        _swapchain = std::move(other._swapchain);
+        other._swapchain = VK_NULL_HANDLE;
+    }
     return *this;
 }
 
@@ -88,7 +89,7 @@ void Swapchain::create(Surface &surface, VkSurfaceFormatKHR surfaceFormat, VkExt
 }
 
 void Swapchain::getImages() {
-    assert(_swapchain != VK_NULL_HANDLE);
+    assert(_swapchain != VK_NULL_HANDLE && "Handle mustn't be null.");
 
     uint32_t imageCount = std::numeric_limits<uint32_t>::max();
     const VkResult result = vkGetSwapchainImagesKHR(_device, _swapchain.get(), &imageCount, nullptr);
@@ -148,7 +149,6 @@ void Swapchain::createDepthImage(const uint32_t imgW, const uint32_t imgH, Physi
         return;
     }
 
-    // todo Do we need next two operations on image?
     VkMemoryRequirements memRequirements{};
     vkGetImageMemoryRequirements(_device, _depthImage, &memRequirements);
 
@@ -203,7 +203,7 @@ VkImageView Swapchain::createImageView(VkImage image, VkFormat format, const VkI
 }
 
 void Swapchain::createImageViews(VkSurfaceFormatKHR surfaceFormat) {
-    assert(_swapchain != VK_NULL_HANDLE);
+    assert(_swapchain != VK_NULL_HANDLE && "Handle mustn't be null.");
 
     _imageViews.resize(_images.size());
     for (size_t i = 0; i < _images.size(); ++i) {
@@ -215,7 +215,7 @@ void Swapchain::createImageViews(VkSurfaceFormatKHR surfaceFormat) {
 }
 
 void Swapchain::createFramebuffers(VkRenderPass renderPass, VkExtent2D extent) {
-    assert(_swapchain != VK_NULL_HANDLE);
+    assert(_swapchain != VK_NULL_HANDLE && "Handle mustn't be null.");
 
     _framebuffers.resize(_images.size());
     for (size_t i = 0; i < _imageViews.size(); i++) {
@@ -236,7 +236,7 @@ void Swapchain::createFramebuffers(VkRenderPass renderPass, VkExtent2D extent) {
 }
 
 uint32_t Swapchain::acquireNextImage(VkSemaphore semaphore) noexcept {
-    assert(_swapchain != VK_NULL_HANDLE);
+    assert(_swapchain != VK_NULL_HANDLE && "Handle mustn't be null.");
 
     auto imageIndex = std::numeric_limits<uint32_t>::max();
     const VkResult result = vkAcquireNextImageKHR(_device, _swapchain.get(), UINT64_MAX, semaphore, VK_NULL_HANDLE, &imageIndex);

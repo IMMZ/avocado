@@ -40,6 +40,8 @@ constexpr std::common_type_t<Enums...> enumBitwiseOr(Enums ...enums) noexcept {
 
 std::vector<char> readFile(const std::string &filePath);
 
+bool endsWith(const std::string_view &string, const std::string_view &target);
+
 inline bool areFloatEq(const float a, const float b) noexcept {
     return fabs(a - b) < std::numeric_limits<float>::epsilon();
 }

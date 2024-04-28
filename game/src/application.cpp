@@ -18,13 +18,6 @@
 #include <vulkan/pointertypes.hpp>
 #include <vulkan/surface.hpp>
 #include <vulkan/swapchain.hpp>
-#include <vulkan/states/colorblendstate.hpp>
-#include <vulkan/states/dynamicstate.hpp>
-#include <vulkan/states/inputasmstate.hpp>
-#include <vulkan/states/multisamplestate.hpp>
-#include <vulkan/states/rasterizationstate.hpp>
-#include <vulkan/states/vertexinputstate.hpp>
-#include <vulkan/states/viewportstate.hpp>
 #include <vulkan/vkutils.hpp>
 
 #include <core.hpp>
@@ -132,15 +125,12 @@ void copyBufferToImage(avocado::vulkan::LogicalDevice &logicalDevice, VkCommandP
     const std::vector commandBuffers = logicalDevice.allocateCommandBuffers(1, commandPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
     avocado::vulkan::CommandBuffer commandBuffer = commandBuffers.front();
 
-    // todo Shouldn't be in that way. It's possible to forget to begin command buffer and no info about it.
-    // copyToImage is a command for command buffer.
     commandBuffer.begin();
-    buffer.copyToImage(image, width, height, commandBuffer);
+    commandBuffer.copyBufferToImage(buffer, image, width, height);
     commandBuffer.end();
 
     VkCommandBuffer bufferHandle = commandBuffer.getHandle();
-    VkSubmitInfo submitInfo{};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    VkSubmitInfo submitInfo{}; FILL_S_TYPE(submitInfo);
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &bufferHandle;
     queue.submit(submitInfo);
@@ -256,72 +246,55 @@ avocado::vulkan::GraphicsPipelineBuilder Application::preparePipeline(const VkEx
     std::vector<VkDescriptorSetLayout> &layouts, const std::vector<VkViewport> &viewPorts,
     const std::vector<VkRect2D> &scissors) {
     avocado::vulkan::GraphicsPipelineBuilder pipelineBuilder(_logicalDevice);
+    pipelineBuilder.loadShaders(Config::SHADERS_PATH);
+    pipelineBuilder.setDynamicStates({VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR});
+    pipelineBuilder.createDynamicState();
 
-    if (!std::filesystem::exists(Config::SHADERS_PATH + "/triangle.frag.spv")) {
-        std::cout << "File " << Config::SHADERS_PATH << "/triangle.frag.spv doesn't exist." << std::endl;
-        return pipelineBuilder;
-    }
-    if (!std::filesystem::exists(Config::SHADERS_PATH + "/triangle.vert.spv")) {
-        std::cout << "File " << Config::SHADERS_PATH << "/triangle.vert.spv doesn't exist." << std::endl;
-        return pipelineBuilder;
-    }
+    VkPipelineInputAssemblyStateCreateInfo &inAsmState = pipelineBuilder.createInputAssmeblyState();
+    inAsmState.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
-    { // Clear vector buffers immediately after use.
-        const std::vector<char> &fragBuf = avocado::utils::readFile(Config::SHADERS_PATH + "/triangle.frag.spv");
-        const std::vector<char> &vertBuf = avocado::utils::readFile(Config::SHADERS_PATH + "/triangle.vert.spv");
-        pipelineBuilder.addVertexShaderModules({vertBuf});
-        pipelineBuilder.addFragmentShaderModules({fragBuf});
-    }
+    VkPipelineRasterizationStateCreateInfo &rastState = pipelineBuilder.createRasterizationState();
+    rastState.depthClampEnable = VK_FALSE;
+    rastState.rasterizerDiscardEnable = VK_FALSE;
+    rastState.depthBiasEnable = VK_FALSE;
+    rastState.polygonMode = VK_POLYGON_MODE_FILL;
+    rastState.cullMode = VK_CULL_MODE_BACK_BIT;
+    rastState.frontFace = VK_FRONT_FACE_CLOCKWISE;
+    rastState.lineWidth = 1.f;
 
-    auto dynState = std::make_unique<avocado::vulkan::DynamicState>(std::vector<VkDynamicState>{VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR});
-    pipelineBuilder.setDynamicState(std::move(dynState));
+    VkPipelineDepthStencilStateCreateInfo &depthStencilState = pipelineBuilder.createDepthStencilState();
+    depthStencilState.depthTestEnable = VK_TRUE;
+    depthStencilState.minDepthBounds = 0.f;
+    depthStencilState.maxDepthBounds = 1.f;
+    depthStencilState.depthWriteEnable = VK_TRUE;
+    depthStencilState.depthCompareOp = VK_COMPARE_OP_LESS;
+    depthStencilState.depthBoundsTestEnable = VK_FALSE;
+    depthStencilState.stencilTestEnable = VK_FALSE;
 
-    auto inAsmState = std::make_unique<avocado::vulkan::InputAsmState>(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-    pipelineBuilder.setInputAsmState(std::move(inAsmState));
+    VkPipelineMultisampleStateCreateInfo &multisampleState = pipelineBuilder.createMultisampleState();
+    multisampleState.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+    multisampleState.minSampleShading = 0.f;
 
-    auto rastState = std::make_unique<avocado::vulkan::RasterizationState>();
-    rastState->setDepthClampEnabled(VK_FALSE);
-    rastState->setRasterizerDiscardEnabled(VK_FALSE);
-    rastState->setDepthBiasEnabled(VK_FALSE);
-    rastState->setPolygonMode(VK_POLYGON_MODE_FILL);
-    rastState->setCullMode(VK_CULL_MODE_BACK_BIT);
-    rastState->setFrontFace(VK_FRONT_FACE_CLOCKWISE);
-    pipelineBuilder.setRasterizationState(std::move(rastState));
-
-    std::unique_ptr<VkPipelineDepthStencilStateCreateInfo> depthStencilState(new VkPipelineDepthStencilStateCreateInfo{});
-    depthStencilState->sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-    depthStencilState->depthTestEnable = VK_TRUE;
-    depthStencilState->minDepthBounds = 0.f;
-    depthStencilState->maxDepthBounds = 1.f;
-    depthStencilState->depthWriteEnable = VK_TRUE;
-    depthStencilState->depthCompareOp = VK_COMPARE_OP_LESS;
-    depthStencilState->depthBoundsTestEnable = VK_FALSE;
-    depthStencilState->stencilTestEnable = VK_FALSE;
-    pipelineBuilder.setDepthStencilState(std::move(depthStencilState));
-
-    auto multisampleState = std::make_unique<avocado::vulkan::MultisampleState>();
-    multisampleState->setRasterizationSamples(VK_SAMPLE_COUNT_1_BIT);
-    pipelineBuilder.setMultisampleState(std::move(multisampleState));
-
-    auto colorBlendState = std::make_unique<avocado::vulkan::ColorBlendState>();
-    colorBlendState->setLogicOp(VK_LOGIC_OP_COPY);
-    colorBlendState->addAttachment({
-            VK_TRUE // Blend enabled.
+    VkPipelineColorBlendStateCreateInfo &colorBlendState = pipelineBuilder.createColorBlendState();
+    colorBlendState.logicOpEnable = VK_FALSE;
+    colorBlendState.logicOp = VK_LOGIC_OP_COPY;
+    pipelineBuilder.addColorBlendAttachment(
+            { VK_TRUE // Blend enabled.
             , VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD // Color blend factor.
             , VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD // Alpha blend factor.
             , VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT // Color write mask.
             | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT});
-    pipelineBuilder.setColorBlendState(std::move(colorBlendState));
 
-    auto vertexInState = std::make_unique<avocado::vulkan::VertexInputState>();
-    vertexInState->addAttributeDescription(0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(avocado::Vertex, position));
-    vertexInState->addAttributeDescription(1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(avocado::Vertex, color));
-    vertexInState->addAttributeDescription(2, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(avocado::Vertex, textureCoordinate));
-    vertexInState->addBindingDescription(0, sizeof(avocado::Vertex), VK_VERTEX_INPUT_RATE_VERTEX);
-    pipelineBuilder.setVertexInputState(std::move(vertexInState));
+    VkPipelineVertexInputStateCreateInfo &vertexInState = pipelineBuilder.createVertexInputState();
+    pipelineBuilder.addAttributeDescription(0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(avocado::Vertex, position));
+    pipelineBuilder.addAttributeDescription(1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(avocado::Vertex, color));
+    pipelineBuilder.addAttributeDescription(2, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(avocado::Vertex, textureCoordinate));
+    pipelineBuilder.addBindingDescription(0, sizeof(avocado::Vertex), VK_VERTEX_INPUT_RATE_VERTEX);
 
-    auto viewportState = std::make_unique<avocado::vulkan::ViewportState>(viewPorts, scissors);
-    pipelineBuilder.setViewportState(std::move(viewportState));
+    VkPipelineViewportStateCreateInfo &viewportState = pipelineBuilder.createViewportState();
+    pipelineBuilder.setViewPorts(viewPorts);
+    pipelineBuilder.setScissors(scissors);
+
     pipelineBuilder.setDescriptorSetLayouts(layouts);
 
     return pipelineBuilder;
@@ -563,10 +536,9 @@ int Application::run() {
     const std::vector<VkViewport> viewPorts { avocado::vulkan::Clipping::createViewport(0.f, 0.f, extent) };
     const std::vector<VkRect2D> scissors { avocado::vulkan::Clipping::createScissor(viewPorts.front()) };
     avocado::vulkan::GraphicsPipelineBuilder pipelineBuilder = preparePipeline(extent, layouts, viewPorts, scissors);
-    avocado::vulkan::PipelinePtr graphicsPipeline = pipelineBuilder.buildPipeline(renderPassPtr.get());
-
-    if (graphicsPipeline == nullptr) {
-        std::cout << "Error: invalid pipeline" << std::endl;
+    avocado::vulkan::PipelinePtr graphicsPipeline = pipelineBuilder.createPipeline(renderPassPtr.get());
+    if (pipelineBuilder.hasError()) {
+        std::cout << "Can't create pipeline: " << pipelineBuilder.getErrorMessage() << std::endl;
         return 1;
     }
 
@@ -713,22 +685,23 @@ int Application::run() {
 
         // Update uniform buffer.
         const auto& currentTime = std::chrono::high_resolution_clock::now();
-        float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+        const float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
         ubo.model = avocado::math::Mat4x4::createIdentityMatrix() * avocado::math::createRotationMatrix(time * 90.f, avocado::math::vec3f(0.0f, 0.0f, 1.0f));
         uniformBuffers[currentFrame]->fill(&ubo);
 
         avocado::vulkan::CommandBuffer commandBuffer = cmdBuffers[currentFrame];
         commandBuffer.reset(static_cast<VkCommandPoolResetFlagBits>(0));
         commandBuffer.begin();
-            commandBuffer.beginRenderPass(swapChain, renderPassPtr.get(), extent, {0, 0}, imageIndex);
                 commandBuffer.setViewports(viewPorts);
                 commandBuffer.setScissors(scissors);
                 commandBuffer.bindVertexBuffers(0, 1, &vertexBufferHandle, &offset);
                 commandBuffer.bindIndexBuffer(indexBuffer.getHandle(), 0, avocado::vulkan::toIndexType<decltype(indices)::value_type>());
                 commandBuffer.bindPipeline(graphicsPipeline.get(), VK_PIPELINE_BIND_POINT_GRAPHICS);
                 commandBuffer.bindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineBuilder.getPipelineLayout(), 0, 1, &descriptorSets[currentFrame], 0, nullptr);
-                commandBuffer.drawIndexed(static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
-            commandBuffer.endRenderPass();
+
+                commandBuffer.beginRenderPass(swapChain, renderPassPtr.get(), extent, {0, 0}, imageIndex);
+                    commandBuffer.drawIndexed(static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+                commandBuffer.endRenderPass();
         commandBuffer.end();
 
         auto submitInfo = graphicsQueue.createSubmitInfo(waitSemaphores[currentFrame], signalSemaphores[currentFrame], cmdBufferHandles[currentFrame], flags);

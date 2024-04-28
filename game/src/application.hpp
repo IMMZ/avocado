@@ -22,9 +22,7 @@ private:
     avocado::vulkan::Swapchain createSwapchain(avocado::vulkan::Surface &surface, const VkSurfaceFormatKHR surfaceFormat, const VkExtent2D extent,
         const std::vector<avocado::vulkan::QueueFamily> &queueFamilies);
     std::unique_ptr<SDL_Window, void(*)(SDL_Window*)> createWindow();
-    inline bool init() {
-        return (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS) == 0);
-    }
+    inline bool init() { return (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS) == 0); }
 
     avocado::vulkan::GraphicsPipelineBuilder preparePipeline(const VkExtent2D extent,
         std::vector<VkDescriptorSetLayout> &layouts, const std::vector<VkViewport> &viewPorts,

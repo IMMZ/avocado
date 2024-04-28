@@ -27,7 +27,7 @@ bool Surface::isValid() const noexcept {
 }
 
 const std::vector<VkSurfaceFormatKHR> Surface::getSurfaceFormats() const {
-    assert(_surface != VK_NULL_HANDLE);
+    assert(_surface != VK_NULL_HANDLE && "Handle mustn't be null.");
 
     std::vector<VkSurfaceFormatKHR> surfaceFormats;
     uint32_t formatCount = 0;
@@ -53,7 +53,7 @@ const std::vector<VkSurfaceFormatKHR> Surface::getSurfaceFormats() const {
 }
 
 const std::vector<VkPresentModeKHR> Surface::getPresentModes() const {
-    assert(_surface != VK_NULL_HANDLE);
+    assert(_surface != VK_NULL_HANDLE && "Handle mustn't be null.");
 
     std::vector<VkPresentModeKHR> presentModes;
     uint32_t presentModeCount = 0;
@@ -78,7 +78,7 @@ const std::vector<VkPresentModeKHR> Surface::getPresentModes() const {
 }
 
 VkExtent2D Surface::getCapabilities(SDL_Window *sdlWindow) noexcept {
-    assert(_surface != VK_NULL_HANDLE);
+    assert(_surface != VK_NULL_HANDLE && "Handle mustn't be null.");
 
     VkExtent2D extent{};
 
@@ -105,7 +105,7 @@ VkExtent2D Surface::getCapabilities(SDL_Window *sdlWindow) noexcept {
 }
 
 VkSurfaceFormatKHR Surface::findFormat(VkFormat surfFormat, VkColorSpaceKHR colorSpace) const {
-    assert(_surface != VK_NULL_HANDLE);
+    assert(_surface != VK_NULL_HANDLE && "Handle mustn't be null.");
 
     VkSurfaceFormatKHR resultFormat{};
     const auto &surfaceFormats = getSurfaceFormats();

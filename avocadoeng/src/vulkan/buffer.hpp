@@ -27,7 +27,6 @@ public:
     VkBuffer getHandle() noexcept;
     void allocateMemory(PhysicalDevice &physDevice, const VkMemoryPropertyFlags memoryFlags);
     void bindMemory(const VkDeviceSize offset = 0) noexcept;
-    void copyToImage(Image &image, const uint32_t width, const uint32_t height, CommandBuffer &commandBuffer);
     void fill(const void * const dataToCopy, const VkDeviceSize dataSize, const size_t offset = 0);
     inline void fill(const void * const dataToCopy) {
         fill(dataToCopy, _bufSize, 0);

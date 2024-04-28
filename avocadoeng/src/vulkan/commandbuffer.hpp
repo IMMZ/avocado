@@ -10,6 +10,7 @@
 namespace avocado::vulkan {
 
 class Buffer;
+class Image;
 class Swapchain;
 
 class CommandBuffer: public core::ErrorStorage {
@@ -26,6 +27,7 @@ public:
     void endRenderPass() noexcept;
 
     void copyBuffer(Buffer &srcBuf, Buffer &dstBuf, const std::vector<VkBufferCopy> &regions) noexcept;
+    void copyBufferToImage(Buffer &buffer, Image &image, const uint32_t width, const uint32_t height);
     void bindVertexBuffers(const uint32_t firstBinding, const uint32_t bindingCount, VkBuffer *buffers, VkDeviceSize *offsets) noexcept;
     void bindIndexBuffer(VkBuffer buffer, const VkDeviceSize offset, const VkIndexType indexType) noexcept;
     void bindDescriptorSets(const VkPipelineBindPoint bindPoint, VkPipelineLayout pipelineLayout, uint32_t firstSet, uint32_t setCount, const VkDescriptorSet *sets, uint32_t dynamicOffsetCount = 0, const uint32_t *dynamicOffsets = nullptr);

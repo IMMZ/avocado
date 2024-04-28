@@ -10,16 +10,13 @@ include_directories(
 )
 
 file(GLOB_RECURSE SOURCES *.cpp)
+file(GLOB_RECURSE TEST_SOURCES tests/*.cpp)
 
 add_library(avocado ${SOURCES})
 add_executable(avocado_tests
     src/math/functions.cpp
     src/math/quaternion.cpp
-
-    tests/core.cpp
-    tests/mathfunctions.cpp
-    tests/matrix.cpp
-    tests/quaternion.cpp
-    tests/vecn.cpp
+    src/utils.cpp
+    ${TEST_SOURCES}
     ${CMAKE_CURRENT_SOURCE_DIR}/../third_party/Catch2-3.3.2/catch_amalgamated.cpp)
 

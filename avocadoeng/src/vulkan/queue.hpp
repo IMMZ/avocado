@@ -14,7 +14,6 @@ struct VkQueue_T;
 class Queue: public core::ErrorStorage {
 public:
     explicit Queue(VkQueue q);
-    virtual ~Queue() = default;
 
     VkQueue getHandle() noexcept;
     void waitIdle() noexcept;

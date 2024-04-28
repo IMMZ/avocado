@@ -72,8 +72,8 @@ VkBuffer Buffer::getHandle() noexcept {
 }
 
 void Buffer::allocateMemory(PhysicalDevice &physDevice, const VkMemoryPropertyFlags memoryFlags) {
-    assert(_buf != VK_NULL_HANDLE && _dev != VK_NULL_HANDLE);
-    assert(_devMem == VK_NULL_HANDLE);
+    assert(_buf != VK_NULL_HANDLE && _dev != VK_NULL_HANDLE && "Buffer and device mustn't be null.");
+    assert(_devMem == VK_NULL_HANDLE && "Device memory mustn't be null.");
 
     // Memory requirements.
     VkMemoryRequirements memReq{};
@@ -94,7 +94,7 @@ void Buffer::allocateMemory(PhysicalDevice &physDevice, const VkMemoryPropertyFl
 }
 
 void Buffer::bindMemory(const VkDeviceSize offset) noexcept {
-    assert(_dev != VK_NULL_HANDLE && _buf != VK_NULL_HANDLE && _devMem != VK_NULL_HANDLE);
+    assert(_dev != VK_NULL_HANDLE && _buf != VK_NULL_HANDLE && _devMem != VK_NULL_HANDLE && "Handles mustn't be null.");
 
     const VkResult bindBufResult = vkBindBufferMemory(_dev, _buf, _devMem, offset);
     setHasError(bindBufResult != VK_SUCCESS);
@@ -103,26 +103,8 @@ void Buffer::bindMemory(const VkDeviceSize offset) noexcept {
     }
 }
 
-void Buffer::copyToImage(Image &image, const uint32_t width, const uint32_t height, CommandBuffer &commandBuffer) {
-    VkBufferImageCopy region{};
-
-    region.bufferOffset = 0;
-    region.bufferRowLength = 0;
-    region.bufferImageHeight = 0;
-
-    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    region.imageSubresource.mipLevel = 0;
-    region.imageSubresource.baseArrayLayer = 0;
-    region.imageSubresource.layerCount = 1;
-
-    region.imageOffset = {0, 0, 0};
-    region.imageExtent = { width, height, 1 };
-
-    vkCmdCopyBufferToImage(commandBuffer.getHandle(), _buf, image.getHandle(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-}
-
 void Buffer::fill(const void * const dataToCopy, const VkDeviceSize dataSize, const size_t offset) {
-    assert(_dev != VK_NULL_HANDLE && _devMem != VK_NULL_HANDLE);
+    assert(_dev != VK_NULL_HANDLE && _devMem != VK_NULL_HANDLE && "Handles mustn't be null.");
 
     void *data = nullptr;
     const VkResult mapRes = vkMapMemory(_dev, _devMem, offset, dataSize, 0, &data);
