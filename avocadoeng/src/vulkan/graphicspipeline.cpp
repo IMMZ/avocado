@@ -61,7 +61,7 @@ VkPipelineDepthStencilStateCreateInfo& GraphicsPipelineBuilder::createDepthStenc
 VkPipelineDynamicStateCreateInfo& GraphicsPipelineBuilder::createDynamicState() {
     if (_dynamicState == nullptr) {
         _dynamicState = std::make_unique<VkPipelineDynamicStateCreateInfo>();
-        _dynamicState->sType = avocado::vulkan::StructureType<decltype(_dynamicState)::element_type>;
+        _dynamicState->sType = StructureType<decltype(_dynamicState)::element_type>;
     }
     return *_dynamicState;
 }
@@ -69,7 +69,7 @@ VkPipelineDynamicStateCreateInfo& GraphicsPipelineBuilder::createDynamicState() 
 VkPipelineInputAssemblyStateCreateInfo& GraphicsPipelineBuilder::createInputAssmeblyState() {
     if (_inputAsmState == nullptr) {
         _inputAsmState = std::make_unique<VkPipelineInputAssemblyStateCreateInfo>();
-        _inputAsmState->sType = avocado::vulkan::StructureType<decltype(_inputAsmState)::element_type>;
+        _inputAsmState->sType = StructureType<decltype(_inputAsmState)::element_type>;
     }
     return *_inputAsmState;
 }
@@ -85,7 +85,7 @@ VkPipelineMultisampleStateCreateInfo& GraphicsPipelineBuilder::createMultisample
 VkPipelineRasterizationStateCreateInfo& GraphicsPipelineBuilder::createRasterizationState() {
     if (_rasterizationState == nullptr) {
         _rasterizationState = std::make_unique<VkPipelineRasterizationStateCreateInfo>();
-        _rasterizationState->sType = avocado::vulkan::StructureType<decltype(_rasterizationState)::element_type>;
+        _rasterizationState->sType = StructureType<decltype(_rasterizationState)::element_type>;
     }
     return *_rasterizationState;
 }
@@ -93,7 +93,7 @@ VkPipelineRasterizationStateCreateInfo& GraphicsPipelineBuilder::createRasteriza
 VkPipelineVertexInputStateCreateInfo& GraphicsPipelineBuilder::createVertexInputState() {
     if (_vertexInputState == nullptr) {
         _vertexInputState = std::make_unique<VkPipelineVertexInputStateCreateInfo>();
-        _vertexInputState->sType = avocado::vulkan::StructureType<decltype(_vertexInputState)::element_type>;
+        _vertexInputState->sType = StructureType<decltype(_vertexInputState)::element_type>;
     }
     return *_vertexInputState;
 }
@@ -189,7 +189,7 @@ PipelinePtr GraphicsPipelineBuilder::createPipeline(VkRenderPass renderPass) {
     return makeObjectPtr(_logicalDevice, pipeline);
 }
 
-void GraphicsPipelineBuilder::setDescriptorSetLayouts(std::vector<VkDescriptorSetLayout> &layouts) {
+void GraphicsPipelineBuilder::setDescriptorSetLayouts(const std::vector<VkDescriptorSetLayout> &layouts) {
     _descriptorSetLayouts = layouts;
 }
 

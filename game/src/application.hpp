@@ -25,7 +25,7 @@ private:
     inline bool init() { return (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS) == 0); }
 
     avocado::vulkan::GraphicsPipelineBuilder preparePipeline(const VkExtent2D extent,
-        std::vector<VkDescriptorSetLayout> &layouts, const std::vector<VkViewport> &viewPorts,
+        const std::vector<VkDescriptorSetLayout> &layouts, const std::vector<VkViewport> &viewPorts,
         const std::vector<VkRect2D> &scissors);
 
     void updateDescriptorSets(std::vector<avocado::vulkan::Buffer*> &uniformBuffers, const VkDeviceSize range, std::vector<VkDescriptorSet> &descriptorSets,
@@ -33,7 +33,7 @@ private:
 
     avocado::vulkan::Vulkan _vulkan;
     avocado::vulkan::PhysicalDevice _physicalDevice;
-    avocado::vulkan::LogicalDevice _logicalDevice;
+    avocado::vulkan::LogicalDevice _logicalDevice = avocado::vulkan::LogicalDevice::createNullDevice();
     static constexpr size_t FRAMES_IN_FLIGHT = 2;
 };
 

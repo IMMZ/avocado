@@ -25,9 +25,6 @@ class PhysicalDevice;
 
 class LogicalDevice: public avocado::core::ErrorStorage {
 public:
-    // todo do we really need it public? Only physical device can create this.
-    explicit LogicalDevice();
-    explicit LogicalDevice(VkDevice dev);
 
     VkDevice getHandle() noexcept;
     bool isValid() const noexcept;
@@ -40,7 +37,7 @@ public:
     VkDescriptorBufferInfo createDescriptorBufferInfo(Buffer &buffer, const size_t bufferSize) noexcept;
     std::pair<VkDescriptorSet, VkWriteDescriptorSet> createWriteDescriptorSet(
         VkDescriptorPool descriptorPool, VkDescriptorSetLayout descriptorSetLayout, VkDescriptorBufferInfo &descriptorBufferInfo);
-    VkDescriptorPool createDescriptorPool(const size_t descriptorCount);
+    DescriptorPoolPtr createDescriptorPool(const size_t descriptorCount);
     RenderPassPtr createRenderPass(VkFormat format, VkFormat depthFormat);
     Queue getGraphicsQueue(const uint32_t index) noexcept;
     Queue getPresentQueue(const uint32_t index) noexcept;
@@ -72,7 +69,16 @@ public:
 
     void waitIdle() noexcept;
 
+    [[nodiscard]] static inline LogicalDevice createNullDevice() {
+        return LogicalDevice(VK_NULL_HANDLE);
+    }
+
 private:
+    // todo do we really need it public? Only physical device can create this.
+    explicit LogicalDevice();
+    explicit LogicalDevice(VkDevice dev);
+    friend class PhysicalDevice;
+
     DevicePtr _dev;
     QueueFamily _graphicsQueueFamily = 0, _presentQueueFamily = 0, _transferQueueFamily = 0;
 };

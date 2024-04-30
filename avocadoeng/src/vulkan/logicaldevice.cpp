@@ -4,6 +4,7 @@
 #include "debugutils.hpp"
 #include "objectdeleter.hpp"
 #include "physicaldevice.hpp"
+#include "src/vulkan/pointertypes.hpp"
 #include "vkutils.hpp"
 #include "vulkan_core.h"
 
@@ -95,7 +96,7 @@ std::pair<VkDescriptorSet, VkWriteDescriptorSet> LogicalDevice::createWriteDescr
     return {dSet, descriptorWrite};
 }
 
-VkDescriptorPool LogicalDevice::createDescriptorPool(const size_t descriptorCount) {
+DescriptorPoolPtr LogicalDevice::createDescriptorPool(const size_t descriptorCount) {
     std::array<VkDescriptorPoolSize, 2> descriptorPoolSizes{};
     descriptorPoolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     descriptorPoolSizes[0].descriptorCount = descriptorCount;
@@ -112,9 +113,9 @@ VkDescriptorPool LogicalDevice::createDescriptorPool(const size_t descriptorCoun
     setHasError(cdp != VK_SUCCESS);
     if (hasError()) {
         setErrorMessage("vkCreateDescriptorPool returned "s + getVkResultString(cdp));
-        return VK_NULL_HANDLE;
+        return createObjectPointer<VkDescriptorPool>(VK_NULL_HANDLE);
     }
-    return descriptorPool;
+    return createObjectPointer(descriptorPool);
 }
 
 Queue LogicalDevice::getGraphicsQueue(const uint32_t index) noexcept {

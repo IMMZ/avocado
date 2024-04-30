@@ -38,7 +38,7 @@ public:
     void setScissors(std::vector<VkRect2D> &&scissors);
     void addFragmentShaderModules(const std::vector<std::vector<char>> &shaderModules);
     void addVertexShaderModules(const std::vector<std::vector<char>> &shaderModules);
-    void setDescriptorSetLayouts(std::vector<VkDescriptorSetLayout> &layouts);
+    void setDescriptorSetLayouts(const std::vector<VkDescriptorSetLayout> &layouts);
     void loadShaders(const std::string &shaderPath);
 
 private:
