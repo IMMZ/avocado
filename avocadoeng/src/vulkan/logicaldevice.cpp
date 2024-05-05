@@ -147,17 +147,17 @@ void LogicalDevice::setQueueFamilies(const QueueFamily graphicsQueueFamily, cons
     _transferQueueFamily = transferQueueFamily;
 }
 
-VkFence LogicalDevice::createFence() noexcept {
+FencePtr LogicalDevice::createFence() noexcept {
     VkFenceCreateInfo fenceCI{}; FILL_S_TYPE(fenceCI);
     fenceCI.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
     VkFence fence;
     const VkResult result = vkCreateFence(_dev.get(), &fenceCI, nullptr, &fence);
     setHasError(result != VK_SUCCESS);
-    if (hasError()) {
+    if (hasError())
         setErrorMessage("vkCreateFence returned "s + getVkResultString(result));
-    }
-    return fence;
+
+    return createObjectPointer(fence);
 }
 
 void LogicalDevice::waitForFences(const std::vector<VkFence> &fences, const bool waitAll, uint64_t timeout) noexcept {
@@ -176,7 +176,7 @@ void LogicalDevice::resetFences(const std::vector<VkFence> &fences) noexcept {
     }
 }
 
-VkSemaphore LogicalDevice::createSemaphore() noexcept {
+SemaphorePtr LogicalDevice::createSemaphore() noexcept {
     VkSemaphore semaphore;
     VkSemaphoreCreateInfo semaphoreCI{}; FILL_S_TYPE(semaphoreCI);
     const VkResult result = vkCreateSemaphore(_dev.get(), &semaphoreCI, nullptr, &semaphore);
@@ -184,7 +184,7 @@ VkSemaphore LogicalDevice::createSemaphore() noexcept {
     if (hasError())
         setErrorMessage("vkCreateSemaphore returned "s + getVkResultString(result));
 
-    return semaphore;
+    return createObjectPointer(semaphore);
 }
 
 SamplerPtr LogicalDevice::createSampler(PhysicalDevice &physicalDevice) {
@@ -216,42 +216,6 @@ SamplerPtr LogicalDevice::createSampler(PhysicalDevice &physicalDevice) {
         setErrorMessage("vkCreateSampler returned "s + getVkResultString(samplerCreateResult));
 
     return createObjectPointer(textureSampler);
-}
-
-VkCommandPool LogicalDevice::createCommandPool(const VkCommandPoolCreateFlags flags, const QueueFamily queueFamilyIndex) noexcept {
-    VkCommandPoolCreateInfo poolCreateInfo{}; FILL_S_TYPE(poolCreateInfo);
-    poolCreateInfo.flags = flags;
-    poolCreateInfo.queueFamilyIndex = queueFamilyIndex;
-
-    VkCommandPool commandPool = VK_NULL_HANDLE;
-    const VkResult result = vkCreateCommandPool(_dev.get(), &poolCreateInfo, nullptr, &commandPool);
-    setHasError(result != VK_SUCCESS);
-    if (hasError()) {
-        setErrorMessage("vkCreateCommandPool returned "s + getVkResultString(result));
-    }
-
-    return commandPool;
-}
-
-std::vector<CommandBuffer> LogicalDevice::allocateCommandBuffers(const uint32_t count, VkCommandPool cmdPool, const VkCommandBufferLevel bufLevel) {
-    assert(count > 0 && "Command buffer count must be > 0.");
-
-    VkCommandBufferAllocateInfo allocInfo{}; FILL_S_TYPE(allocInfo);
-    allocInfo.commandPool = cmdPool;
-    allocInfo.level = static_cast<VkCommandBufferLevel>(bufLevel);
-    allocInfo.commandBufferCount = count;
-
-    std::vector<VkCommandBuffer> dataToFill(count, VK_NULL_HANDLE);
-    const VkResult callResult = vkAllocateCommandBuffers(_dev.get(), &allocInfo, dataToFill.data());
-    setHasError(callResult != VK_SUCCESS);
-    if (hasError())
-        setErrorMessage("vkAllocateCommandBuffers returned "s + getVkResultString(callResult));
-
-    std::vector<CommandBuffer> result(count);
-    for (size_t i = 0; i < count; ++i)
-        result[i] = CommandBuffer(dataToFill[i]);
-
-    return result;
 }
 
 void LogicalDevice::waitIdle() noexcept {

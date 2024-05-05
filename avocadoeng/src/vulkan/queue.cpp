@@ -27,9 +27,7 @@ void Queue::waitIdle() noexcept {
 
 VkSubmitInfo Queue::createSubmitInfo(VkSemaphore &waitSemaphore, VkSemaphore &signalSemaphore,
     VkCommandBuffer &commandBuffer, const std::vector<VkPipelineStageFlags> &flags) {
-    VkSubmitInfo submitInfo{};
-    FILL_S_TYPE(submitInfo);
-
+    VkSubmitInfo submitInfo{}; FILL_S_TYPE(submitInfo);
     submitInfo.waitSemaphoreCount = 1;
     submitInfo.pWaitSemaphores = &waitSemaphore;
     submitInfo.signalSemaphoreCount = 1;

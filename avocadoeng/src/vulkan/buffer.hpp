@@ -10,7 +10,6 @@
 
 namespace avocado::vulkan {
 
-class CommandBuffer;
 class Image;
 class LogicalDevice;
 class PhysicalDevice;

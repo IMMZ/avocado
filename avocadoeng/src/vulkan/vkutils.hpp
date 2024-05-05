@@ -11,8 +11,6 @@ namespace avocado::vulkan {
 
 class CommandBuffer;
 
-std::vector<VkCommandBuffer> getCommandBufferHandles(std::vector<CommandBuffer> &cmdBuffers);
-
 template <typename T>
 constexpr VkIndexType toIndexType() {
     static_assert(std::is_integral_v<T>

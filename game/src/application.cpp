@@ -3,6 +3,7 @@
 #include "gameconfig.hpp"
 #include "vertex.hpp"
 #include "utils.hpp"
+#include "vulkan/commandbuffer.hpp"
 #include "vulkan/graphicspipeline.hpp"
 
 #include <math/functions.hpp>
@@ -11,7 +12,7 @@
 
 #include <vulkan/buffer.hpp>
 #include <vulkan/clipping.hpp>
-#include <vulkan/commandbuffer.hpp>
+#include <vulkan/commandpool.hpp>
 #include <vulkan/debugutils.hpp>
 #include <vulkan/descriptorset.hpp>
 #include <vulkan/image.hpp>
@@ -40,113 +41,14 @@
 
 using namespace avocado;
 
-VkCommandBuffer beginSingleTimeCommands(vulkan::LogicalDevice &logicalDevice, VkCommandPool commandPool) {
-    VkCommandBufferAllocateInfo allocInfo{};
-    FILL_S_TYPE(allocInfo);
 
-    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocInfo.commandPool = commandPool;
-    allocInfo.commandBufferCount = 1;
 
-    VkCommandBuffer commandBuffer;
-    vkAllocateCommandBuffers(logicalDevice.getHandle(), &allocInfo, &commandBuffer);
-
-    VkCommandBufferBeginInfo beginInfo{};
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-    vkBeginCommandBuffer(commandBuffer, &beginInfo);
-
-    return commandBuffer;
-}
-
-void endSingleTimeCommands(vulkan::LogicalDevice &logicalDevice, VkCommandPool commandPool, vulkan::Queue &graphicsQueue, VkCommandBuffer commandBuffer) {
-    vkEndCommandBuffer(commandBuffer);
-
-    VkSubmitInfo submitInfo{};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &commandBuffer;
-
-    VkResult res = vkQueueSubmit(graphicsQueue.getHandle(), 1, &submitInfo, VK_NULL_HANDLE);
-    if (res != VK_SUCCESS) {
-        std::cout << "Queue submit error" << std::endl;
-        return;
-    }
-    res = vkQueueWaitIdle(graphicsQueue.getHandle());
-    if (res != VK_SUCCESS) {
-        std::cout << "Queue wait idle error" << std::endl;
-        return;
-    }
-
-    vkFreeCommandBuffers(logicalDevice.getHandle(), commandPool, 1, &commandBuffer);
-}
-
-void transitionImageLayout(vulkan::LogicalDevice &logicalDevice, VkCommandPool commandPool, vulkan::Queue &queue, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, const VkImageAspectFlags aspectFlags) {
-    VkCommandBuffer commandBuffer = beginSingleTimeCommands(logicalDevice, commandPool);
-    VkImageMemoryBarrier barrier{}; FILL_S_TYPE(barrier);
-    barrier.oldLayout = oldLayout;
-    barrier.newLayout = newLayout;
-    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.image = image;
-    barrier.subresourceRange.aspectMask = aspectFlags;
-    barrier.subresourceRange.baseMipLevel = 0;
-    barrier.subresourceRange.levelCount = 1;
-    barrier.subresourceRange.baseArrayLayer = 0;
-    barrier.subresourceRange.layerCount = 1;
-
-    VkPipelineStageFlags srcStage, dstStage;
-    if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
-            barrier.srcAccessMask = 0;
-            barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-
-            srcStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-            dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-        } else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
-            barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
-            srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-            dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-        } else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
-            barrier.srcAccessMask = 0;
-            barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-
-            srcStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-            dstStage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-        } else {
-            throw std::invalid_argument("unsupported layout transition!"); // todo No exceptions!
-        }
-
-    vkCmdPipelineBarrier(commandBuffer, srcStage, dstStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
-    endSingleTimeCommands(logicalDevice, commandPool, queue, commandBuffer);
-}
-
-void copyBufferToImage(vulkan::LogicalDevice &logicalDevice, VkCommandPool commandPool, vulkan::Queue &queue, vulkan::Buffer &buffer,
+void copyBufferToImage(vulkan::CommandPool &commandPool, vulkan::Queue &queue, vulkan::Buffer &buffer,
     vulkan::Image &image, uint32_t width, uint32_t height) {
-    const std::vector commandBuffers = logicalDevice.allocateCommandBuffers(1, commandPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
-    vulkan::CommandBuffer commandBuffer = commandBuffers.front();
-
-    commandBuffer.begin();
-    commandBuffer.copyBufferToImage(buffer, image, width, height);
-    commandBuffer.end();
-
-    VkCommandBuffer bufferHandle = commandBuffer.getHandle();
-    VkSubmitInfo submitInfo{}; FILL_S_TYPE(submitInfo);
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &bufferHandle;
-    queue.submit(submitInfo);
-    if (queue.hasError()) {
-        std::cout << "Queue submit error (" << queue.getErrorMessage() << ')' << std::endl;
-        return;
-    }
-
-    queue.waitIdle();
-    if (queue.hasError()) {
-        std::cout << "Queue wait idle error (" << queue.getErrorMessage() << ')' << std::endl;
-        return;
-    }
+    vulkan::CommandBuffer imageCopyCmdBuffer = commandPool.getBuffer(static_cast<size_t>(Application::CommandBufferIndex::CopyImageToBuffer));
+    imageCopyCmdBuffer.beginOneTimeSubmit();
+        imageCopyCmdBuffer.copyBufferToImage(buffer, image, width, height);
+    imageCopyCmdBuffer.endOneTimeAndSubmit(queue);
 }
 
 void Application::createInstance(SDL_Window &window, const std::vector<std::string> &instanceLayers) {
@@ -301,6 +203,48 @@ vulkan::GraphicsPipelineBuilder Application::preparePipeline(const VkExtent2D ex
     return pipelineBuilder;
 }
 
+void Application::transitionImageLayout(vulkan::CommandBuffer &cmdBuf, vulkan::Queue &queue, avocado::vulkan::Image &image, VkFormat format, VkImageLayout oldLayout,
+    VkImageLayout newLayout, const VkImageAspectFlags aspectFlags) {
+    VkImageMemoryBarrier barrier{}; FILL_S_TYPE(barrier);
+    barrier.oldLayout = oldLayout;
+    barrier.newLayout = newLayout;
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.image = image.getHandle();
+    barrier.subresourceRange.aspectMask = aspectFlags;
+    barrier.subresourceRange.baseMipLevel = 0;
+    barrier.subresourceRange.levelCount = 1;
+    barrier.subresourceRange.baseArrayLayer = 0;
+    barrier.subresourceRange.layerCount = 1;
+
+    VkPipelineStageFlags srcStage = VK_PIPELINE_STAGE_FLAG_BITS_MAX_ENUM, dstStage = VK_PIPELINE_STAGE_FLAG_BITS_MAX_ENUM;
+    if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+            barrier.srcAccessMask = 0;
+            barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+            srcStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+            dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    } else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+            barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+            srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+            dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    } else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
+            barrier.srcAccessMask = 0;
+            barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+            srcStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+            dstStage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+    } else {
+            throw std::invalid_argument("unsupported layout transition!"); // todo No exceptions!
+    }
+
+    cmdBuf.beginOneTimeSubmit();
+        cmdBuf.pipelineBarrier(srcStage, dstStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+    cmdBuf.endOneTimeAndSubmit(queue);
+}
+
 int Application::run() {
     const bool isInitOk = init();
     std::unique_ptr<SDL_Window, void(*)(SDL_Window*)> sdlWindow = createWindow();
@@ -449,7 +393,7 @@ int Application::run() {
         _physicalDevice.getHandle(),
         VK_IMAGE_TILING_OPTIMAL,
         VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
-    auto renderPassPtr = _logicalDevice.createRenderPass(surfaceFormat.format, depthFormat);
+    const auto renderPassPtr = _logicalDevice.createRenderPass(surfaceFormat.format, depthFormat);
 
     vulkan::DescriptorSet descriptorSet(_logicalDevice, FRAMES_IN_FLIGHT);
     descriptorSet.addLayoutBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT);
@@ -484,47 +428,36 @@ int Application::run() {
     vulkan::Queue graphicsQueue(_logicalDevice.getGraphicsQueue(0));
     debugUtilsPtr->setObjectName(graphicsQueue.getHandle(), "Graphics queue");
 
-    vulkan::CommandPoolPtr commandPool = _logicalDevice.createObjectPointer(_logicalDevice.createCommandPool(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, graphicsQueueFamily));
-    if (_logicalDevice.hasError()) {
-        std::cout << "Can't create command pool: " << _logicalDevice.getErrorMessage() << std::endl;
+    vulkan::CommandPool commandPool(_logicalDevice, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, graphicsQueueFamily);
+    if (commandPool.hasError()) {
+        std::cout << "Can't create command pool: " << commandPool.getErrorMessage() << std::endl;
         return 1;
     }
 
-    std::vector<vulkan::CommandBuffer> cmdBuffers = _logicalDevice.allocateCommandBuffers(FRAMES_IN_FLIGHT, commandPool.get(), VK_COMMAND_BUFFER_LEVEL_PRIMARY);
-    if (_logicalDevice.hasError()) {
-        std::cout << "Can't allocate command buffers (" << _logicalDevice.getErrorMessage() << ")." << std::endl;
+    commandPool.allocateBuffers(FRAMES_IN_FLIGHT + 3, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+    if (commandPool.hasError()) {
+        std::cout << "Can't allocate command buffers: " << commandPool.getErrorMessage() << std::endl;
         return 1;
     }
 
     // Synchronization objects.
-    std::array<vulkan::SemaphorePtr, FRAMES_IN_FLIGHT> imageAvailableSemaphores = {
-        _logicalDevice.createObjectPointer(_logicalDevice.createSemaphore()),
-        _logicalDevice.createObjectPointer(_logicalDevice.createSemaphore())};
+    const std::array<vulkan::SemaphorePtr, FRAMES_IN_FLIGHT> imageAvailableSemaphores = {_logicalDevice.createSemaphore(), _logicalDevice.createSemaphore()};
     if (_logicalDevice.hasError()) {
         std::cout << "Can't create semaphore: " << _logicalDevice.getErrorMessage() << std::endl;
         return 1;
     }
 
-    std::array<vulkan::SemaphorePtr, FRAMES_IN_FLIGHT> renderFinishedSemaphores = {
-        _logicalDevice.createObjectPointer(_logicalDevice.createSemaphore()),
-        _logicalDevice.createObjectPointer(_logicalDevice.createSemaphore())};
+    const std::array<vulkan::SemaphorePtr, FRAMES_IN_FLIGHT> renderFinishedSemaphores = {_logicalDevice.createSemaphore(), _logicalDevice.createSemaphore()};
     if (_logicalDevice.hasError()) {
         std::cout << "Can't create semaphore: " << _logicalDevice.getErrorMessage() << std::endl;
         return 1;
     }
 
-    std::array<vulkan::FencePtr, FRAMES_IN_FLIGHT> fences = {
-        _logicalDevice.createObjectPointer(_logicalDevice.createFence()),
-        _logicalDevice.createObjectPointer(_logicalDevice.createFence())};
+    const std::array<vulkan::FencePtr, FRAMES_IN_FLIGHT> fences = {_logicalDevice.createFence(), _logicalDevice.createFence()};
     std::vector<VkFence> fenceHandles {fences[0].get(), fences[1].get()};
     if (_logicalDevice.hasError()) {
         std::cout << "Can't create fence: " << _logicalDevice.getErrorMessage() << std::endl;
         return 1;
-    }
-
-
-    if (swapChain.hasError()) {
-        std::cout << "Can't get img index " << swapChain.getErrorMessage() << std::endl;
     }
 
     std::vector<VkSwapchainKHR> swapChainHandles{swapChain.getHandle()};
@@ -578,9 +511,12 @@ int Application::run() {
     vulkan::ImageViewPtr textureImageView = _logicalDevice.createObjectPointer(swapChain.createImageView(textureImage.getHandle(), VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT));
     swapChain.createFramebuffers(renderPassPtr.get(), extent);
 
-    transitionImageLayout(_logicalDevice, commandPool.get(), graphicsQueue, textureImage.getHandle(), VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-    copyBufferToImage(_logicalDevice, commandPool.get(), graphicsQueue, imgTransferBuffer, textureImage, static_cast<uint32_t>(imgW), static_cast<uint32_t>(imgH));
-    transitionImageLayout(_logicalDevice, commandPool.get(), graphicsQueue, textureImage.getHandle(), VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+    // Copy buffer to image.
+    vulkan::CommandBuffer cmdBufFor1stTransition = commandPool.getBuffer(static_cast<size_t>(CommandBufferIndex::TransferImageLayout1));
+    transitionImageLayout(cmdBufFor1stTransition, graphicsQueue, textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+    copyBufferToImage(commandPool, graphicsQueue, imgTransferBuffer, textureImage, static_cast<uint32_t>(imgW), static_cast<uint32_t>(imgH));
+    vulkan::CommandBuffer cmdBufFor2ndTransition = commandPool.getBuffer(static_cast<size_t>(CommandBufferIndex::TransferImageLayout2));
+    transitionImageLayout(cmdBufFor2ndTransition, graphicsQueue, textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
     vulkan::SamplerPtr textureSamplerPtr = _logicalDevice.createSampler(_physicalDevice);
     if (_logicalDevice.hasError()) {
@@ -602,12 +538,11 @@ int Application::run() {
 
     VkBuffer vertexBufferHandle = vertexBuffer.getHandle();
     VkDeviceSize offset = 0;
-    auto startTime = std::chrono::high_resolution_clock::now();
+    const auto startTime = std::chrono::high_resolution_clock::now();
 
     std::vector<VkPipelineStageFlags> flags = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
     std::vector<VkSemaphore> waitSemaphores {imageAvailableSemaphores[0].get(), imageAvailableSemaphores[1].get()};
     std::vector<VkSemaphore> signalSemaphores {renderFinishedSemaphores[0].get(), renderFinishedSemaphores[1].get()};
-    std::vector cmdBufferHandles = vulkan::getCommandBufferHandles(cmdBuffers);
 
     SDL_Event event;
     uint32_t imageIndex = 0;
@@ -631,22 +566,22 @@ int Application::run() {
         ubo.model = math::Mat4x4::createIdentityMatrix() * math::createRotationMatrix(time * 90.f, math::vec3f(0.0f, 0.0f, 1.0f));
         uniformBuffers[currentFrame]->fill(&ubo);
 
-        vulkan::CommandBuffer commandBuffer = cmdBuffers[currentFrame];
-        commandBuffer.reset(static_cast<VkCommandPoolResetFlagBits>(0));
-        commandBuffer.begin();
-                commandBuffer.setViewports(viewPorts);
-                commandBuffer.setScissors(scissors);
-                commandBuffer.bindVertexBuffers(0, 1, &vertexBufferHandle, &offset);
-                commandBuffer.bindIndexBuffer(indexBuffer.getHandle(), 0, vulkan::toIndexType<decltype(indices)::value_type>());
-                commandBuffer.bindPipeline(graphicsPipeline.get(), VK_PIPELINE_BIND_POINT_GRAPHICS);
-                commandBuffer.bindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineBuilder.getPipelineLayout(), 0, 1, &descriptorSet.getSet(currentFrame), 0, nullptr);
+        vulkan::CommandBuffer cmdBuf = commandPool.getBuffer(currentFrame);
+        cmdBuf.reset(static_cast<VkCommandPoolResetFlagBits>(0));
+        cmdBuf.begin();
+            cmdBuf.setViewports(viewPorts);
+            cmdBuf.setScissors(scissors);
+            cmdBuf.bindVertexBuffers(0, 1, &vertexBufferHandle, &offset);
+            cmdBuf.bindIndexBuffer(indexBuffer.getHandle(), 0, vulkan::toIndexType<decltype(indices)::value_type>());
+            cmdBuf.bindPipeline(graphicsPipeline.get(), VK_PIPELINE_BIND_POINT_GRAPHICS);
+            cmdBuf.bindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineBuilder.getPipelineLayout(), 0, 1, &descriptorSet.getSet(currentFrame), 0, nullptr);
 
-                commandBuffer.beginRenderPass(swapChain, renderPassPtr.get(), extent, {0, 0}, imageIndex);
-                    commandBuffer.drawIndexed(static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
-                commandBuffer.endRenderPass();
-        commandBuffer.end();
+            cmdBuf.beginRenderPass(swapChain, renderPassPtr.get(), extent, {0, 0}, imageIndex);
+                cmdBuf.drawIndexed(static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+            cmdBuf.endRenderPass();
+        cmdBuf.end();
 
-        auto submitInfo = graphicsQueue.createSubmitInfo(waitSemaphores[currentFrame], signalSemaphores[currentFrame], cmdBufferHandles[currentFrame], flags);
+        auto submitInfo = graphicsQueue.createSubmitInfo(waitSemaphores[currentFrame], signalSemaphores[currentFrame], cmdBuf.getHandle(), flags);
         graphicsQueue.submit(submitInfo, fenceToWait[0]);
         if (graphicsQueue.hasError()) {
             std::cout << "Can't submit graphics queue: " << graphicsQueue.getErrorMessage() << std::endl;

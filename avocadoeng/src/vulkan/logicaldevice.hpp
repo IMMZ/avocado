@@ -1,7 +1,6 @@
 #ifndef AVOCADO_VULKAN_LOGICAL_DEVICE
 #define AVOCADO_VULKAN_LOGICAL_DEVICE
 
-#include "commandbuffer.hpp"
 #include "queue.hpp"
 #include "pointertypes.hpp"
 #include "types.hpp"
@@ -20,6 +19,7 @@ using namespace std::string_literals;
 
 namespace avocado::vulkan {
 
+class Buffer;
 class DebugUtils;
 class PhysicalDevice;
 
@@ -47,10 +47,10 @@ public:
 
     // todo this is supposed to be used by PhysicalDevice, not straightly.
     void setQueueFamilies(const QueueFamily graphicsQF, const QueueFamily presentQF, const QueueFamily transferQF) noexcept;
-    VkFence createFence() noexcept;
+    FencePtr createFence() noexcept;
     void waitForFences(const std::vector<VkFence> &fences, const bool waitAll, uint64_t timeout = std::numeric_limits<uint64_t>::max()) noexcept;
     void resetFences(const std::vector<VkFence> &fences) noexcept;
-    VkSemaphore createSemaphore() noexcept;
+    SemaphorePtr createSemaphore() noexcept;
 
     SamplerPtr createSampler(PhysicalDevice &physicalDevice);
 
@@ -63,9 +63,6 @@ public:
     AllocatedObjectPtr<T> createAllocatedObjectPointer(T objectHandle) {
         return AllocatedObjectPtr<T>(objectHandle, AllocatedObjectDeleter<T>(*this));
     }
-
-    VkCommandPool createCommandPool(const VkCommandPoolCreateFlags flags, const QueueFamily queueFamilyIndex) noexcept;
-    std::vector<CommandBuffer> allocateCommandBuffers(const uint32_t count, VkCommandPool cmdPool, const VkCommandBufferLevel bufLevel);
 
     void waitIdle() noexcept;
 

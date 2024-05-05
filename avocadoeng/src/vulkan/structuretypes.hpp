@@ -13,6 +13,7 @@ template <>\
 inline constexpr VkObjectType ObjectType<Vk##OBJECT> = VK_OBJECT_TYPE_##OBJECT_TYPE
 
 #define FILL_S_TYPE(variable) variable.sType = avocado::vulkan::StructureType<decltype(variable)>
+#define FILL_PTR_S_TYPE(variable) variable->sType = avocado::vulkan::StructureType<std::remove_pointer_t<decltype(variable)>>
 #define FILL_OBJECT_TYPE(variable) variable.objectType = avocado::vulkan::ObjectType<decltype(variable)>
 
 namespace avocado::vulkan {

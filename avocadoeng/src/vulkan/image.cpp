@@ -12,7 +12,7 @@ Image::Image(LogicalDevice &device, const uint32_t width, const uint32_t height,
     _textureImageMemory(device.createAllocatedObjectPointer<VkDeviceMemory>(VK_NULL_HANDLE)),
     _createInfo{},
     _device(device) {
-    _createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    FILL_S_TYPE(_createInfo);
     _createInfo.extent.width = width;
     _createInfo.extent.height = height;
     _createInfo.imageType = imageType;
