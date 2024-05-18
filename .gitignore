@@ -16,4 +16,8 @@ CMakeCache.txt
 *.spv
 *.json
 *.session
-
+*.a
+*.lib
+*.so
+bin
+Makefile

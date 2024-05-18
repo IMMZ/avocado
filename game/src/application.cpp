@@ -1,3 +1,10 @@
+#include <ostream>
+#define TINYGLTF_IMPLEMENTATION
+#define TINYGLTF_NOEXCEPTION
+#define STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#define JSON_NOEXCEPTION
+
 #include "application.hpp"
 
 #include "gameconfig.hpp"
@@ -39,9 +46,8 @@
 #include <iostream>
 #include <memory>
 
+
 using namespace avocado;
-
-
 
 void copyBufferToImage(vulkan::CommandPool &commandPool, vulkan::Queue &queue, vulkan::Buffer &buffer,
     vulkan::Image &image, uint32_t width, uint32_t height) {
@@ -191,10 +197,12 @@ vulkan::GraphicsPipelineBuilder Application::preparePipeline(const VkExtent2D ex
             | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT});
 
     VkPipelineVertexInputStateCreateInfo &vertexInState = pipelineBuilder.createVertexInputState();
-    pipelineBuilder.addAttributeDescription(0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, position));
-    pipelineBuilder.addAttributeDescription(1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, color));
-    pipelineBuilder.addAttributeDescription(2, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex, textureCoordinate));
-    pipelineBuilder.addBindingDescription(0, sizeof(Vertex), VK_VERTEX_INPUT_RATE_VERTEX);
+    //pipelineBuilder.addAttributeDescription(0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, position));
+    pipelineBuilder.addAttributeDescription(0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0);
+    //pipelineBuilder.addAttributeDescription(1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, color));
+    //pipelineBuilder.addAttributeDescription(2, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex, textureCoordinate));
+    //pipelineBuilder.addBindingDescription(0, sizeof(Vertex), VK_VERTEX_INPUT_RATE_VERTEX);
+    pipelineBuilder.addBindingDescription(0, 3 * sizeof(float), VK_VERTEX_INPUT_RATE_VERTEX);
 
     VkPipelineViewportStateCreateInfo &viewportState = pipelineBuilder.createViewportState();
     pipelineBuilder.setViewPorts(viewPorts);
@@ -243,6 +251,55 @@ void Application::transitionImageLayout(vulkan::CommandBuffer &cmdBuf, vulkan::Q
     cmdBuf.beginOneTimeSubmit();
         cmdBuf.pipelineBarrier(srcStage, dstStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
     cmdBuf.endOneTimeAndSubmit(queue);
+}
+
+Application::ModelData Application::loadModel() {
+    tinygltf::TinyGLTF loader;
+    std::string error, warning;
+    const bool loadOk = loader.LoadASCIIFromFile(&_model, &error, &warning, "game/bin/assets/models/Box.gltf");
+    if (!loadOk) {
+        std::cout << "Error loading model: " << error << std::endl;
+        return {};
+    }
+
+    float *positions = nullptr; size_t positionsCount = 0;
+    uint16_t *indices = nullptr; size_t indicesCount = 0;
+    float *positionData = nullptr;
+    for (const tinygltf::Mesh &mesh: _model.meshes) {
+         for (const tinygltf::Primitive &primitive: mesh.primitives) {
+            const auto &attributes = primitive.attributes;
+            const size_t accessorIndex = attributes.at("POSITION");
+            const size_t bufferViewIndex = _model.accessors[accessorIndex].bufferView;
+            positionsCount = _model.accessors[accessorIndex].count;
+            const size_t bufferIndex = _model.bufferViews[bufferViewIndex].buffer;
+            const size_t length = _model.bufferViews[bufferViewIndex].byteLength;
+            const size_t offset = _model.bufferViews[bufferViewIndex].byteOffset;
+            positions = new float[positionsCount * 3]{};
+
+            positionData = reinterpret_cast<float*>(&_model.buffers[bufferIndex].data[offset]);
+            for (size_t i = 0, j = 0; i < positionsCount * 3; ++i, ++j) {
+                positions[i] = positionData[j];
+                if (i % 3 == 2)
+                    j += 3;
+            }
+
+            const size_t indicesAccessorIndex = primitive.indices;
+            const size_t indicesBufferViewIndex = _model.accessors[indicesAccessorIndex].bufferView;
+            indicesCount = _model.accessors[indicesAccessorIndex].count;
+            const size_t indicesBufferIndex = _model.bufferViews[indicesBufferViewIndex].buffer;
+            const size_t indicesLength = _model.bufferViews[indicesBufferViewIndex].byteLength;
+            const size_t indicesOffset = _model.bufferViews[indicesBufferViewIndex].byteOffset;
+            std::cout << "indicesAccessorIndex: " << indicesAccessorIndex << '\n'
+                << "indicesBufferViewIndex: " << indicesBufferViewIndex << '\n'
+                << "indicesBufferIndex: " << indicesBufferIndex << '\n'
+                << "indicesCount: " << indicesCount << '\n'
+                << "indicesLength: " << indicesLength << '\n'
+                << "indicesOffset: " << indicesOffset << std::endl;
+            indices = reinterpret_cast<uint16_t*>(&_model.buffers[indicesBufferIndex].data[indicesOffset]);
+         }
+    }
+
+    return {positions, indices, positionsCount, indicesCount};
 }
 
 int Application::run() {
@@ -311,7 +368,9 @@ int Application::run() {
     const VkSurfaceFormatKHR surfaceFormat = surface.findFormat(VK_FORMAT_B8G8R8A8_SRGB, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR);
     vulkan::Swapchain swapChain = createSwapchain(surface, surfaceFormat, extent, queueFamilies);
 
-    constexpr std::array<Vertex, 8> myModel = {{
+    const ModelData &modelData = loadModel();
+
+    /*constexpr std::array<Vertex, 8> myModel = {{
         // { pos, color, textureCoordinates }
         {math::vec3f(-.5f, -.5f, 0.f), math::vec3f(1.f, 0.f, 0.f), math::vec2f(1.f, 0.f)},
         {math::vec3f( .5f, -.5f, 0.f), math::vec3f(0.f, 1.f, 0.f), math::vec2f(0.f, 0.f)},
@@ -322,14 +381,14 @@ int Application::run() {
         {math::vec3f( .5f, -.5f, -.5f), math::vec3f(0.f, 1.f, 0.f), math::vec2f(0.f, 0.f)},
         {math::vec3f( .5f,  .5f, -.5f), math::vec3f(0.f, 0.f, 1.f), math::vec2f(0.f, 1.f)},
         {math::vec3f(-.5f,  .5f, -.5f), math::vec3f(1.f, 1.f, 1.f), math::vec2f(1.f, 1.f)}
-    }};
+    }};*/
 
-    constexpr VkDeviceSize verticesSizeBytes = sizeof(decltype(myModel)::value_type) * myModel.size();
-    constexpr std::array<uint16_t, 12> indices {
+    VkDeviceSize verticesSizeBytes = 12 * 24;
+    /*constexpr std::array<uint16_t, 12> indices {
         0, 1, 2, 2, 3, 0, // Draw 1st plane.
         4, 5, 6, 6, 7, 4 // Draw 2nd one.
     };
-    constexpr size_t indicesSizeBytes = indices.size() * sizeof(decltype(indices)::value_type);
+    constexpr size_t indicesSizeBytes = indices.size() * sizeof(decltype(indices)::value_type);*/
 
     vulkan::Buffer vertexBuffer(verticesSizeBytes,
         static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT),
@@ -347,10 +406,10 @@ int Application::run() {
         return 1;
     }
 
-    vertexBuffer.fill(myModel.data());
+    vertexBuffer.fill(modelData.positions);
     vertexBuffer.bindMemory();
 
-    vulkan::Buffer indexBuffer(indicesSizeBytes,
+    vulkan::Buffer indexBuffer(modelData.indicesCount * sizeof(uint16_t),
         static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT),
         VK_SHARING_MODE_EXCLUSIVE, _logicalDevice);
     if (indexBuffer.hasError()) {
@@ -363,7 +422,7 @@ int Application::run() {
         return 1;
     }
 
-    indexBuffer.fill(indices.data());
+    indexBuffer.fill(modelData.indices);
     indexBuffer.bindMemory();
     if (indexBuffer.hasError()) {
         std::cout << "Can't bind memory of index buffer: " << indexBuffer.getErrorMessage() << std::endl;
@@ -385,8 +444,9 @@ int Application::run() {
     uniformBufferForFrame2.bindMemory();
 
     UniformBufferObject ubo{};
-    ubo.view = math::lookAt(math::vec3f(2.f, 2.f, 2.f), math::vec3f(0.f, 0.f, 0.f), math::vec3f(0.f, 0.f, 1.f));
+    ubo.view = math::lookAt(math::vec3f(0.f, 3.f, 7.f), math::vec3f(0.f, 0.f, 0.f), math::vec3f(0.f, 1.f, 0.f));
     ubo.proj = math::perspectiveProjection(45.f, static_cast<float>(Config::RESOLUTION_WIDTH) / static_cast<float>(Config::RESOLUTION_HEIGHT), 0.1f, 10.f);
+    ubo.model = math::createRotationMatrixY(30);
 
     const VkFormat depthFormat = swapChain.findSupportedFormat(
         {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT},
@@ -563,7 +623,8 @@ int Application::run() {
         // Update uniform buffer.
         const auto& currentTime = std::chrono::high_resolution_clock::now();
         const float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
-        ubo.model = math::Mat4x4::createIdentityMatrix() * math::createRotationMatrix(time * 90.f, math::vec3f(0.0f, 0.0f, 1.0f));
+        //ubo.model = math::Mat4x4::createIdentityMatrix() * math::createRotationMatrix(time * 90.f, math::vec3f(0.0f, 1.0f, 0.0f));
+        ubo.model = math::Mat4x4::createIdentityMatrix();// * math::createRotationMatrixY(time * 90.f);
         uniformBuffers[currentFrame]->fill(&ubo);
 
         vulkan::CommandBuffer cmdBuf = commandPool.getBuffer(currentFrame);
@@ -572,12 +633,12 @@ int Application::run() {
             cmdBuf.setViewports(viewPorts);
             cmdBuf.setScissors(scissors);
             cmdBuf.bindVertexBuffers(0, 1, &vertexBufferHandle, &offset);
-            cmdBuf.bindIndexBuffer(indexBuffer.getHandle(), 0, vulkan::toIndexType<decltype(indices)::value_type>());
+            cmdBuf.bindIndexBuffer(indexBuffer.getHandle(), 0, vulkan::toIndexType<uint16_t>());
             cmdBuf.bindPipeline(graphicsPipeline.get(), VK_PIPELINE_BIND_POINT_GRAPHICS);
             cmdBuf.bindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineBuilder.getPipelineLayout(), 0, 1, &descriptorSet.getSet(currentFrame), 0, nullptr);
 
             cmdBuf.beginRenderPass(swapChain, renderPassPtr.get(), extent, {0, 0}, imageIndex);
-                cmdBuf.drawIndexed(static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+                cmdBuf.drawIndexed(static_cast<uint32_t>(modelData.indicesCount), 1, 0, 0, 0);
             cmdBuf.endRenderPass();
         cmdBuf.end();
 

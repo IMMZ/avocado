@@ -23,6 +23,7 @@ constexpr Mat2x2 createRotationMatrix(const float angle) {
 }
 
 Mat4x4 createRotationMatrix(const float angleDegrees, vec3f axis);
+Mat4x4 createRotationMatrixY(const float angleDegrees);
 
 struct Quaternion;
 Mat4x4 createRotationMatrix(Quaternion q);

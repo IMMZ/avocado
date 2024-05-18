@@ -9,6 +9,8 @@
 
 #include <SDL.h>
 
+#include <../../third_party/tinygltf-release/tiny_gltf.h>
+
 #include <memory>
 
 class Application {
@@ -39,6 +41,16 @@ private:
     void transitionImageLayout(avocado::vulkan::CommandBuffer &commandBuffer, avocado::vulkan::Queue &queue, avocado::vulkan::Image &image, VkFormat format,
         VkImageLayout oldLayout, VkImageLayout newLayout, const VkImageAspectFlags aspectFlags);
 
+    struct ModelData {
+        float *positions = nullptr;
+        uint16_t *indices = nullptr;
+        size_t positionsCount = 0;
+        size_t indicesCount = 0;
+    };
+
+    ModelData loadModel();
+
+    tinygltf::Model _model;
     avocado::vulkan::Vulkan _vulkan;
     avocado::vulkan::PhysicalDevice _physicalDevice;
     avocado::vulkan::LogicalDevice _logicalDevice = avocado::vulkan::LogicalDevice::createNullDevice();

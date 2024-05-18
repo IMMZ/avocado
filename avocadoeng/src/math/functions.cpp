@@ -13,9 +13,21 @@ Mat4x4 createRotationMatrix(const float angleDegrees, vec3f axis) {
 
     axis.normalize();
     return Mat4x4({{
-        {cosA + oneMinusCosA * axis.x * axis.x,          oneMinusCosA * axis.x * axis.y - sinA * axis.z, oneMinusCosA * axis.x * axis.z + sinA * axis.y},
-        {oneMinusCosA * axis.x * axis.y + sinA * axis.z, cosA + oneMinusCosA * axis.y * axis.y,          oneMinusCosA * axis.y * axis.z - sinA * axis.x},
-        {oneMinusCosA * axis.x * axis.z - sinA * axis.y, oneMinusCosA * axis.y * axis.z + sinA * axis.x, cosA + oneMinusCosA * axis.z * axis.z},
+        {cosA + oneMinusCosA * axis.x * axis.x,          oneMinusCosA * axis.x * axis.y - sinA * axis.z, oneMinusCosA * axis.x * axis.z + sinA * axis.y, 0.f},
+        {oneMinusCosA * axis.x * axis.y + sinA * axis.z, cosA + oneMinusCosA * axis.y * axis.y,          oneMinusCosA * axis.y * axis.z - sinA * axis.x, 0.f},
+        {oneMinusCosA * axis.x * axis.z - sinA * axis.y, oneMinusCosA * axis.y * axis.z + sinA * axis.x, cosA + oneMinusCosA * axis.z * axis.z, 0.f},
+        {0.f, 0.f, 0.f, 1.f}}});
+}
+
+Mat4x4 createRotationMatrixY(const float angleDegrees) {
+    const float angleRadians = toRadians(angleDegrees);
+    const float sinA = std::sin(angleRadians);
+    const float cosA = std::cos(angleRadians);
+
+    return Mat4x4({{
+        {cosA, 0.f, sinA, 0.f},
+        {0.f, 1.f, 0.f, 0.f},
+        {-sinA, 0.f, cosA, 0.f},
         {0.f, 0.f, 0.f, 1.f}}});
 }
 
