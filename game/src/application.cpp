@@ -374,8 +374,8 @@ Application::ModelData Application::loadModel() {
                 else
                     j++;
             }
+
             // Read texture coordinates.
-            /*
             constexpr char TEXCOORD[] = "TEXCOORD";
             constexpr size_t TEXCOORD_LENGTH = std::size(TEXCOORD) - 1;
             for (const auto &attrIndexPair: attributes) {
@@ -383,20 +383,26 @@ Application::ModelData Application::loadModel() {
                 if (attrIndexPair.first.length() > TEXCOORD_LENGTH && attrIndexPair.first.substr(0, TEXCOORD_LENGTH) == TEXCOORD) {
                     const size_t texCoordAccessorIndex = attributes.at(attrIndexPair.first);
                     texCoordsCount = _model.accessors[texCoordAccessorIndex].count;
+                    const size_t texCoordAccessorOffset = _model.accessors[texCoordAccessorIndex].byteOffset;
                     const size_t texCoordBufferViewIndex = _model.accessors[texCoordAccessorIndex].bufferView;
                     const size_t texCoordBufferIndex = _model.bufferViews[texCoordBufferViewIndex].buffer;
                     const size_t length = _model.bufferViews[texCoordBufferViewIndex].byteLength;
                     const size_t texCoordOffset = _model.bufferViews[texCoordBufferViewIndex].byteOffset;
-                    texCoords = new float[texCoordsCount * 2]{};
-                    texCoordData = reinterpret_cast<float*>(&_model.buffers[texCoordBufferIndex].data[texCoordOffset]);
-                    std::memcpy(texCoords, texCoordData, texCoordsCount * sizeof(float) * 2);
+                    const AccessorType texCoordAccessorType = static_cast<AccessorType>(_model.accessors[texCoordAccessorIndex].type);
+                    const ComponentType texCoordComponentType = static_cast<ComponentType>(_model.accessors[texCoordAccessorIndex].componentType);
+                    const size_t texCoordNumberOfComponents = getNumberOfComponents(texCoordAccessorType);
+                    const size_t texCoordComponentTypeSize = getComponentTypeSize(texCoordComponentType);
+                    texCoords = new float[texCoordsCount * texCoordNumberOfComponents]{};
+                    texCoordData = reinterpret_cast<float*>(&_model.buffers[texCoordBufferIndex].data[texCoordAccessorOffset + texCoordOffset]);
+                    const size_t texCoordStride = _model.bufferViews[texCoordBufferViewIndex].byteStride / texCoordComponentTypeSize;
+
+                    for (size_t i = 0, j = 0; i < texCoordsCount * texCoordNumberOfComponents;) {
+                        for (size_t k = 0; k < texCoordNumberOfComponents; ++k)
+                            texCoords[i + k] = texCoordData[j + k];
+                        i += numberOfComponents; j += texCoordStride;
+                    }
                 }
             }
-
-            std::cout << "TEX COORDS" << std::endl;
-            for (size_t i = 0, j = 1; i < texCoordsCount * 2; ++j, i += 2) {
-                std::cout << j << ") {" << texCoords[i] << ' ' << texCoords[i + 1] << "}" << std::endl;
-            }*/
          }
     }
 
