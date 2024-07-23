@@ -19,7 +19,7 @@ constexpr VkIndexType toIndexType() {
         "Only unsigned type up to 32 bits is allowed.");
 
     if constexpr (sizeof(T) == sizeof(uint8_t))
-        return VK_INDEX_TYPE_UINT8_EXT;
+        return VK_INDEX_TYPE_UINT16;
     if constexpr (sizeof(T) == sizeof(uint16_t))
         return VK_INDEX_TYPE_UINT16;
     if constexpr (sizeof(T) == sizeof(uint32_t))

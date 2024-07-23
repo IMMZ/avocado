@@ -46,7 +46,6 @@
 #include <iostream>
 #include <memory>
 
-
 using namespace avocado;
 
 void copyBufferToImage(vulkan::CommandPool &commandPool, vulkan::Queue &queue, vulkan::Buffer &buffer,
@@ -253,49 +252,151 @@ void Application::transitionImageLayout(vulkan::CommandBuffer &cmdBuf, vulkan::Q
     cmdBuf.endOneTimeAndSubmit(queue);
 }
 
+enum class ModelTopology {
+    Points
+    , Lines
+    , LineLoop
+    , LineStrip
+    , Triangles
+    , TriangleStrip
+    , TriangleFan
+};
+
+enum class AccessorType: int {
+    Scalar = TINYGLTF_TYPE_SCALAR
+    , Vec2 = TINYGLTF_TYPE_VEC2
+    , Vec3 = TINYGLTF_TYPE_VEC3
+    , Vec4 = TINYGLTF_TYPE_VEC4
+    , Mat2 = TINYGLTF_TYPE_MAT2
+    , Mat3 = TINYGLTF_TYPE_MAT3
+    , Mat4 = TINYGLTF_TYPE_MAT4
+};
+
+constexpr size_t getNumberOfComponents(const AccessorType accessorType) {
+    if (accessorType == AccessorType::Scalar) return 1;
+    if (accessorType == AccessorType::Vec2) return 2;
+    if (accessorType == AccessorType::Vec3) return 3;
+    if (accessorType == AccessorType::Vec4) return 4;
+    if (accessorType == AccessorType::Mat2) return 4;
+    if (accessorType == AccessorType::Mat3) return 9;
+    if (accessorType == AccessorType::Mat4) return 16;
+
+    return 0;
+}
+
+enum class ComponentType: int {
+    Byte = TINYGLTF_COMPONENT_TYPE_BYTE
+    , UByte = TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE
+    , Short = TINYGLTF_COMPONENT_TYPE_SHORT
+    , UShort = TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT
+    , Int = TINYGLTF_COMPONENT_TYPE_INT
+    , UInt = TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT
+    , Float = TINYGLTF_COMPONENT_TYPE_FLOAT
+    , Double = TINYGLTF_COMPONENT_TYPE_DOUBLE
+};
+
+constexpr size_t getComponentTypeSize(const ComponentType componentType) {
+    if (componentType == ComponentType::Byte) return 1;
+    if (componentType == ComponentType::UByte) return 1;
+    if (componentType == ComponentType::Short) return 2;
+    if (componentType == ComponentType::UShort) return 2;
+    if (componentType == ComponentType::Int) return 4;
+    if (componentType == ComponentType::UInt) return 4;
+    if (componentType == ComponentType::Float) return 4;
+    if (componentType == ComponentType::Double) return 8;
+
+    return 0;
+}
+
 Application::ModelData Application::loadModel() {
     tinygltf::TinyGLTF loader;
     std::string error, warning;
-    const bool loadOk = loader.LoadASCIIFromFile(&_model, &error, &warning, "game/bin/assets/models/Box.gltf");
+
+    const bool loadOk = loader.LoadASCIIFromFile(&_model, &error, &warning, "game/bin/assets/models/BoxTextured.gltf");
     if (!loadOk) {
         std::cout << "Error loading model: " << error << std::endl;
         return {};
     }
 
     float *positions = nullptr; size_t positionsCount = 0;
-    uint16_t *indices = nullptr; size_t indicesCount = 0;
+    float *texCoords = nullptr; size_t texCoordsCount = 0;
+    uint32_t *indices = nullptr; size_t indicesCount = 0;
     float *positionData = nullptr;
+    unsigned char *indicesData = nullptr;
+    float *texCoordData = nullptr;
     for (const tinygltf::Mesh &mesh: _model.meshes) {
          for (const tinygltf::Primitive &primitive: mesh.primitives) {
+            const ModelTopology topology = static_cast<ModelTopology>(primitive.mode);
             const auto &attributes = primitive.attributes;
             const size_t accessorIndex = attributes.at("POSITION");
-            const size_t bufferViewIndex = _model.accessors[accessorIndex].bufferView;
             positionsCount = _model.accessors[accessorIndex].count;
+            const size_t accessorOffset = _model.accessors[accessorIndex].byteOffset;
+            const size_t bufferViewIndex = _model.accessors[accessorIndex].bufferView;
             const size_t bufferIndex = _model.bufferViews[bufferViewIndex].buffer;
             const size_t length = _model.bufferViews[bufferViewIndex].byteLength;
             const size_t offset = _model.bufferViews[bufferViewIndex].byteOffset;
-            positions = new float[positionsCount * 3]{};
+            const size_t bytesStride = _model.bufferViews[bufferViewIndex].byteStride;
 
-            positionData = reinterpret_cast<float*>(&_model.buffers[bufferIndex].data[offset]);
-            for (size_t i = 0, j = 0; i < positionsCount * 3; ++i, ++j) {
-                positions[i] = positionData[j];
-                if (i % 3 == 2)
-                    j += 3;
+            const AccessorType accessorType = static_cast<AccessorType>(_model.accessors[accessorIndex].type);
+            const size_t numberOfComponents = getNumberOfComponents(accessorType);
+
+            positions = new float[positionsCount * numberOfComponents]{};
+            positionData = reinterpret_cast<float*>(&_model.buffers[bufferIndex].data[offset + accessorOffset]);
+            const size_t elementStride = bytesStride / sizeof(float);
+
+            for (size_t i = 0, j = 0; i < positionsCount * numberOfComponents;) {
+                for (size_t k = 0; k < numberOfComponents; ++k)
+                    positions[i + k] = positionData[j + k];
+                i += numberOfComponents; j += elementStride;
             }
 
             const size_t indicesAccessorIndex = primitive.indices;
             const size_t indicesBufferViewIndex = _model.accessors[indicesAccessorIndex].bufferView;
             indicesCount = _model.accessors[indicesAccessorIndex].count;
+            const size_t indicesAccessorOffset = _model.accessors[indicesAccessorIndex].byteOffset;
             const size_t indicesBufferIndex = _model.bufferViews[indicesBufferViewIndex].buffer;
             const size_t indicesLength = _model.bufferViews[indicesBufferViewIndex].byteLength;
             const size_t indicesOffset = _model.bufferViews[indicesBufferViewIndex].byteOffset;
-            std::cout << "indicesAccessorIndex: " << indicesAccessorIndex << '\n'
-                << "indicesBufferViewIndex: " << indicesBufferViewIndex << '\n'
-                << "indicesBufferIndex: " << indicesBufferIndex << '\n'
-                << "indicesCount: " << indicesCount << '\n'
-                << "indicesLength: " << indicesLength << '\n'
-                << "indicesOffset: " << indicesOffset << std::endl;
-            indices = reinterpret_cast<uint16_t*>(&_model.buffers[indicesBufferIndex].data[indicesOffset]);
+            const AccessorType indicesAccessorType = static_cast<AccessorType>(_model.accessors[indicesAccessorIndex].type);
+            const ComponentType indicesComponentType = static_cast<ComponentType>(_model.accessors[indicesAccessorIndex].componentType);
+            const size_t indicesNumberOfComponents = getNumberOfComponents(indicesAccessorType);
+            const size_t indicesComponentTypeSize = getComponentTypeSize(indicesComponentType);
+            const size_t indicesStride = _model.bufferViews[indicesBufferViewIndex].byteStride / indicesComponentTypeSize;
+            indicesData = &_model.buffers[indicesBufferIndex].data[accessorOffset + indicesOffset];
+
+            indices = new uint32_t[indicesCount]{};
+            for (size_t i = 0, j = 0; i < indicesCount;) {
+                for (size_t k = 0; k < indicesNumberOfComponents; ++k)
+                    memcpy(indices + i + k, indicesData + (indicesComponentTypeSize * (j + k)), indicesComponentTypeSize);
+                i += indicesNumberOfComponents;
+                if (indicesStride > 0)
+                    j += indicesStride;
+                else
+                    j++;
+            }
+            // Read texture coordinates.
+            /*
+            constexpr char TEXCOORD[] = "TEXCOORD";
+            constexpr size_t TEXCOORD_LENGTH = std::size(TEXCOORD) - 1;
+            for (const auto &attrIndexPair: attributes) {
+                // [cpp20] Replace this by begins_with()
+                if (attrIndexPair.first.length() > TEXCOORD_LENGTH && attrIndexPair.first.substr(0, TEXCOORD_LENGTH) == TEXCOORD) {
+                    const size_t texCoordAccessorIndex = attributes.at(attrIndexPair.first);
+                    texCoordsCount = _model.accessors[texCoordAccessorIndex].count;
+                    const size_t texCoordBufferViewIndex = _model.accessors[texCoordAccessorIndex].bufferView;
+                    const size_t texCoordBufferIndex = _model.bufferViews[texCoordBufferViewIndex].buffer;
+                    const size_t length = _model.bufferViews[texCoordBufferViewIndex].byteLength;
+                    const size_t texCoordOffset = _model.bufferViews[texCoordBufferViewIndex].byteOffset;
+                    texCoords = new float[texCoordsCount * 2]{};
+                    texCoordData = reinterpret_cast<float*>(&_model.buffers[texCoordBufferIndex].data[texCoordOffset]);
+                    std::memcpy(texCoords, texCoordData, texCoordsCount * sizeof(float) * 2);
+                }
+            }
+
+            std::cout << "TEX COORDS" << std::endl;
+            for (size_t i = 0, j = 1; i < texCoordsCount * 2; ++j, i += 2) {
+                std::cout << j << ") {" << texCoords[i] << ' ' << texCoords[i + 1] << "}" << std::endl;
+            }*/
          }
     }
 
@@ -370,25 +471,7 @@ int Application::run() {
 
     const ModelData &modelData = loadModel();
 
-    /*constexpr std::array<Vertex, 8> myModel = {{
-        // { pos, color, textureCoordinates }
-        {math::vec3f(-.5f, -.5f, 0.f), math::vec3f(1.f, 0.f, 0.f), math::vec2f(1.f, 0.f)},
-        {math::vec3f( .5f, -.5f, 0.f), math::vec3f(0.f, 1.f, 0.f), math::vec2f(0.f, 0.f)},
-        {math::vec3f( .5f,  .5f, 0.f), math::vec3f(0.f, 0.f, 1.f), math::vec2f(0.f, 1.f)},
-        {math::vec3f(-.5f,  .5f, 0.f), math::vec3f(1.f, 1.f, 1.f), math::vec2f(1.f, 1.f)},
-
-        {math::vec3f(-.5f, -.5f, -.5f), math::vec3f(1.f, 0.f, 0.f), math::vec2f(1.f, 0.f)},
-        {math::vec3f( .5f, -.5f, -.5f), math::vec3f(0.f, 1.f, 0.f), math::vec2f(0.f, 0.f)},
-        {math::vec3f( .5f,  .5f, -.5f), math::vec3f(0.f, 0.f, 1.f), math::vec2f(0.f, 1.f)},
-        {math::vec3f(-.5f,  .5f, -.5f), math::vec3f(1.f, 1.f, 1.f), math::vec2f(1.f, 1.f)}
-    }};*/
-
-    VkDeviceSize verticesSizeBytes = 12 * 24;
-    /*constexpr std::array<uint16_t, 12> indices {
-        0, 1, 2, 2, 3, 0, // Draw 1st plane.
-        4, 5, 6, 6, 7, 4 // Draw 2nd one.
-    };
-    constexpr size_t indicesSizeBytes = indices.size() * sizeof(decltype(indices)::value_type);*/
+    VkDeviceSize verticesSizeBytes = modelData.positionsCount * 3 * sizeof(float);
 
     vulkan::Buffer vertexBuffer(verticesSizeBytes,
         static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT),
@@ -409,7 +492,7 @@ int Application::run() {
     vertexBuffer.fill(modelData.positions);
     vertexBuffer.bindMemory();
 
-    vulkan::Buffer indexBuffer(modelData.indicesCount * sizeof(uint16_t),
+    vulkan::Buffer indexBuffer(modelData.indicesCount * sizeof(uint32_t),
         static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT),
         VK_SHARING_MODE_EXCLUSIVE, _logicalDevice);
     if (indexBuffer.hasError()) {
@@ -431,8 +514,8 @@ int Application::run() {
 
     struct UniformBufferObject {
         alignas(16) math::Mat4x4 model;
-        alignas(16) math::Mat4x4 proj;
         alignas(16) math::Mat4x4 view;
+        alignas(16) math::Mat4x4 proj;
     };
 
     vulkan::Buffer uniformBuffer(sizeof(UniformBufferObject), static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT), VK_SHARING_MODE_EXCLUSIVE, _logicalDevice);
@@ -444,10 +527,9 @@ int Application::run() {
     uniformBufferForFrame2.bindMemory();
 
     UniformBufferObject ubo{};
-    ubo.view = math::lookAt(math::vec3f(0.f, 3.f, 7.f), math::vec3f(0.f, 0.f, 0.f), math::vec3f(0.f, 1.f, 0.f));
-    ubo.proj = math::perspectiveProjection(45.f, static_cast<float>(Config::RESOLUTION_WIDTH) / static_cast<float>(Config::RESOLUTION_HEIGHT), 0.1f, 10.f);
-    ubo.model = math::createRotationMatrixY(30);
-
+    ubo.view = math::lookAt(math::vec3f(0.f, 0.f, -10.f), math::vec3f(0.f, 0.f, 0.f), math::vec3f(0.f, 1.f, 0.f));
+    ubo.proj = math::perspectiveProjection(45.f, static_cast<float>(Config::RESOLUTION_WIDTH) / static_cast<float>(Config::RESOLUTION_HEIGHT), 0.1f, 50.f);
+    ubo.model = math::Mat4x4::createIdentityMatrix();
     const VkFormat depthFormat = swapChain.findSupportedFormat(
         {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT},
         _physicalDevice.getHandle(),
@@ -623,8 +705,7 @@ int Application::run() {
         // Update uniform buffer.
         const auto& currentTime = std::chrono::high_resolution_clock::now();
         const float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
-        //ubo.model = math::Mat4x4::createIdentityMatrix() * math::createRotationMatrix(time * 90.f, math::vec3f(0.0f, 1.0f, 0.0f));
-        ubo.model = math::Mat4x4::createIdentityMatrix();// * math::createRotationMatrixY(time * 90.f);
+        ubo.model = math::createRotationMatrixY(20.f * time);
         uniformBuffers[currentFrame]->fill(&ubo);
 
         vulkan::CommandBuffer cmdBuf = commandPool.getBuffer(currentFrame);
@@ -633,7 +714,7 @@ int Application::run() {
             cmdBuf.setViewports(viewPorts);
             cmdBuf.setScissors(scissors);
             cmdBuf.bindVertexBuffers(0, 1, &vertexBufferHandle, &offset);
-            cmdBuf.bindIndexBuffer(indexBuffer.getHandle(), 0, vulkan::toIndexType<uint16_t>());
+            cmdBuf.bindIndexBuffer(indexBuffer.getHandle(), 0, VK_INDEX_TYPE_UINT32);
             cmdBuf.bindPipeline(graphicsPipeline.get(), VK_PIPELINE_BIND_POINT_GRAPHICS);
             cmdBuf.bindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineBuilder.getPipelineLayout(), 0, 1, &descriptorSet.getSet(currentFrame), 0, nullptr);
 

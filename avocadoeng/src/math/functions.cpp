@@ -31,6 +31,18 @@ Mat4x4 createRotationMatrixY(const float angleDegrees) {
         {0.f, 0.f, 0.f, 1.f}}});
 }
 
+Mat4x4 createRotationMatrixZ(const float angleDegrees) {
+    const float angleRadians = toRadians(angleDegrees);
+    const float sinA = std::sin(angleRadians);
+    const float cosA = std::cos(angleRadians);
+
+    return Mat4x4({{
+        {cosA, -sinA, 0.f, 0.f},
+        {sinA, cosA, 0.f, 0.f},
+        {0.f, 0.f, 1.f, 0.f},
+        {0.f, 0.f, 0.f, 1.f}}});
+}
+
 Mat4x4 createRotationMatrix(Quaternion q) {
     q.normalize();
     return Mat4x4({{

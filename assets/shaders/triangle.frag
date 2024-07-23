@@ -8,7 +8,7 @@ layout(location=0) out vec4 outColor;
 layout(binding=1) uniform sampler2D textureSampler;
 
 void main() {
-    outColor = vec4(1.0, 0.0, 0.0, 1.0);
+    outColor = vec4(fragColor, 1.0);
     //outColor = texture(textureSampler, fragTexCoord);
 }
 

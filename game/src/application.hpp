@@ -43,7 +43,7 @@ private:
 
     struct ModelData {
         float *positions = nullptr;
-        uint16_t *indices = nullptr;
+        uint32_t *indices = nullptr;
         size_t positionsCount = 0;
         size_t indicesCount = 0;
     };
