@@ -32,6 +32,8 @@ struct vec<T, 2> {
         T y, h;
     };
 
+    vec() = default;
+
     constexpr explicit vec(const T a, const T b) noexcept:
         x(a), y(b) {
     }
@@ -113,6 +115,8 @@ struct vec<T, 3> {
     union {
         T z, b;
     };
+
+    vec() = default;
 
     constexpr explicit vec(T a, T b, T c) noexcept:
         x(a), y(b), z(c) {

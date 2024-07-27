@@ -1,6 +1,7 @@
 #ifndef APPLICATION_HPP
 #define APPLICATION_HPP
 
+#include "vertex.hpp"
 #include "vulkantools.hpp" // todo get rid of this header file
 
 #include <vulkan/commandpool.hpp>
@@ -42,12 +43,15 @@ private:
         VkImageLayout oldLayout, VkImageLayout newLayout, const VkImageAspectFlags aspectFlags);
 
     struct ModelData {
-        float *positions = nullptr;
+        avocado::Vertex *vertices = nullptr;
+        size_t verticesCount = 0;
         uint32_t *indices = nullptr;
-        size_t positionsCount = 0;
         size_t indicesCount = 0;
+        tinygltf::Image *imageToLoad = nullptr;
     };
 
+    std::tuple<avocado::vulkan::Image, avocado::vulkan::ImageViewPtr, avocado::vulkan::SamplerPtr> loadTexture(avocado::vulkan::Swapchain &swapChain,
+        avocado::vulkan::CommandPool &commandPool, avocado::vulkan::Queue &graphicsQueue, const tinygltf::Image &image);
     ModelData loadModel();
 
     tinygltf::Model _model;

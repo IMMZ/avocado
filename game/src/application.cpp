@@ -196,12 +196,10 @@ vulkan::GraphicsPipelineBuilder Application::preparePipeline(const VkExtent2D ex
             | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT});
 
     VkPipelineVertexInputStateCreateInfo &vertexInState = pipelineBuilder.createVertexInputState();
-    //pipelineBuilder.addAttributeDescription(0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, position));
-    pipelineBuilder.addAttributeDescription(0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0);
-    //pipelineBuilder.addAttributeDescription(1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, color));
-    //pipelineBuilder.addAttributeDescription(2, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex, textureCoordinate));
-    //pipelineBuilder.addBindingDescription(0, sizeof(Vertex), VK_VERTEX_INPUT_RATE_VERTEX);
-    pipelineBuilder.addBindingDescription(0, 3 * sizeof(float), VK_VERTEX_INPUT_RATE_VERTEX);
+    pipelineBuilder.addAttributeDescription(0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, position));
+    pipelineBuilder.addAttributeDescription(1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, color));
+    pipelineBuilder.addAttributeDescription(2, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex, textureCoordinate));
+    pipelineBuilder.addBindingDescription(0, sizeof(Vertex), VK_VERTEX_INPUT_RATE_VERTEX);
 
     VkPipelineViewportStateCreateInfo &viewportState = pipelineBuilder.createViewportState();
     pipelineBuilder.setViewPorts(viewPorts);
@@ -308,22 +306,73 @@ constexpr size_t getComponentTypeSize(const ComponentType componentType) {
     return 0;
 }
 
+std::tuple<avocado::vulkan::Image, avocado::vulkan::ImageViewPtr, avocado::vulkan::SamplerPtr> Application::loadTexture(avocado::vulkan::Swapchain &swapChain,
+    avocado::vulkan::CommandPool &commandPool, avocado::vulkan::Queue &graphicsQueue, const tinygltf::Image &image) {
+    const auto &imagePixels = image.image;
+    vulkan::Buffer imgBuffer(imagePixels.size(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_SHARING_MODE_EXCLUSIVE, _logicalDevice);
+    imgBuffer.allocateMemory(_physicalDevice, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    imgBuffer.fill(imagePixels.data());
+    imgBuffer.bindMemory();
+
+    // Create image.
+    vulkan::Image textureImage(_logicalDevice, image.width, image.height, VK_IMAGE_TYPE_2D);
+    textureImage.setDepth(1);
+    textureImage.setFormat(VK_FORMAT_R8G8B8A8_SRGB);
+    textureImage.setMipLevels(1);
+    textureImage.setImageTiling(VK_IMAGE_TILING_OPTIMAL);
+    textureImage.setUsage(VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+    textureImage.setSampleCount(VK_SAMPLE_COUNT_1_BIT);
+    textureImage.setArrayLayerCount(1);
+    textureImage.setSharingMode(VK_SHARING_MODE_EXCLUSIVE);
+    textureImage.create();
+    if (textureImage.hasError()) {
+        std::cout << "Image creation error: " << textureImage.getErrorMessage() << std::endl;
+        return std::make_tuple(std::move(textureImage), _logicalDevice.createObjectPointer<VkImageView>(VK_NULL_HANDLE),
+            _logicalDevice.createObjectPointer<VkSampler>(VK_NULL_HANDLE));
+    }
+
+    textureImage.allocateMemory(_physicalDevice, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    textureImage.bindMemory();
+
+    vulkan::ImageViewPtr textureImageView = _logicalDevice.createObjectPointer(swapChain.createImageView(textureImage.getHandle(), VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT));
+
+    // Copy buffer to image.
+    vulkan::CommandBuffer cmdBufFor1stTransition = commandPool.getBuffer(static_cast<size_t>(CommandBufferIndex::TransferImageLayout1));
+    cmdBufFor1stTransition.reset(VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT);
+    transitionImageLayout(cmdBufFor1stTransition, graphicsQueue, textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+    copyBufferToImage(commandPool, graphicsQueue, imgBuffer, textureImage, static_cast<uint32_t>(image.width), static_cast<uint32_t>(image.height));
+    vulkan::CommandBuffer cmdBufFor2ndTransition = commandPool.getBuffer(static_cast<size_t>(CommandBufferIndex::TransferImageLayout2));
+    cmdBufFor2ndTransition.reset(VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT);
+    transitionImageLayout(cmdBufFor2ndTransition, graphicsQueue, textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+
+    vulkan::SamplerPtr textureSamplerPtr = _logicalDevice.createSampler(_physicalDevice);
+    if (_logicalDevice.hasError()) {
+        std::cout << "Error while creating sampler (" << _logicalDevice.getErrorMessage() << ")" << std::endl;
+        return std::make_tuple(std::move(textureImage), _logicalDevice.createObjectPointer<VkImageView>(VK_NULL_HANDLE),
+            _logicalDevice.createObjectPointer<VkSampler>(VK_NULL_HANDLE));
+    }
+
+    return std::make_tuple(std::move(textureImage), std::move(textureImageView), std::move(textureSamplerPtr));
+}
+
 Application::ModelData Application::loadModel() {
     tinygltf::TinyGLTF loader;
     std::string error, warning;
 
-    const bool loadOk = loader.LoadASCIIFromFile(&_model, &error, &warning, "game/bin/assets/models/BoxTextured.gltf");
+    const bool loadOk = loader.LoadASCIIFromFile(&_model, &error, &warning, "game/bin/assets/models/BoxTexturedChelsea.gltf");
     if (!loadOk) {
         std::cout << "Error loading model: " << error << std::endl;
         return {};
     }
 
-    float *positions = nullptr; size_t positionsCount = 0;
-    float *texCoords = nullptr; size_t texCoordsCount = 0;
+    std::unique_ptr<float[]> positions = nullptr; size_t positionsCount = 0;
+    std::unique_ptr<float[]> texCoords = nullptr; size_t texCoordsCount = 0;
     uint32_t *indices = nullptr; size_t indicesCount = 0;
     float *positionData = nullptr;
     unsigned char *indicesData = nullptr;
     float *texCoordData = nullptr;
+    Vertex *vertices = nullptr;
+    tinygltf::Image *imageToLoad = nullptr;
     for (const tinygltf::Mesh &mesh: _model.meshes) {
          for (const tinygltf::Primitive &primitive: mesh.primitives) {
             const ModelTopology topology = static_cast<ModelTopology>(primitive.mode);
@@ -340,7 +389,7 @@ Application::ModelData Application::loadModel() {
             const AccessorType accessorType = static_cast<AccessorType>(_model.accessors[accessorIndex].type);
             const size_t numberOfComponents = getNumberOfComponents(accessorType);
 
-            positions = new float[positionsCount * numberOfComponents]{};
+            positions.reset(new float[positionsCount * numberOfComponents]{});
             positionData = reinterpret_cast<float*>(&_model.buffers[bufferIndex].data[offset + accessorOffset]);
             const size_t elementStride = bytesStride / sizeof(float);
 
@@ -378,6 +427,7 @@ Application::ModelData Application::loadModel() {
             // Read texture coordinates.
             constexpr char TEXCOORD[] = "TEXCOORD";
             constexpr size_t TEXCOORD_LENGTH = std::size(TEXCOORD) - 1;
+            size_t texCoordNumberOfComponents = 0;
             for (const auto &attrIndexPair: attributes) {
                 // [cpp20] Replace this by begins_with()
                 if (attrIndexPair.first.length() > TEXCOORD_LENGTH && attrIndexPair.first.substr(0, TEXCOORD_LENGTH) == TEXCOORD) {
@@ -390,23 +440,42 @@ Application::ModelData Application::loadModel() {
                     const size_t texCoordOffset = _model.bufferViews[texCoordBufferViewIndex].byteOffset;
                     const AccessorType texCoordAccessorType = static_cast<AccessorType>(_model.accessors[texCoordAccessorIndex].type);
                     const ComponentType texCoordComponentType = static_cast<ComponentType>(_model.accessors[texCoordAccessorIndex].componentType);
-                    const size_t texCoordNumberOfComponents = getNumberOfComponents(texCoordAccessorType);
+                    texCoordNumberOfComponents = getNumberOfComponents(texCoordAccessorType);
                     const size_t texCoordComponentTypeSize = getComponentTypeSize(texCoordComponentType);
-                    texCoords = new float[texCoordsCount * texCoordNumberOfComponents]{};
+                    texCoords.reset(new float[texCoordsCount * texCoordNumberOfComponents]{});
                     texCoordData = reinterpret_cast<float*>(&_model.buffers[texCoordBufferIndex].data[texCoordAccessorOffset + texCoordOffset]);
                     const size_t texCoordStride = _model.bufferViews[texCoordBufferViewIndex].byteStride / texCoordComponentTypeSize;
 
                     for (size_t i = 0, j = 0; i < texCoordsCount * texCoordNumberOfComponents;) {
                         for (size_t k = 0; k < texCoordNumberOfComponents; ++k)
                             texCoords[i + k] = texCoordData[j + k];
-                        i += numberOfComponents; j += texCoordStride;
+                        i += texCoordNumberOfComponents; j += texCoordStride;
                     }
                 }
+            }
+
+            // Form output vertices.
+            vertices = new Vertex[positionsCount];
+            for (size_t i = 0, positionI = 0, textureCoordinatesI = 0; i < positionsCount; ++i) {
+                vertices[i].position.x = positions[positionI];
+                vertices[i].position.y = positions[positionI + 1];
+                vertices[i].position.z = positions[positionI + 2];
+                vertices[i].textureCoordinate.x = texCoords[textureCoordinatesI];
+                vertices[i].textureCoordinate.y = texCoords[textureCoordinatesI + 1];
+                positionI += numberOfComponents; textureCoordinatesI += texCoordNumberOfComponents;
+            }
+
+            // Load textures.
+            for (tinygltf::Texture &texture: _model.textures) {
+                const int imageIndex = texture.source;
+                imageToLoad = &_model.images[imageIndex];
+
+                const int samplerIndex = texture.sampler;
             }
          }
     }
 
-    return {positions, indices, positionsCount, indicesCount};
+    return {vertices, positionsCount, indices, indicesCount, imageToLoad};
 }
 
 int Application::run() {
@@ -477,7 +546,7 @@ int Application::run() {
 
     const ModelData &modelData = loadModel();
 
-    VkDeviceSize verticesSizeBytes = modelData.positionsCount * 3 * sizeof(float);
+    VkDeviceSize verticesSizeBytes = modelData.verticesCount * sizeof(Vertex);
 
     vulkan::Buffer vertexBuffer(verticesSizeBytes,
         static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT),
@@ -495,7 +564,7 @@ int Application::run() {
         return 1;
     }
 
-    vertexBuffer.fill(modelData.positions);
+    vertexBuffer.fill(modelData.vertices);
     vertexBuffer.bindMemory();
 
     vulkan::Buffer indexBuffer(modelData.indicesCount * sizeof(uint32_t),
@@ -533,7 +602,7 @@ int Application::run() {
     uniformBufferForFrame2.bindMemory();
 
     UniformBufferObject ubo{};
-    ubo.view = math::lookAt(math::vec3f(0.f, 0.f, -10.f), math::vec3f(0.f, 0.f, 0.f), math::vec3f(0.f, 1.f, 0.f));
+    ubo.view = math::lookAt(math::vec3f(0.f, 0.f, -3.f), math::vec3f(0.f, 0.f, 0.f), math::vec3f(0.f, 1.f, 0.f));
     ubo.proj = math::perspectiveProjection(45.f, static_cast<float>(Config::RESOLUTION_WIDTH) / static_cast<float>(Config::RESOLUTION_HEIGHT), 0.1f, 50.f);
     ubo.model = math::Mat4x4::createIdentityMatrix();
     const VkFormat depthFormat = swapChain.findSupportedFormat(
@@ -611,71 +680,14 @@ int Application::run() {
     std::vector<VkSwapchainKHR> swapChainHandles{swapChain.getHandle()};
 
     // Load image
-    constexpr const char * const imgPath = "./game/bin/tusya.jpg";
-    int imgW = 0; int imgH = 0;
-    VkDeviceSize imgSize = VkDeviceSize(0);
-    std::unique_ptr<SDL_Surface, decltype(&SDL_FreeSurface)> imgSurface(IMG_Load(imgPath), SDL_FreeSurface);
-    if (imgSurface == nullptr) {
-        std::cout << "Error loading image (" << imgPath << ")" << std::endl;
-        return 1;
-    }
+    auto [_, imageViewPtr, samplerPtr] = loadTexture(swapChain, commandPool, graphicsQueue, *modelData.imageToLoad);
 
-    std::unique_ptr<SDL_Surface, decltype(&SDL_FreeSurface)> convertedSurface(SDL_ConvertSurfaceFormat(imgSurface.get(), SDL_PIXELFORMAT_RGBA32, 0), SDL_FreeSurface);
-    if (convertedSurface == nullptr) {
-        std::cout << "Error converting surface to RGBA32" << std::endl;
-        return 1;
-    }
-
-    imgW = convertedSurface->w;
-    imgH = convertedSurface->h;
-    imgSize = imgW * imgH * convertedSurface->format->BytesPerPixel;
-
-    vulkan::Buffer imgTransferBuffer(imgSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_SHARING_MODE_EXCLUSIVE, _logicalDevice);
-    imgTransferBuffer.allocateMemory(_physicalDevice, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    imgTransferBuffer.fill(convertedSurface->pixels);
-    imgTransferBuffer.bindMemory();
-
-    convertedSurface.reset(); // Free resources.
-
-    // Create image.
-    vulkan::Image textureImage(_logicalDevice, imgW, imgH, VK_IMAGE_TYPE_2D);
-    textureImage.setDepth(1);
-    textureImage.setFormat(VK_FORMAT_R8G8B8A8_SRGB);
-    textureImage.setMipLevels(1);
-    textureImage.setImageTiling(VK_IMAGE_TILING_OPTIMAL);
-    textureImage.setUsage(VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
-    textureImage.setSampleCount(VK_SAMPLE_COUNT_1_BIT);
-    textureImage.setArrayLayerCount(1);
-    textureImage.setSharingMode(VK_SHARING_MODE_EXCLUSIVE);
-    textureImage.create();
-    if (textureImage.hasError()) {
-        std::cout << "Image creation error: " << textureImage.getErrorMessage() << std::endl;
-        return 1;
-    }
-
-    textureImage.allocateMemory(_physicalDevice, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    textureImage.bindMemory();
-
-    vulkan::ImageViewPtr textureImageView = _logicalDevice.createObjectPointer(swapChain.createImageView(textureImage.getHandle(), VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT));
     swapChain.createFramebuffers(renderPassPtr.get(), extent);
-
-    // Copy buffer to image.
-    vulkan::CommandBuffer cmdBufFor1stTransition = commandPool.getBuffer(static_cast<size_t>(CommandBufferIndex::TransferImageLayout1));
-    transitionImageLayout(cmdBufFor1stTransition, graphicsQueue, textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-    copyBufferToImage(commandPool, graphicsQueue, imgTransferBuffer, textureImage, static_cast<uint32_t>(imgW), static_cast<uint32_t>(imgH));
-    vulkan::CommandBuffer cmdBufFor2ndTransition = commandPool.getBuffer(static_cast<size_t>(CommandBufferIndex::TransferImageLayout2));
-    transitionImageLayout(cmdBufFor2ndTransition, graphicsQueue, textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-
-    vulkan::SamplerPtr textureSamplerPtr = _logicalDevice.createSampler(_physicalDevice);
-    if (_logicalDevice.hasError()) {
-        std::cout << "Error while creating sampler (" << _logicalDevice.getErrorMessage() << ")" << std::endl;
-        return 1;
-    }
 
     // Update descriptor set.
     descriptorSet.addBufferInfo(*uniformBuffers[0], 0, sizeof(UniformBufferObject));
     descriptorSet.addBufferDescriptorWrite(0, 0, 0, 1);
-    descriptorSet.addImageInfo(textureImageView, textureSamplerPtr, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    descriptorSet.addImageInfo(imageViewPtr, samplerPtr, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     descriptorSet.addImageDescriptorWrite(0, 1, 0, 1);
     for (size_t i = 0; i < 2; i++) {
         descriptorSet.updateBuffer(0, *uniformBuffers[i]);
@@ -711,7 +723,7 @@ int Application::run() {
         // Update uniform buffer.
         const auto& currentTime = std::chrono::high_resolution_clock::now();
         const float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
-        ubo.model = math::createRotationMatrixY(20.f * time);
+        ubo.model = math::createRotationMatrixY(20.f * time) * math::createRotationMatrixZ(20.f * time);
         uniformBuffers[currentFrame]->fill(&ubo);
 
         vulkan::CommandBuffer cmdBuf = commandPool.getBuffer(currentFrame);
