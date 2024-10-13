@@ -52,7 +52,7 @@ private:
 
     std::tuple<avocado::vulkan::Image, avocado::vulkan::ImageViewPtr, avocado::vulkan::SamplerPtr> loadTexture(avocado::vulkan::Swapchain &swapChain,
         avocado::vulkan::CommandPool &commandPool, avocado::vulkan::Queue &graphicsQueue, const tinygltf::Image &image);
-    ModelData loadModel();
+    ModelData loadModel(const std::string &filepath);
 
     tinygltf::Model _model;
     avocado::vulkan::Vulkan _vulkan;

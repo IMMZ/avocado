@@ -355,11 +355,16 @@ std::tuple<avocado::vulkan::Image, avocado::vulkan::ImageViewPtr, avocado::vulka
     return std::make_tuple(std::move(textureImage), std::move(textureImageView), std::move(textureSamplerPtr));
 }
 
-Application::ModelData Application::loadModel() {
+Application::ModelData Application::loadModel(const std::string &filepath) {
     tinygltf::TinyGLTF loader;
     std::string error, warning;
 
-    const bool loadOk = loader.LoadASCIIFromFile(&_model, &error, &warning, "game/bin/assets/models/BoxTexturedChelsea.gltf");
+    bool loadOk = false;
+    auto loadFunction = std::mem_fn(&tinygltf::TinyGLTF::LoadASCIIFromFile);
+    if (utils::hasExtension(filepath, ".glb"))
+        loadFunction = std::mem_fn(&tinygltf::TinyGLTF::LoadBinaryFromFile);
+
+    loadOk = loadFunction(loader, &_model, &error, &warning, filepath, tinygltf::REQUIRE_VERSION);
     if (!loadOk) {
         std::cout << "Error loading model: " << error << std::endl;
         return {};
@@ -544,7 +549,7 @@ int Application::run() {
     const VkSurfaceFormatKHR surfaceFormat = surface.findFormat(VK_FORMAT_B8G8R8A8_SRGB, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR);
     vulkan::Swapchain swapChain = createSwapchain(surface, surfaceFormat, extent, queueFamilies);
 
-    const ModelData &modelData = loadModel();
+    const ModelData &modelData = loadModel("game/bin/assets/models/BoxTexturedChelsea.gltf");
 
     VkDeviceSize verticesSizeBytes = modelData.verticesCount * sizeof(Vertex);
 
