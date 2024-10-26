@@ -9,7 +9,11 @@
 
 namespace avocado::vulkan {
 
+class Buffer;
 class CommandBuffer;
+class CommandPool;
+class Image;
+class Queue;
 
 template <typename T>
 constexpr VkIndexType toIndexType() {
@@ -27,6 +31,11 @@ constexpr VkIndexType toIndexType() {
     return VK_INDEX_TYPE_MAX_ENUM;
 }
 
+void copyBufferToImage(vulkan::CommandPool &commandPool, vulkan::Queue &queue, vulkan::Buffer &buffer,
+    vulkan::Image &image, uint32_t width, uint32_t height);
+
+void transitImageLayout(vulkan::CommandBuffer &cmdBuf, vulkan::Queue &queue, avocado::vulkan::Image &image, VkFormat format, VkImageLayout oldLayout,
+    VkImageLayout newLayout, const VkImageAspectFlags aspectFlags);
 }
 
 #endif

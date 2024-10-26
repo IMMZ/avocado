@@ -2,6 +2,7 @@
 #define AVOCADO_VULKAN_COMMANDBUFFER
 
 #include "../errorstorage.hpp"
+#include "vulkan_core.h"
 
 #include <vulkan.h>
 
@@ -20,6 +21,8 @@ public:
 
     VkCommandBuffer& getHandle() noexcept;
     const VkCommandBuffer& getHandle() const noexcept;
+
+    static constexpr VkCommandPoolResetFlagBits NO_RESET_FLAG_BITS = static_cast<VkCommandPoolResetFlagBits>(0);
 
     // Supported commands.
     void begin(const VkCommandBufferUsageFlags flags = 0) noexcept;

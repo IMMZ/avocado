@@ -27,6 +27,11 @@ struct ObjectDeleter {
     explicit ObjectDeleter(LogicalDevice &logicalDevice):
         _logicalDevice(logicalDevice){}
 
+    ObjectDeleter(const ObjectDeleter&) = default;
+    ObjectDeleter(ObjectDeleter&&) = default;
+    ObjectDeleter& operator=(const ObjectDeleter&) = default;
+    ObjectDeleter& operator=(ObjectDeleter&&) = default;
+
     void operator()(T objectHandle) {
         if (objectHandle != VK_NULL_HANDLE)
             internal::destroyObject(_logicalDevice, objectHandle);

@@ -14,6 +14,8 @@ class PhysicalDevice;
 class Image: public core::ErrorStorage {
 public:
     explicit Image(LogicalDevice &device, const uint32_t width, const uint32_t height, const VkImageType imageType);
+    Image(Image &&image) = default;
+    Image& operator=(Image &&image) = default;
     void allocateMemory(PhysicalDevice &physDevice, const VkMemoryPropertyFlags memoryFlags);
     void bindMemory();
     void create();

@@ -39,20 +39,8 @@ private:
         const std::vector<VkDescriptorSetLayout> &layouts, const std::vector<VkViewport> &viewPorts,
         const std::vector<VkRect2D> &scissors);
 
-    void transitionImageLayout(avocado::vulkan::CommandBuffer &commandBuffer, avocado::vulkan::Queue &queue, avocado::vulkan::Image &image, VkFormat format,
-        VkImageLayout oldLayout, VkImageLayout newLayout, const VkImageAspectFlags aspectFlags);
-
-    struct ModelData {
-        avocado::Vertex *vertices = nullptr;
-        size_t verticesCount = 0;
-        uint32_t *indices = nullptr;
-        size_t indicesCount = 0;
-        tinygltf::Image *imageToLoad = nullptr;
-    };
-
     std::tuple<avocado::vulkan::Image, avocado::vulkan::ImageViewPtr, avocado::vulkan::SamplerPtr> loadTexture(avocado::vulkan::Swapchain &swapChain,
         avocado::vulkan::CommandPool &commandPool, avocado::vulkan::Queue &graphicsQueue, const tinygltf::Image &image);
-    ModelData loadModel(const std::string &filepath);
 
     tinygltf::Model _model;
     avocado::vulkan::Vulkan _vulkan;
