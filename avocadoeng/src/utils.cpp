@@ -31,5 +31,28 @@ bool endsWith(const std::string_view &str, const std::string_view &target) {
     return false;
 }
 
+std::vector<std::string> splitString(const std::string &str, const std::string &delimiter, const bool includeEmpty) {
+    std::vector<std::string> tokens;
+    size_t start = 0;
+    size_t end = str.find(delimiter);
+
+    while (end != std::string::npos) {
+        std::string token = str.substr(start, end - start);
+        if (includeEmpty || !token.empty()) {
+            tokens.push_back(token);
+        }
+        start = end + delimiter.length();
+        end = str.find(delimiter, start);
+    }
+
+    // Handle the last token
+    std::string token = str.substr(start);
+    if (includeEmpty || !token.empty()) {
+        tokens.push_back(token);
+    }
+
+    return tokens;
+}
+
 } // namespace avocado::utils.
 

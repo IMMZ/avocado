@@ -40,10 +40,16 @@ constexpr std::common_type_t<Enums...> enumBitwiseOr(Enums ...enums) noexcept {
 
 std::vector<char> readFile(const std::string &filePath);
 
-bool endsWith(const std::string_view &string, const std::string_view &target);
+[[nodiscard]] bool endsWith(const std::string_view &string, const std::string_view &target);
 inline bool hasExtension(const std::string_view &filename, const std::string_view &extension) {
     return endsWith(filename, extension);
 }
+
+[[nodiscard]] inline bool stringContains(const std::string &str, const std::string &value) {
+    return (str.find(value) != std::string::npos);
+}
+
+std::vector<std::string> splitString(const std::string &str, const std::string &delimiter, const bool includeEmpty);
 
 inline bool areFloatEq(const float a, const float b) noexcept {
     return fabs(a - b) < std::numeric_limits<float>::epsilon();

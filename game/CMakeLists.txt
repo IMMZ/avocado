@@ -1,23 +1,31 @@
 project(game)
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.12)
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ../bin)
+set(AVOCADO_SRC_DIR ${PROJECT_SOURCE_DIR}/../avocadoeng/src)
 
 include_directories(
     "../avocadoeng/src"
     "/usr/include/vulkan"
     "/usr/include/SDL2/"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/Catch2-3.3.2"
 )
 
-
 file(GLOB_RECURSE SOURCES src/*.cpp)
+file(GLOB_RECURSE TEST_SOURCES tests/*.cpp)
 
-add_executable(${CMAKE_PROJECT_NAME} ${SOURCES})
+add_executable(${PROJECT_NAME} ${SOURCES})
+add_executable(${PROJECT_NAME}_tests
+    src/gameconfig.cpp
+    ${TEST_SOURCES}
+    ${AVOCADO_SRC_DIR}/utils.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../third_party/Catch2-3.3.2/catch_amalgamated.cpp)
 
-target_link_libraries(${CMAKE_PROJECT_NAME}
-    avocado
+target_link_libraries(${PROJECT_NAME}
+    avocadoengine
     SDL2
     SDL2main
     SDL2_image
     vulkan
 )
+

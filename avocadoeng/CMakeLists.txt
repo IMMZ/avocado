@@ -1,6 +1,7 @@
-project(avocado)
-cmake_minimum_required(VERSION 3.0)
+project(avocadoengine)
+cmake_minimum_required(VERSION 3.12)
 
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ../bin)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 include_directories(
@@ -12,8 +13,8 @@ include_directories(
 file(GLOB_RECURSE SOURCES *.cpp)
 file(GLOB_RECURSE TEST_SOURCES tests/*.cpp)
 
-add_library(avocado ${SOURCES})
-add_executable(avocado_tests
+add_library(${PROJECT_NAME} ${SOURCES})
+add_executable(${PROJECT_NAME}_tests
     src/math/functions.cpp
     src/math/quaternion.cpp
     src/utils.cpp

@@ -61,7 +61,7 @@ void Application::createInstance(SDL_Window &window, const std::vector<std::stri
     }
 
     constexpr vulkan::VulkanInstanceInfo vulkanInfo {
-        Config::GAME_NAME,
+        GameConfig::GAME_NAME,
         0, 1, 0, // App version.
         1, 3 // Vulkan API version.
     };
@@ -121,9 +121,9 @@ vulkan::Swapchain Application::createSwapchain(vulkan::Surface &surface, const V
 
 std::unique_ptr<SDL_Window, void(*)(SDL_Window*)> Application::createWindow() {
     std::unique_ptr<SDL_Window, void(*)(SDL_Window*)> sdlWindow(SDL_CreateWindow(
-        Config::GAME_NAME,
+        GameConfig::GAME_NAME,
         SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-        Config::RESOLUTION_WIDTH, Config::RESOLUTION_HEIGHT,
+        GameConfig::RESOLUTION_WIDTH, GameConfig::RESOLUTION_HEIGHT,
         SDL_WINDOW_SHOWN | SDL_WINDOW_VULKAN), SDL_DestroyWindow);
 
     // Set window icon.
@@ -144,7 +144,7 @@ vulkan::GraphicsPipelineBuilder Application::preparePipeline(const VkExtent2D ex
     const std::vector<VkDescriptorSetLayout> &layouts, const std::vector<VkViewport> &viewPorts,
     const std::vector<VkRect2D> &scissors) {
     vulkan::GraphicsPipelineBuilder pipelineBuilder(_logicalDevice);
-    pipelineBuilder.loadShaders(Config::SHADERS_PATH);
+    pipelineBuilder.loadShaders(GameConfig::SHADERS_PATH);
     pipelineBuilder.setDynamicStates({VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR});
     pipelineBuilder.createDynamicState();
 
@@ -339,7 +339,7 @@ int Application::run() {
 
     UniformBufferObject ubo{};
     ubo.view = math::lookAt(math::vec3f(0.f, 0.f, -3.f), math::vec3f(0.f, 0.f, 0.f), math::vec3f(0.f, 1.f, 0.f));
-    ubo.proj = math::perspectiveProjection(45.f, static_cast<float>(Config::RESOLUTION_WIDTH) / static_cast<float>(Config::RESOLUTION_HEIGHT), 0.1f, 50.f);
+    ubo.proj = math::perspectiveProjection(45.f, static_cast<float>(GameConfig::RESOLUTION_WIDTH) / static_cast<float>(GameConfig::RESOLUTION_HEIGHT), 0.1f, 50.f);
     ubo.model = math::Mat4x4::createIdentityMatrix();
     const VkFormat depthFormat = swapChain.findSupportedFormat(
         {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT},
