@@ -11,7 +11,6 @@ public:
     static constexpr uint32_t GAME_MAJOR_VERSION = 0;
     static constexpr uint32_t GAME_MINOR_VERSION = 1;
     static constexpr uint32_t GAME_PATCH_VERSION = 0;
-    static inline const std::string SHADERS_PATH = "assets/shaders";
     static constexpr int RESOLUTION_WIDTH = 800;
     static constexpr int RESOLUTION_HEIGHT = 600;
 
@@ -21,6 +20,7 @@ public:
     [[nodiscard]] bool hasValue(const std::string &key) const;
     void setValue(const std::string &key, const std::string &value);
     void setValue(const std::string &key, std::string &&value);
+    [[nodiscard]] static std::string getShadersPath();
 
 private:
     std::unordered_map<std::string /* key */, std::string /* value */> _map;

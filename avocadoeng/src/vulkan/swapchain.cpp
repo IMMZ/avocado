@@ -4,7 +4,8 @@
 #include "physicaldevice.hpp"
 #include "surface.hpp"
 #include "vkutils.hpp"
-#include "vulkan_core.h"
+
+#include <vulkan/vulkan_core.h>
 
 #include <cassert>
 

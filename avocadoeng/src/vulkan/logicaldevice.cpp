@@ -6,7 +6,6 @@
 #include "physicaldevice.hpp"
 #include "src/vulkan/pointertypes.hpp"
 #include "vkutils.hpp"
-#include "vulkan_core.h"
 
 #include <cstdint>
 #include <memory>

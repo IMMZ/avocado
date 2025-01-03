@@ -2,9 +2,9 @@
 #define AVOCADO_VULKAN_COMMANDBUFFER
 
 #include "../errorstorage.hpp"
-#include "vulkan_core.h"
 
-#include <vulkan.h>
+#include <vulkan/vulkan.h>
+#include <vulkan/vulkan_core.h>
 
 #include <vector>
 

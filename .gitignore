@@ -11,6 +11,7 @@ CMakeCache
 CMakeCache.txt
 .cache
 *.cmake
+!FindVulkanSDK.cmake
 
 # Generated
 *.spv
@@ -21,3 +22,4 @@ CMakeCache.txt
 *.so
 bin
 Makefile
+

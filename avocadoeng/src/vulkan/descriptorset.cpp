@@ -3,7 +3,8 @@
 #include "buffer.hpp"
 #include "logicaldevice.hpp"
 #include "structuretypes.hpp"
-#include "vulkan_core.h"
+
+#include <vulkan/vulkan_core.h>
 
 namespace avocado::vulkan {
 

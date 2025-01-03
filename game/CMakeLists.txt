@@ -6,7 +6,7 @@ set(AVOCADO_SRC_DIR ${PROJECT_SOURCE_DIR}/../avocadoeng/src)
 
 include_directories(
     "../avocadoeng/src"
-    "/usr/include/vulkan"
+    ${VULKAN_SDK_INCLUDE_DIRECTORY}
     "/usr/include/SDL2/"
     "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/Catch2-3.3.2"
 )
@@ -19,6 +19,7 @@ add_executable(${PROJECT_NAME}_tests
     src/gameconfig.cpp
     ${TEST_SOURCES}
     ${AVOCADO_SRC_DIR}/utils.cpp
+    ${AVOCADO_SRC_DIR}/os/osutils.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../third_party/Catch2-3.3.2/catch_amalgamated.cpp)
 
 target_link_libraries(${PROJECT_NAME}
@@ -26,6 +27,6 @@ target_link_libraries(${PROJECT_NAME}
     SDL2
     SDL2main
     SDL2_image
-    vulkan
+    ${VULKAN_SDK_LIBRARY}
 )
 

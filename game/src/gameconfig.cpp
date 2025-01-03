@@ -1,8 +1,8 @@
 #include "gameconfig.hpp"
 
+#include <os/osutils.hpp>
 #include <utils.hpp>
 
-#include <filesystem>
 #include <fstream>
 
 bool GameConfig::load(const std::string_view &filePath) {
@@ -64,5 +64,9 @@ void GameConfig::setValue(const std::string &key, const std::string &value) {
 
 void GameConfig::setValue(const std::string &key, std::string &&value) {
     _map[key] = std::move(value);
+}
+
+std::string GameConfig::getShadersPath() {
+    return avocado::os::getExecutablePath() + "/assets/shaders";
 }
 

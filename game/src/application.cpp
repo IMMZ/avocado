@@ -6,8 +6,9 @@
 #include "modelloader.hpp"
 #include "vertex.hpp"
 #include "utils.hpp"
-#include "vulkan/commandbuffer.hpp"
-#include "vulkan/graphicspipeline.hpp"
+#include <os/osutils.hpp>
+#include <vulkan/commandbuffer.hpp>
+#include <vulkan/graphicspipeline.hpp>
 
 #include <math/functions.hpp>
 #include <math/matrix.hpp>
@@ -144,7 +145,7 @@ vulkan::GraphicsPipelineBuilder Application::preparePipeline(const VkExtent2D ex
     const std::vector<VkDescriptorSetLayout> &layouts, const std::vector<VkViewport> &viewPorts,
     const std::vector<VkRect2D> &scissors) {
     vulkan::GraphicsPipelineBuilder pipelineBuilder(_logicalDevice);
-    pipelineBuilder.loadShaders(GameConfig::SHADERS_PATH);
+    pipelineBuilder.loadShaders(GameConfig::getShadersPath());
     pipelineBuilder.setDynamicStates({VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR});
     pipelineBuilder.createDynamicState();
 
@@ -197,6 +198,18 @@ vulkan::GraphicsPipelineBuilder Application::preparePipeline(const VkExtent2D ex
 }
 
 int Application::run() {
+    // Check resources.
+    const std::string textureFile = avocado::os::getExecutablePath() + "/assets/models/BoxTexturedChelsea.gltf";
+    if (!std::filesystem::exists(textureFile)) {
+        std::cout << "File " << textureFile << " doesn't exist" << std::endl;
+        return 1;
+    }
+
+    if (!std::filesystem::exists(GameConfig::getShadersPath())) {
+        std::cout << "Directory " << GameConfig::getShadersPath() << " doesn't exist" << std::endl;
+        return 1;
+    }
+
     const bool isInitOk = init();
     std::unique_ptr<SDL_Window, void(*)(SDL_Window*)> sdlWindow = createWindow();
     if (sdlWindow == nullptr) {
@@ -278,7 +291,7 @@ int Application::run() {
     debugUtilsPtr->setObjectName(graphicsQueue.getHandle(), "Graphics queue");
 
     avocado::core::ModelLoader modelLoader(_physicalDevice, _logicalDevice, swapChain, commandPool, graphicsQueue);
-    modelLoader.loadModel("game/bin/assets/models/BoxTexturedChelsea.gltf");
+    modelLoader.loadModel(textureFile);
 
     const auto &[vertices, verticesCount] = modelLoader.getVertices(0);
     VkDeviceSize verticesSizeBytes = verticesCount * sizeof(Vertex);
