@@ -43,9 +43,9 @@ public:
 private:
     std::vector<VkImage> _images;
     std::vector<VkImageView> _imageViews;
-    VkImage _depthImage;
-    VkImageView _depthImageView;
-    VkDeviceMemory _depthImageMemory;
+    VkImage _depthImage = VK_NULL_HANDLE;
+    VkImageView _depthImageView = VK_NULL_HANDLE;
+    VkDeviceMemory _depthImageMemory = VK_NULL_HANDLE;
     std::vector<VkFramebuffer> _framebuffers;
     VkDevice _device = VK_NULL_HANDLE;
     SwapchainKHRPtr _swapchain;

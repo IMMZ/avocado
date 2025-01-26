@@ -122,16 +122,6 @@ void GraphicsPipelineBuilder::setScissors(std::vector<VkRect2D> &&scissors) {
     _scissors = std::move(scissors);
 }
 
-void GraphicsPipelineBuilder::addFragmentShaderModules(const std::vector<std::vector<char>> &shaderModules) {
-    for (std::vector<char> shaderModule: shaderModules)
-        _shaderModuleCIs.emplace_back(addShaderModule(shaderModule, VK_SHADER_STAGE_FRAGMENT_BIT));
-}
-
-void GraphicsPipelineBuilder::addVertexShaderModules(const std::vector<std::vector<char>> &shaderModules) {
-    for (std::vector<char> shaderModule: shaderModules)
-        _shaderModuleCIs.emplace_back(addShaderModule(shaderModule, VK_SHADER_STAGE_VERTEX_BIT));
-}
-
 VkPipelineShaderStageCreateInfo GraphicsPipelineBuilder::addShaderModule(const std::vector<char> &data, const VkShaderStageFlagBits shType) {
     VkPipelineShaderStageCreateInfo shaderStageCreateInfo{}; FILL_S_TYPE(shaderStageCreateInfo);
 
@@ -159,7 +149,7 @@ PipelinePtr GraphicsPipelineBuilder::createPipeline(VkRenderPass renderPass) {
     pipelineCI.subpass = 0;
     pipelineCI.renderPass = renderPass;
 
-    bindStages(pipelineCI);
+    setupStates(pipelineCI);
     createLayout(pipelineCI);
     if (hasError()) {
         setErrorMessage("Can't create pipeline layout: "s + getErrorMessage());
@@ -204,11 +194,11 @@ void GraphicsPipelineBuilder::loadShaders(const std::string &shaderPath) {
                 fragmentShaders.emplace_back(avocado::utils::readFile(shaderPath + "/" + entry.path().filename().string()));
         }
     }
-    addVertexShaderModules(vertexShaders);
-    addFragmentShaderModules(fragmentShaders);
+    addShaderModules<VK_SHADER_STAGE_VERTEX_BIT>(vertexShaders);
+    addShaderModules<VK_SHADER_STAGE_FRAGMENT_BIT>(fragmentShaders);
 }
 
-void GraphicsPipelineBuilder::bindStages(VkGraphicsPipelineCreateInfo &pipelineCreateInfo) noexcept {
+void GraphicsPipelineBuilder::setupStates(VkGraphicsPipelineCreateInfo &pipelineCreateInfo) noexcept {
     if (!_shaderModuleCIs.empty()) {
         pipelineCreateInfo.stageCount = static_cast<uint32_t>(_shaderModuleCIs.size());
         pipelineCreateInfo.pStages = _shaderModuleCIs.data();

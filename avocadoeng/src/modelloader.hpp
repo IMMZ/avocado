@@ -40,6 +40,10 @@ public:
     avocado::vulkan::ImageViewPtr& getImageView(const uint32_t index);
     avocado::vulkan::SamplerPtr& getSampler(const uint32_t index);
 
+    [[nodiscard]] bool hasSamplers() const {
+        return !_samplers.empty();
+    }
+
 private:
     std::tuple<avocado::vulkan::Image, avocado::vulkan::ImageViewPtr, avocado::vulkan::SamplerPtr> loadTexture(avocado::vulkan::Swapchain &swapChain,
         avocado::vulkan::CommandPool &commandPool, avocado::vulkan::Queue &graphicsQueue, const tinygltf::Image &image);

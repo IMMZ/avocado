@@ -29,10 +29,6 @@ public:
     VkDevice getHandle() noexcept;
     bool isValid() const noexcept;
 
-    VkDescriptorSetLayoutBinding createLayoutBinding(const uint32_t bindingNumber, const VkDescriptorType type,
-        const uint32_t descriptorCount, const VkShaderStageFlags flags, const std::vector<VkSampler> &samplers = {}) noexcept;
-
-    VkDescriptorSetLayout createDescriptorSetLayout(const std::vector<VkDescriptorSetLayoutBinding> &bindings);
     void updateDescriptorSet(const std::vector<VkWriteDescriptorSet> &descriptorWriteSets) noexcept;
     VkDescriptorBufferInfo createDescriptorBufferInfo(Buffer &buffer, const size_t bufferSize) noexcept;
     std::pair<VkDescriptorSet, VkWriteDescriptorSet> createWriteDescriptorSet(

@@ -91,6 +91,7 @@ ModelLoader::ModelLoader(avocado::vulkan::PhysicalDevice &physicalDevice, avocad
     _swapchain(swapchain)
     {}
 
+// todo Too long function. Split it.
 const uint32_t ModelLoader::loadModel(const std::string &filepath) {
     auto loadFunction = std::mem_fn(&tinygltf::TinyGLTF::LoadASCIIFromFile);
     if (utils::hasExtension(filepath, ".glb"))
@@ -106,10 +107,12 @@ const uint32_t ModelLoader::loadModel(const std::string &filepath) {
 
     std::unique_ptr<float[]> positions = nullptr; size_t positionsCount = 0;
     std::unique_ptr<float[]> texCoords = nullptr; size_t texCoordsCount = 0;
+    std::unique_ptr<float[]> colors = nullptr; size_t colorCount = 0;
     uint32_t *indices = nullptr; size_t indicesCount = 0;
     float *positionData = nullptr;
     unsigned char *indicesData = nullptr;
     float *texCoordData = nullptr;
+    float *colorData = nullptr;
     Vertex *vertices = nullptr;
     tinygltf::Image *imageToLoad = nullptr;
     for (const tinygltf::Mesh &mesh: _model.meshes) {
@@ -135,7 +138,11 @@ const uint32_t ModelLoader::loadModel(const std::string &filepath) {
             for (size_t i = 0, j = 0; i < positionsCount * numberOfComponents;) {
                 for (size_t k = 0; k < numberOfComponents; ++k)
                     positions[i + k] = positionData[j + k];
-                i += numberOfComponents; j += elementStride;
+                i += numberOfComponents;
+                if (0 == elementStride)
+                    j += numberOfComponents;
+                else
+                    j += elementStride;
             }
 
             const size_t indicesAccessorIndex = primitive.indices;
@@ -188,19 +195,66 @@ const uint32_t ModelLoader::loadModel(const std::string &filepath) {
                     for (size_t i = 0, j = 0; i < texCoordsCount * texCoordNumberOfComponents;) {
                         for (size_t k = 0; k < texCoordNumberOfComponents; ++k)
                             texCoords[i + k] = texCoordData[j + k];
-                        i += texCoordNumberOfComponents; j += texCoordStride;
+                        i += texCoordNumberOfComponents;
+                        if (0 == texCoordStride)
+                            j+= texCoordNumberOfComponents;
+                        else
+                            j += texCoordStride;
                     }
                 }
             }
 
+            // Read colors.
+            constexpr char COLOR[] = "COLOR";
+            constexpr size_t COLOR_LENGTH = std::size(COLOR) - 1;
+            size_t colorNumberOfComponents = 0;
+            for (const auto &attrIndexPair: attributes) {
+                // [cpp20] Replace this by begins_with()
+                if (attrIndexPair.first.length() > COLOR_LENGTH && attrIndexPair.first.substr(0, COLOR_LENGTH) == COLOR) {
+                    const size_t colorAccessorIndex = attributes.at(attrIndexPair.first);
+                    colorCount = _model.accessors[colorAccessorIndex].count;
+                    const size_t colorAccessorOffset = _model.accessors[colorAccessorIndex].byteOffset;
+                    const size_t colorBufferViewIndex = _model.accessors[colorAccessorIndex].bufferView;
+                    const size_t colorBufferIndex = _model.bufferViews[colorBufferViewIndex].buffer;
+                    const size_t length = _model.bufferViews[colorBufferViewIndex].byteLength;
+                    const size_t colorOffset = _model.bufferViews[colorBufferViewIndex].byteOffset;
+                    const AccessorType colorAccessorType = static_cast<AccessorType>(_model.accessors[colorAccessorIndex].type);
+                    const ComponentType colorComponentType = static_cast<ComponentType>(_model.accessors[colorAccessorIndex].componentType);
+                    colorNumberOfComponents = getNumberOfComponents(colorAccessorType);
+                    const size_t colorComponentTypeSize = getComponentTypeSize(colorComponentType);
+                    colors.reset(new float[colorCount * colorNumberOfComponents]{});
+                    colorData = reinterpret_cast<float*>(&_model.buffers[colorBufferIndex].data[colorAccessorOffset + colorOffset]);
+                    const size_t colorStride = _model.bufferViews[colorBufferViewIndex].byteStride / colorComponentTypeSize;
+
+                    for (size_t i = 0, j = 0; i < colorCount * colorNumberOfComponents;) {
+                        for (size_t k = 0; k < colorNumberOfComponents; ++k)
+                            colors[i + k] = colorData[j + k];
+                        i += colorNumberOfComponents;
+                        if (0 == colorStride)
+                            j+= colorNumberOfComponents;
+                        else
+                            j += colorStride;
+                    }
+                }
+            }
+
+
             // Form output vertices.
             vertices = new Vertex[positionsCount];
-            for (size_t i = 0, positionI = 0, textureCoordinatesI = 0; i < positionsCount; ++i) {
+            for (size_t i = 0, positionI = 0, colorI = 0, textureCoordinatesI = 0; i < positionsCount; ++i) {
                 vertices[i].position.x = positions[positionI];
                 vertices[i].position.y = positions[positionI + 1];
                 vertices[i].position.z = positions[positionI + 2];
                 vertices[i].textureCoordinate.x = texCoords[textureCoordinatesI];
                 vertices[i].textureCoordinate.y = texCoords[textureCoordinatesI + 1];
+                if (nullptr != colors) {
+                    vertices[i].color.r = colors[colorI];
+                    vertices[i].color.g = colors[colorI + 1];
+                    vertices[i].color.b = colors[colorI + 2];
+                } else { // Paint as red by default.
+                    vertices[i].color.r = 1.f;
+                    vertices[i].color.g = vertices[i].color.b = 0.f;
+                }
                 positionI += numberOfComponents; textureCoordinatesI += texCoordNumberOfComponents;
             }
 
@@ -209,7 +263,14 @@ const uint32_t ModelLoader::loadModel(const std::string &filepath) {
                 const int imageIndex = texture.source;
                 imageToLoad = &_model.images[imageIndex];
 
-                const int samplerIndex = texture.sampler;
+                [[maybe_unused]] const int samplerIndex = texture.sampler;
+
+                if (nullptr != imageToLoad) {
+                    auto [image, imageView, sampler] = loadTexture(_swapchain, _commandPool, _graphicsQueue, *imageToLoad);
+                    _images.emplace_back(std::move(image));
+                    _imageViews.emplace_back(std::move(imageView));
+                    _samplers.push_back(std::move(sampler));
+                }
             }
          }
     }
@@ -220,12 +281,6 @@ const uint32_t ModelLoader::loadModel(const std::string &filepath) {
     _indices.push_back(indices);
     _indicesCounts.push_back(indicesCount);
 
-    if (nullptr != imageToLoad) {
-        auto [image, imageView, sampler] = loadTexture(_swapchain, _commandPool, _graphicsQueue, *imageToLoad);
-        _images.emplace_back(std::move(image));
-        _imageViews.emplace_back(std::move(imageView));
-        _samplers.push_back(std::move(sampler));
-    }
     //return {vertices, positionsCount, indices, indicesCount, imageToLoad};
     return 0;
 }

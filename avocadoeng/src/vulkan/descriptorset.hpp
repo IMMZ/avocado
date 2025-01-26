@@ -27,6 +27,7 @@ public:
     const VkDescriptorSet& getSet(const size_t index) const;
 
     // Descriptor writing.
+    // todo merge buffer and image functions into single one with some type of parametrization.
     void addBufferDescriptorWrite(const size_t descriptorSetIndex, const uint32_t dstBinding, const uint32_t dstArrayElement, const uint32_t descriptorCount);
     void addBufferInfo(Buffer &buffer, const VkDeviceSize offset, const VkDeviceSize range);
     void addImageDescriptorWrite(const size_t descriptorSetIndex, const uint32_t dstBinding, const uint32_t dstArrayElement, const uint32_t descriptorCount);

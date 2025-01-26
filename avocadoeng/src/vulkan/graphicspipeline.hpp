@@ -36,14 +36,25 @@ public:
     void setViewPorts(std::vector<VkViewport> &&viewports);
     void setScissors(const std::vector<VkRect2D> &scissors);
     void setScissors(std::vector<VkRect2D> &&scissors);
-    void addFragmentShaderModules(const std::vector<std::vector<char>> &shaderModules);
-    void addVertexShaderModules(const std::vector<std::vector<char>> &shaderModules);
+
     void setDescriptorSetLayouts(const std::vector<VkDescriptorSetLayout> &layouts);
     void loadShaders(const std::string &shaderPath);
 
 private:
     VkPipelineShaderStageCreateInfo addShaderModule(const std::vector<char> &data, const VkShaderStageFlagBits shType);
-    void bindStages(VkGraphicsPipelineCreateInfo &pipelineCreateInfo) noexcept;
+
+public:
+    template <uint32_t SHADER_TYPE>
+    void addShaderModules(const std::vector<std::vector<char>> &shaderModules) {
+        static_assert(SHADER_TYPE == VK_SHADER_STAGE_FRAGMENT_BIT || VK_SHADER_STAGE_VERTEX_BIT == SHADER_TYPE,
+            "Wrong shader type");
+
+        for (std::vector<char> shaderModule: shaderModules)
+            _shaderModuleCIs.emplace_back(addShaderModule(shaderModule, static_cast<VkShaderStageFlagBits>(SHADER_TYPE)));
+    }
+
+private:
+    void setupStates(VkGraphicsPipelineCreateInfo &pipelineCreateInfo) noexcept;
     void createLayout(VkGraphicsPipelineCreateInfo &pipelineCreateInfo) noexcept;
 
     std::vector<VkPipelineColorBlendAttachmentState> _colorBlendAttachments; // For color blend state.

@@ -199,9 +199,11 @@ vulkan::GraphicsPipelineBuilder Application::preparePipeline(const VkExtent2D ex
 
 int Application::run() {
     // Check resources.
-    const std::string textureFile = avocado::os::getExecutablePath() + "/assets/models/BoxTexturedChelsea.gltf";
-    if (!std::filesystem::exists(textureFile)) {
-        std::cout << "File " << textureFile << " doesn't exist" << std::endl;
+    // todo The variants below are for tests. Each of them should work properly.
+    const std::string modelFile = avocado::os::getExecutablePath() + "/assets/models/non_textured_cube.glb";
+    //const std::string modelFile = avocado::os::getExecutablePath() + "/assets/models/textured_cube.gltf";
+    if (!std::filesystem::exists(modelFile)) {
+        std::cout << "File " << modelFile << " doesn't exist" << std::endl;
         return 1;
     }
 
@@ -291,7 +293,7 @@ int Application::run() {
     debugUtilsPtr->setObjectName(graphicsQueue.getHandle(), "Graphics queue");
 
     avocado::core::ModelLoader modelLoader(_physicalDevice, _logicalDevice, swapChain, commandPool, graphicsQueue);
-    modelLoader.loadModel(textureFile);
+    [[maybe_unused]] const uint32_t modelIndex = modelLoader.loadModel(modelFile);
 
     const auto &[vertices, verticesCount] = modelLoader.getVertices(0);
     VkDeviceSize verticesSizeBytes = verticesCount * sizeof(Vertex);
@@ -363,7 +365,8 @@ int Application::run() {
 
     vulkan::DescriptorSet descriptorSet(_logicalDevice, FRAMES_IN_FLIGHT);
     descriptorSet.addLayoutBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT);
-    descriptorSet.addLayoutBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
+    //if (modelLoader.hasSamplers())
+        //descriptorSet.addLayoutBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
     descriptorSet.createLayouts(FRAMES_IN_FLIGHT);
     if (descriptorSet.hasError()) {
         std::cout << "Can't create descriptor set layout: " << descriptorSet.getErrorMessage() << std::endl;
@@ -418,8 +421,11 @@ int Application::run() {
     // Update descriptor set.
     descriptorSet.addBufferInfo(*uniformBuffers[0], 0, sizeof(UniformBufferObject));
     descriptorSet.addBufferDescriptorWrite(0, 0, 0, 1);
-    descriptorSet.addImageInfo(modelLoader.getImageView(0), modelLoader.getSampler(0), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-    descriptorSet.addImageDescriptorWrite(0, 1, 0, 1);
+    //if (modelLoader.hasSamplers()) {
+        //descriptorSet.addImageInfo(modelLoader.getImageView(0), modelLoader.getSampler(0), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        //descriptorSet.addImageDescriptorWrite(0, 1, 0, 1);
+    //}
+
     for (size_t i = 0; i < 2; i++) {
         descriptorSet.updateBuffer(0, *uniformBuffers[i]);
         descriptorSet.updateWriteDestinationSetIndex(0, i);
@@ -465,7 +471,7 @@ int Application::run() {
             cmdBuf.bindVertexBuffers(0, 1, &vertexBufferHandle, &offset);
             cmdBuf.bindIndexBuffer(indexBuffer.getHandle(), 0, VK_INDEX_TYPE_UINT32);
             cmdBuf.bindPipeline(graphicsPipeline.get(), VK_PIPELINE_BIND_POINT_GRAPHICS);
-            cmdBuf.bindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineBuilder.getPipelineLayout(), 0, 1, &descriptorSet.getSet(currentFrame), 0, nullptr);
+            cmdBuf.bindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineBuilder.getPipelineLayout(), 0, 1, &descriptorSet.getSet(currentFrame), 0);
 
             cmdBuf.beginRenderPass(swapChain, renderPassPtr.get(), extent, {0, 0}, imageIndex);
                 cmdBuf.drawIndexed(static_cast<uint32_t>(modelLoader.getIndices(0).second), 1, 0, 0, 0);

@@ -27,7 +27,8 @@ Swapchain::~Swapchain() {
 
         vkFreeMemory(_device, _depthImageMemory, nullptr);
         vkDestroyImageView(_device, _depthImageView, nullptr);
-        vkDestroyImage(_device, _depthImage, nullptr);
+        if (_depthImage != VK_NULL_HANDLE)
+            vkDestroyImage(_device, _depthImage, nullptr);
     }
 }
 

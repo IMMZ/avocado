@@ -32,7 +32,7 @@ struct vec<T, 2> {
         T y, h;
     };
 
-    vec() = default;
+    vec() noexcept { x = T(); y = T(); }
 
     constexpr explicit vec(const T a, const T b) noexcept:
         x(a), y(b) {

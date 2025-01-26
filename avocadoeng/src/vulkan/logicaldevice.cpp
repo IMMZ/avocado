@@ -30,36 +30,6 @@ bool LogicalDevice::isValid() const noexcept {
     return _dev.get() != VK_NULL_HANDLE;
 }
 
-VkDescriptorSetLayoutBinding LogicalDevice::createLayoutBinding(const uint32_t bindingNumber, const VkDescriptorType type,
-    const uint32_t descriptorCount, const VkShaderStageFlags flags, const std::vector<VkSampler> &samplers) noexcept {
-    VkDescriptorSetLayoutBinding layoutBinding{};
-    layoutBinding.binding = bindingNumber;
-    layoutBinding.descriptorType = type;
-    layoutBinding.descriptorCount = descriptorCount;
-    layoutBinding.stageFlags = flags;
-    if (!samplers.empty())
-        layoutBinding.pImmutableSamplers = samplers.data();
-    return layoutBinding;
-}
-
-VkDescriptorSetLayout LogicalDevice::createDescriptorSetLayout(const std::vector<VkDescriptorSetLayoutBinding> &bindings) {
-    assert(_dev != nullptr && "Device handle mustn't be null.");
-
-    VkDescriptorSetLayoutCreateInfo createInfo{}; FILL_S_TYPE(createInfo);
-    createInfo.bindingCount = static_cast<uint32_t>(bindings.size());
-    createInfo.pBindings = bindings.data();
-
-    VkDescriptorSetLayout descriptorSetLayout;
-    const VkResult result = vkCreateDescriptorSetLayout(_dev.get(), &createInfo, nullptr, &descriptorSetLayout);
-    setHasError(result != VK_SUCCESS);
-    if (hasError()) {
-        setErrorMessage("vkCreateDescriptorSetLayout returned "s + getVkResultString(result));
-        return VK_NULL_HANDLE;
-    }
-
-    return descriptorSetLayout;
-}
-
 void LogicalDevice::updateDescriptorSet(const std::vector<VkWriteDescriptorSet> &descriptorWriteSets) noexcept {
     vkUpdateDescriptorSets(_dev.get(), descriptorWriteSets.size(), descriptorWriteSets.data(), 0, nullptr);
 }
