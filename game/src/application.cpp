@@ -22,6 +22,7 @@
 #include <vulkan/image.hpp>
 #include <vulkan/logicaldevice.hpp>
 #include <vulkan/pointertypes.hpp>
+#include <vulkan/shaderstorage.hpp>
 #include <vulkan/surface.hpp>
 #include <vulkan/swapchain.hpp>
 #include <vulkan/vkutils.hpp>
@@ -145,7 +146,6 @@ vulkan::GraphicsPipelineBuilder Application::preparePipeline(const VkExtent2D ex
     const std::vector<VkDescriptorSetLayout> &layouts, const std::vector<VkViewport> &viewPorts,
     const std::vector<VkRect2D> &scissors) {
     vulkan::GraphicsPipelineBuilder pipelineBuilder(_logicalDevice);
-    pipelineBuilder.loadShaders(GameConfig::getShadersPath());
     pipelineBuilder.setDynamicStates({VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR});
     pipelineBuilder.createDynamicState();
 
@@ -200,8 +200,8 @@ vulkan::GraphicsPipelineBuilder Application::preparePipeline(const VkExtent2D ex
 int Application::run() {
     // Check resources.
     // todo The variants below are for tests. Each of them should work properly.
-    const std::string modelFile = avocado::os::getExecutablePath() + "/assets/models/non_textured_cube.glb";
-    //const std::string modelFile = avocado::os::getExecutablePath() + "/assets/models/textured_cube.gltf";
+    //const std::string modelFile = avocado::os::getExecutablePath() + "/assets/models/non_textured_cube.glb";
+    const std::string modelFile = avocado::os::getExecutablePath() + "/assets/models/textured_cube.gltf";
     if (!std::filesystem::exists(modelFile)) {
         std::cout << "File " << modelFile << " doesn't exist" << std::endl;
         return 1;
@@ -365,8 +365,8 @@ int Application::run() {
 
     vulkan::DescriptorSet descriptorSet(_logicalDevice, FRAMES_IN_FLIGHT);
     descriptorSet.addLayoutBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT);
-    //if (modelLoader.hasSamplers())
-        //descriptorSet.addLayoutBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
+    if (modelLoader.hasSamplers())
+        descriptorSet.addLayoutBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
     descriptorSet.createLayouts(FRAMES_IN_FLIGHT);
     if (descriptorSet.hasError()) {
         std::cout << "Can't create descriptor set layout: " << descriptorSet.getErrorMessage() << std::endl;
@@ -379,7 +379,23 @@ int Application::run() {
     descriptorSet.allocate(FRAMES_IN_FLIGHT);
     const std::vector<VkViewport> viewPorts { vulkan::Clipping::createViewport(0.f, 0.f, extent) };
     const std::vector<VkRect2D> scissors { vulkan::Clipping::createScissor(viewPorts.front()) };
+    vulkan::ShaderStorage shaderStorage(_logicalDevice);
+    shaderStorage.loadShaders(GameConfig::getShadersPath());
+
     vulkan::GraphicsPipelineBuilder pipelineBuilder = preparePipeline(extent, descriptorSet.getLayouts(), viewPorts, scissors);
+
+    const std::vector<VkPipelineShaderStageCreateInfo> &redColorShaders = shaderStorage.createStageCIs({
+        vulkan::ShaderIdConst::VERTEX_PROCESS_INPUT,
+        vulkan::ShaderIdConst::FRAGMENT_RED_COLOR });
+    const std::vector<VkPipelineShaderStageCreateInfo> &oneTextureShaders = shaderStorage.createStageCIs({
+        vulkan::ShaderIdConst::VERTEX_PROCESS_INPUT,
+        vulkan::ShaderIdConst::FRAGMENT_ONE_TEXTURE });
+
+    if (modelLoader.hasSamplers())
+        pipelineBuilder.bindShaderModules(oneTextureShaders);
+    else
+        pipelineBuilder.bindShaderModules(redColorShaders);
+
     vulkan::PipelinePtr graphicsPipeline = pipelineBuilder.createPipeline(renderPassPtr.get());
     if (pipelineBuilder.hasError()) {
         std::cout << "Can't create pipeline: " << pipelineBuilder.getErrorMessage() << std::endl;
@@ -421,10 +437,10 @@ int Application::run() {
     // Update descriptor set.
     descriptorSet.addBufferInfo(*uniformBuffers[0], 0, sizeof(UniformBufferObject));
     descriptorSet.addBufferDescriptorWrite(0, 0, 0, 1);
-    //if (modelLoader.hasSamplers()) {
-        //descriptorSet.addImageInfo(modelLoader.getImageView(0), modelLoader.getSampler(0), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-        //descriptorSet.addImageDescriptorWrite(0, 1, 0, 1);
-    //}
+    if (modelLoader.hasSamplers()) {
+        descriptorSet.addImageInfo(modelLoader.getImageView(0), modelLoader.getSampler(0), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        descriptorSet.addImageDescriptorWrite(0, 1, 0, 1);
+    }
 
     for (size_t i = 0; i < 2; i++) {
         descriptorSet.updateBuffer(0, *uniformBuffers[i]);

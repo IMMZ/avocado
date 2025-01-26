@@ -38,20 +38,9 @@ public:
     void setScissors(std::vector<VkRect2D> &&scissors);
 
     void setDescriptorSetLayouts(const std::vector<VkDescriptorSetLayout> &layouts);
-    void loadShaders(const std::string &shaderPath);
-
-private:
-    VkPipelineShaderStageCreateInfo addShaderModule(const std::vector<char> &data, const VkShaderStageFlagBits shType);
 
 public:
-    template <uint32_t SHADER_TYPE>
-    void addShaderModules(const std::vector<std::vector<char>> &shaderModules) {
-        static_assert(SHADER_TYPE == VK_SHADER_STAGE_FRAGMENT_BIT || VK_SHADER_STAGE_VERTEX_BIT == SHADER_TYPE,
-            "Wrong shader type");
-
-        for (std::vector<char> shaderModule: shaderModules)
-            _shaderModuleCIs.emplace_back(addShaderModule(shaderModule, static_cast<VkShaderStageFlagBits>(SHADER_TYPE)));
-    }
+    void bindShaderModules(const std::vector<VkPipelineShaderStageCreateInfo> &shaderStageCIs);
 
 private:
     void setupStates(VkGraphicsPipelineCreateInfo &pipelineCreateInfo) noexcept;

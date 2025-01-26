@@ -122,26 +122,9 @@ void GraphicsPipelineBuilder::setScissors(std::vector<VkRect2D> &&scissors) {
     _scissors = std::move(scissors);
 }
 
-VkPipelineShaderStageCreateInfo GraphicsPipelineBuilder::addShaderModule(const std::vector<char> &data, const VkShaderStageFlagBits shType) {
-    VkPipelineShaderStageCreateInfo shaderStageCreateInfo{}; FILL_S_TYPE(shaderStageCreateInfo);
-
-    VkShaderModuleCreateInfo shaderModuleCreateInfo{}; FILL_S_TYPE(shaderModuleCreateInfo);
-    shaderModuleCreateInfo.codeSize = data.size();
-    shaderModuleCreateInfo.pCode = reinterpret_cast<const uint32_t*>(data.data());
-
-    VkShaderModule shaderModule = VK_NULL_HANDLE;
-    const VkResult result = vkCreateShaderModule(_logicalDevice.getHandle(), &shaderModuleCreateInfo, nullptr, &shaderModule);
-    setHasError(result != VK_SUCCESS);
-    if (hasError()) {
-        setErrorMessage("vkCreateShaderModule returned "s + getVkResultString(result));
-        return shaderStageCreateInfo;
-    }
-
-    _shaderModules.emplace_back(makeObjectPtr(_logicalDevice, shaderModule));
-    shaderStageCreateInfo.stage = shType;
-    shaderStageCreateInfo.module = _shaderModules.back().get();
-    shaderStageCreateInfo.pName = "main"; // Entry point.
-    return shaderStageCreateInfo;
+void GraphicsPipelineBuilder::bindShaderModules(const std::vector<VkPipelineShaderStageCreateInfo> &shaderStageCIs) {
+    for (VkPipelineShaderStageCreateInfo createInfo: shaderStageCIs)
+        _shaderModuleCIs.push_back(createInfo);
 }
 
 PipelinePtr GraphicsPipelineBuilder::createPipeline(VkRenderPass renderPass) {
@@ -181,21 +164,6 @@ PipelinePtr GraphicsPipelineBuilder::createPipeline(VkRenderPass renderPass) {
 
 void GraphicsPipelineBuilder::setDescriptorSetLayouts(const std::vector<VkDescriptorSetLayout> &layouts) {
     _descriptorSetLayouts = layouts;
-}
-
-void GraphicsPipelineBuilder::loadShaders(const std::string &shaderPath) {
-    std::vector<std::vector<char>> fragmentShaders;
-    std::vector<std::vector<char>> vertexShaders;
-    for (const auto &entry: std::filesystem::directory_iterator(shaderPath)) {
-        if (std::filesystem::is_regular_file(entry.path())) {
-            if (avocado::utils::endsWith(entry.path().filename().string(), ".vert.spv"))
-                vertexShaders.emplace_back(avocado::utils::readFile(shaderPath + "/" + entry.path().filename().string()));
-            else if (avocado::utils::endsWith(entry.path().filename().string(), ".frag.spv"))
-                fragmentShaders.emplace_back(avocado::utils::readFile(shaderPath + "/" + entry.path().filename().string()));
-        }
-    }
-    addShaderModules<VK_SHADER_STAGE_VERTEX_BIT>(vertexShaders);
-    addShaderModules<VK_SHADER_STAGE_FRAGMENT_BIT>(fragmentShaders);
 }
 
 void GraphicsPipelineBuilder::setupStates(VkGraphicsPipelineCreateInfo &pipelineCreateInfo) noexcept {
