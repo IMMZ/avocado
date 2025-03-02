@@ -202,6 +202,7 @@ int Application::run() {
     // todo The variants below are for tests. Each of them should work properly.
     //const std::string modelFile = avocado::os::getExecutablePath() + "/assets/models/non_textured_cube.glb";
     const std::string modelFile = avocado::os::getExecutablePath() + "/assets/models/textured_cube.gltf";
+    //const std::string modelFile = avocado::os::getExecutablePath() + "/assets/models/two_non_textured_cubes.glb";
     if (!std::filesystem::exists(modelFile)) {
         std::cout << "File " << modelFile << " doesn't exist" << std::endl;
         return 1;

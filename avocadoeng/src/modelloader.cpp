@@ -79,7 +79,6 @@ constexpr size_t getComponentTypeSize(const ComponentType componentType) {
 }
 
 }
-
 namespace avocado::core {
 
 ModelLoader::ModelLoader(avocado::vulkan::PhysicalDevice &physicalDevice, avocado::vulkan::LogicalDevice &logicalDevice,
@@ -157,7 +156,7 @@ const uint32_t ModelLoader::loadModel(const std::string &filepath) {
             const size_t indicesNumberOfComponents = getNumberOfComponents(indicesAccessorType);
             const size_t indicesComponentTypeSize = getComponentTypeSize(indicesComponentType);
             const size_t indicesStride = _model.bufferViews[indicesBufferViewIndex].byteStride / indicesComponentTypeSize;
-            indicesData = &_model.buffers[indicesBufferIndex].data[accessorOffset + indicesOffset];
+            indicesData = &_model.buffers[indicesBufferIndex].data[indicesAccessorOffset + indicesOffset];
 
             indices = new uint32_t[indicesCount]{};
             for (size_t i = 0, j = 0; i < indicesCount;) {
@@ -272,14 +271,13 @@ const uint32_t ModelLoader::loadModel(const std::string &filepath) {
                     _samplers.push_back(std::move(sampler));
                 }
             }
+
+            _vertices.push_back(vertices);
+            _verticesCounts.push_back(positionsCount);
+            _indices.push_back(indices);
+            _indicesCounts.push_back(indicesCount);
          }
     }
-
-
-    _vertices.push_back(vertices);
-    _verticesCounts.push_back(positionsCount);
-    _indices.push_back(indices);
-    _indicesCounts.push_back(indicesCount);
 
     //return {vertices, positionsCount, indices, indicesCount, imageToLoad};
     return 0;
