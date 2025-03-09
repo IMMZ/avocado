@@ -6,6 +6,7 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <ostream>
 
 namespace avocado::math {
 
@@ -249,6 +250,24 @@ struct vec<T, 4> {
 template <typename T, size_t N>
 [[nodiscard]] constexpr vec<T, N> operator*(const T val, const vec<T, N> &vec) {
     return vec * val;
+}
+
+
+template<typename T>
+std::ostream& operator<<(std::ostream &ofs, const vec<T, 2> &v) {
+    ofs << "{" << v.x << ", " << v.y << "}";
+    return ofs;
+}
+template<typename T>
+std::ostream& operator<<(std::ostream &ofs, const vec<T, 3> &v) {
+    ofs << "{" << v.x << ", " << v.y << ", " << v.z << "}";
+    return ofs;
+}
+
+template<typename T>
+std::ostream& operator<<(std::ostream &ofs, const vec<T, 4> &v) {
+    ofs << "{" << v.x << ", " << v.y << ", " << v.z << ", " << v.w << "}";
+    return ofs;
 }
 
 } // namespace internal.

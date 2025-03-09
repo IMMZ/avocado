@@ -3,6 +3,8 @@
 
 #include "math/vecn.hpp"
 
+#include <ostream>
+
 namespace avocado {
 
 struct Vertex {
@@ -10,6 +12,8 @@ struct Vertex {
     math::vec3f color;
     math::vec2f textureCoordinate;
 };
+
+std::ostream& operator<<(std::ostream &stream, const Vertex &vertex);
 
 }
 

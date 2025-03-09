@@ -143,7 +143,7 @@ public:
         return result;
     }
 
-    Matrix<N, M, T> transpose() const noexcept {
+    [[nodiscard]] Matrix<N, M, T> transpose() const noexcept {
         Matrix<N, M, T> result;
         for (size_t i = 0; i < M; ++i) {
             for (size_t j = 0; j < N; ++j) {
