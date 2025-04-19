@@ -3,9 +3,10 @@
 #include "application.hpp"
 
 #include "gameconfig.hpp"
-#include "modelloader.hpp"
 #include "vertex.hpp"
 #include "utils.hpp"
+
+#include <scene.hpp>
 #include <os/osutils.hpp>
 #include <vulkan/commandbuffer.hpp>
 #include <vulkan/graphicspipeline.hpp>
@@ -18,10 +19,12 @@
 #include <vulkan/clipping.hpp>
 #include <vulkan/commandpool.hpp>
 #include <vulkan/debugutils.hpp>
-#include <vulkan/descriptorset.hpp>
+#include <vulkan/descriptorsetpool.hpp>
 #include <vulkan/image.hpp>
 #include <vulkan/logicaldevice.hpp>
 #include <vulkan/pointertypes.hpp>
+#include <vulkan/queuemanager.hpp>
+#include <vulkan/scenetextures.hpp>
 #include <vulkan/shaderstorage.hpp>
 #include <vulkan/surface.hpp>
 #include <vulkan/swapchain.hpp>
@@ -157,7 +160,7 @@ vulkan::GraphicsPipelineBuilder Application::preparePipeline(const VkExtent2D ex
     rastState.rasterizerDiscardEnable = VK_FALSE;
     rastState.depthBiasEnable = VK_FALSE;
     rastState.polygonMode = VK_POLYGON_MODE_FILL;
-    rastState.cullMode = VK_CULL_MODE_BACK_BIT;
+    rastState.cullMode = VK_CULL_MODE_FRONT_BIT;
     rastState.frontFace = VK_FRONT_FACE_CLOCKWISE;
     rastState.lineWidth = 1.f;
 
@@ -188,6 +191,7 @@ vulkan::GraphicsPipelineBuilder Application::preparePipeline(const VkExtent2D ex
     pipelineBuilder.addAttributeDescription(0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, position));
     pipelineBuilder.addAttributeDescription(1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, color));
     pipelineBuilder.addAttributeDescription(2, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex, textureCoordinate));
+
     pipelineBuilder.addBindingDescription(0, sizeof(Vertex), VK_VERTEX_INPUT_RATE_VERTEX);
 
     VkPipelineViewportStateCreateInfo &viewportState = pipelineBuilder.createViewportState();
@@ -201,8 +205,10 @@ int Application::run() {
     // Check resources.
     // todo The variants below are for tests. Each of them should work properly.
     //const std::string modelFile = avocado::os::getExecutablePath() + "/assets/models/non_textured_cube.glb";
-    const std::string modelFile = avocado::os::getExecutablePath() + "/assets/models/textured_cube.gltf";
+    //const std::string modelFile = avocado::os::getExecutablePath() + "/assets/models/textured_cube.gltf";
     //const std::string modelFile = avocado::os::getExecutablePath() + "/assets/models/two_non_textured_cubes.glb";
+    const std::string modelFile = avocado::os::getExecutablePath() + "/assets/models/scene1/scene.gltf";
+    //const std::string modelFile = avocado::os::getExecutablePath() + "/assets/models/two_non_textured_cubes.gltf";
     if (!std::filesystem::exists(modelFile)) {
         std::cout << "File " << modelFile << " doesn't exist" << std::endl;
         return 1;
@@ -266,6 +272,8 @@ int Application::run() {
 
     auto debugUtilsPtr = _logicalDevice.createDebugUtils();
 
+    vulkan::QueueManager queueManager(_logicalDevice, graphicsQueueFamily);
+
     vulkan::Queue presentQueue = _logicalDevice.getPresentQueue(0);
 
     VkExtent2D extent = surface.getCapabilities(sdlWindow.get());
@@ -293,51 +301,13 @@ int Application::run() {
     vulkan::Queue graphicsQueue(_logicalDevice.getGraphicsQueue(0));
     debugUtilsPtr->setObjectName(graphicsQueue.getHandle(), "Graphics queue");
 
-    avocado::core::ModelLoader modelLoader(_physicalDevice, _logicalDevice, swapChain, commandPool, graphicsQueue);
-    [[maybe_unused]] const uint32_t modelIndex = modelLoader.loadModel(modelFile);
+    core::SceneManager sceneManager;
+    sceneManager.load(modelFile);
+    vulkan::SceneTextures sceneTextures(_physicalDevice, _logicalDevice);
+    sceneTextures.load(sceneManager, swapChain, queueManager);
 
-    const auto &[vertices, verticesCount] = modelLoader.getVertices(0);
-    VkDeviceSize verticesSizeBytes = verticesCount * sizeof(Vertex);
-
-    vulkan::Buffer vertexBuffer(verticesSizeBytes,
-        static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT),
-        VK_SHARING_MODE_EXCLUSIVE,
-        _logicalDevice);
-
-    if (vertexBuffer.hasError()) {
-        std::cout << "Can't create vertex buf: " << vertexBuffer.getErrorMessage() << std::endl;
-        return 1;
-    }
-
-    vertexBuffer.allocateMemory(_physicalDevice, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-    if (vertexBuffer.hasError()) {
-        std::cout << "Can't allocate memory on vertex buf: " << vertexBuffer.getErrorMessage() << std::endl;
-        return 1;
-    }
-
-    vertexBuffer.fill(vertices);
-    vertexBuffer.bindMemory();
-
-    const auto &[indices, indicesCount] = modelLoader.getIndices(0);
-    vulkan::Buffer indexBuffer(indicesCount * sizeof(uint32_t),
-        static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT),
-        VK_SHARING_MODE_EXCLUSIVE, _logicalDevice);
-    if (indexBuffer.hasError()) {
-        std::cout << "Can't create index buffer: " << indexBuffer.getErrorMessage() << std::endl;
-        return 1;
-    }
-    indexBuffer.allocateMemory(_physicalDevice, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-    if (indexBuffer.hasError()) {
-        std::cout << "Can't allocate memory on index buffer: " << indexBuffer.getErrorMessage() << std::endl;
-        return 1;
-    }
-
-    indexBuffer.fill(indices);
-    indexBuffer.bindMemory();
-    if (indexBuffer.hasError()) {
-        std::cout << "Can't bind memory of index buffer: " << indexBuffer.getErrorMessage() << std::endl;
-        return 1;
-    }
+    auto vertexBuffer = sceneManager.formVertexBuffer(_physicalDevice, static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT), VK_SHARING_MODE_EXCLUSIVE, _logicalDevice);
+    auto indexBuffer = sceneManager.formIndexBuffer(_physicalDevice, static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT), VK_SHARING_MODE_EXCLUSIVE, _logicalDevice);
 
     struct UniformBufferObject {
         alignas(16) math::Mat4x4 model;
@@ -354,9 +324,11 @@ int Application::run() {
     uniformBufferForFrame2.bindMemory();
 
     UniformBufferObject ubo{};
-    ubo.view = math::lookAt(math::vec3f(0.f, 0.f, -3.f), math::vec3f(0.f, 0.f, 0.f), math::vec3f(0.f, 1.f, 0.f));
+    ubo.view = math::lookAt(math::vec3f(0.f, 0.f, -8.f), math::vec3f(0.f, 0.f, 0.f), math::vec3f(0.f, 1.f, 0.f));
+    //ubo.view = math::lookAt(math::vec3f(5.f, 0.f, -8.f), math::vec3f(0.f, 0.f, 0.f), math::vec3f(0.f, 1.f, 0.f));
     ubo.proj = math::perspectiveProjection(45.f, static_cast<float>(GameConfig::RESOLUTION_WIDTH) / static_cast<float>(GameConfig::RESOLUTION_HEIGHT), 0.1f, 50.f);
     ubo.model = math::Mat4x4::createIdentityMatrix();
+    ubo.model[1][1] = -1.f; // Flip Y axis.
     const VkFormat depthFormat = swapChain.findSupportedFormat(
         {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT},
         _physicalDevice.getHandle(),
@@ -364,38 +336,31 @@ int Application::run() {
         VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
     const auto renderPassPtr = _logicalDevice.createRenderPass(surfaceFormat.format, depthFormat);
 
-    vulkan::DescriptorSet descriptorSet(_logicalDevice, FRAMES_IN_FLIGHT);
-    descriptorSet.addLayoutBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT);
-    if (modelLoader.hasSamplers())
-        descriptorSet.addLayoutBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
-    descriptorSet.createLayouts(FRAMES_IN_FLIGHT);
-    if (descriptorSet.hasError()) {
-        std::cout << "Can't create descriptor set layout: " << descriptorSet.getErrorMessage() << std::endl;
-        return 1;
-    }
+    vulkan::DescriptorSetPool descriptorSetPool = sceneTextures.exportToDescriptorSet();
 
     // Create descriptor set layout.
     std::vector<vulkan::Buffer*> uniformBuffers = {&uniformBuffer, &uniformBufferForFrame2};
+    constexpr uint32_t BUFFER_BINDING = 0;
+    const size_t writeIndexForFirstBuffer = descriptorSetPool.addBuffer(0, BUFFER_BINDING, *(uniformBuffers[0]), sizeof(UniformBufferObject));
+    const size_t writeIndexForSecondBuffer = descriptorSetPool.addBuffer(1, BUFFER_BINDING, *(uniformBuffers[1]), sizeof(UniformBufferObject));
 
-    descriptorSet.allocate(FRAMES_IN_FLIGHT);
     const std::vector<VkViewport> viewPorts { vulkan::Clipping::createViewport(0.f, 0.f, extent) };
     const std::vector<VkRect2D> scissors { vulkan::Clipping::createScissor(viewPorts.front()) };
     vulkan::ShaderStorage shaderStorage(_logicalDevice);
     shaderStorage.loadShaders(GameConfig::getShadersPath());
 
-    vulkan::GraphicsPipelineBuilder pipelineBuilder = preparePipeline(extent, descriptorSet.getLayouts(), viewPorts, scissors);
+    vulkan::GraphicsPipelineBuilder pipelineBuilder = preparePipeline(extent, descriptorSetPool.getLayouts(), viewPorts, scissors);
 
-    const std::vector<VkPipelineShaderStageCreateInfo> &redColorShaders = shaderStorage.createStageCIs({
-        vulkan::ShaderIdConst::VERTEX_PROCESS_INPUT,
-        vulkan::ShaderIdConst::FRAGMENT_RED_COLOR });
-    const std::vector<VkPipelineShaderStageCreateInfo> &oneTextureShaders = shaderStorage.createStageCIs({
-        vulkan::ShaderIdConst::VERTEX_PROCESS_INPUT,
-        vulkan::ShaderIdConst::FRAGMENT_ONE_TEXTURE });
+    {
+      const std::vector<VkPipelineShaderStageCreateInfo> &redColorShaders = shaderStorage.createStageCIs({
+          vulkan::ShaderIdConst::VERTEX_PROCESS_INPUT,
+          vulkan::ShaderIdConst::FRAGMENT_RED_COLOR });
+      const std::vector<VkPipelineShaderStageCreateInfo> &oneTextureShaders = shaderStorage.createStageCIs({
+          vulkan::ShaderIdConst::VERTEX_PROCESS_INPUT,
+          vulkan::ShaderIdConst::FRAGMENT_ONE_TEXTURE });
 
-    if (modelLoader.hasSamplers())
-        pipelineBuilder.bindShaderModules(oneTextureShaders);
-    else
-        pipelineBuilder.bindShaderModules(redColorShaders);
+      pipelineBuilder.bindShaderModules(oneTextureShaders);
+    }
 
     vulkan::PipelinePtr graphicsPipeline = pipelineBuilder.createPipeline(renderPassPtr.get());
     if (pipelineBuilder.hasError()) {
@@ -435,20 +400,7 @@ int Application::run() {
 
     swapChain.createFramebuffers(renderPassPtr.get(), extent);
 
-    // Update descriptor set.
-    descriptorSet.addBufferInfo(*uniformBuffers[0], 0, sizeof(UniformBufferObject));
-    descriptorSet.addBufferDescriptorWrite(0, 0, 0, 1);
-    if (modelLoader.hasSamplers()) {
-        descriptorSet.addImageInfo(modelLoader.getImageView(0), modelLoader.getSampler(0), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-        descriptorSet.addImageDescriptorWrite(0, 1, 0, 1);
-    }
-
-    for (size_t i = 0; i < 2; i++) {
-        descriptorSet.updateBuffer(0, *uniformBuffers[i]);
-        descriptorSet.updateWriteDestinationSetIndex(0, i);
-        descriptorSet.updateWriteDestinationSetIndex(1, i);
-        descriptorSet.update();
-    }
+    descriptorSetPool.update();
 
     VkBuffer vertexBufferHandle = vertexBuffer.getHandle();
     VkDeviceSize offset = 0;
@@ -462,11 +414,17 @@ int Application::run() {
     uint32_t imageIndex = 0;
     uint32_t currentFrame = 0;
 
+    float angle = 0.5f;
+
     // Main loop.
     while (true) {
         if (SDL_PollEvent(&event)) {
             if ((event.type == SDL_QUIT) || (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE))
                 break;
+            if ((event.type == SDL_KEYDOWN) && event.key.keysym.sym == SDLK_RIGHT)
+                angle += 0.2f;
+            else if ((event.type == SDL_KEYDOWN) && event.key.keysym.sym == SDLK_LEFT)
+                angle -= 0.2f;
         }
 
         std::vector<VkFence> fenceToWait{fences[currentFrame].get()};
@@ -477,21 +435,29 @@ int Application::run() {
         // Update uniform buffer.
         const auto& currentTime = std::chrono::high_resolution_clock::now();
         const float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
-        ubo.model = math::createRotationMatrixY(20.f * time) * math::createRotationMatrixZ(20.f * time);
+
+        // Update camera position based on angle
+        constexpr float radius = 25.f;
+        math::vec3f camera;
+        float speed = 0.5f;
+        camera.x = radius * cos(angle);
+        camera.y = 0.f;
+        camera.z = radius * sin(angle);
         uniformBuffers[currentFrame]->fill(&ubo);
 
+
         vulkan::CommandBuffer cmdBuf = commandPool.getBuffer(currentFrame);
-        cmdBuf.reset(vulkan::CommandBuffer::NO_RESET_FLAG_BITS);
+        cmdBuf.reset();
         cmdBuf.begin();
             cmdBuf.setViewports(viewPorts);
             cmdBuf.setScissors(scissors);
             cmdBuf.bindVertexBuffers(0, 1, &vertexBufferHandle, &offset);
             cmdBuf.bindIndexBuffer(indexBuffer.getHandle(), 0, VK_INDEX_TYPE_UINT32);
             cmdBuf.bindPipeline(graphicsPipeline.get(), VK_PIPELINE_BIND_POINT_GRAPHICS);
-            cmdBuf.bindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineBuilder.getPipelineLayout(), 0, 1, &descriptorSet.getSet(currentFrame), 0);
+            cmdBuf.bindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineBuilder.getPipelineLayout(), 0, 1, &descriptorSetPool.getSet(currentFrame));
 
             cmdBuf.beginRenderPass(swapChain, renderPassPtr.get(), extent, {0, 0}, imageIndex);
-                cmdBuf.drawIndexed(static_cast<uint32_t>(modelLoader.getIndices(0).second), 1, 0, 0, 0);
+                cmdBuf.drawIndexed(indexBuffer.getSizeBytes() / avocado::vulkan::sizeOf<indexBuffer.getIndexType()>(), 1, 0,0,0);
             cmdBuf.endRenderPass();
         cmdBuf.end();
 

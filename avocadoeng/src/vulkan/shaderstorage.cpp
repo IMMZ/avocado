@@ -47,7 +47,7 @@ void ShaderStorage::loadShader(const std::string &shaderPath, const ShaderId id)
 VkPipelineShaderStageCreateInfo ShaderStorage::createStageCI(const ShaderModulePtr &shaderModulePtr, const VkShaderStageFlagBits shaderType) {
     assert(nullptr != shaderModulePtr);
 
-    VkPipelineShaderStageCreateInfo createInfo{}; FILL_S_TYPE(createInfo);
+    DEFINE_VK_STRUCTURE(VkPipelineShaderStageCreateInfo, createInfo);
     createInfo.stage = shaderType;
     createInfo.module = shaderModulePtr.get();
     createInfo.pName = "main"; // Entry point.
@@ -60,7 +60,7 @@ void ShaderStorage::addShaderModule(const std::vector<char> &data, const VkShade
         return;
     }
 
-    VkShaderModuleCreateInfo createInfo{}; FILL_S_TYPE(createInfo);
+    DEFINE_VK_STRUCTURE(VkShaderModuleCreateInfo, createInfo);
     createInfo.codeSize = data.size();
     createInfo.pCode = reinterpret_cast<const uint32_t*>(data.data());
 

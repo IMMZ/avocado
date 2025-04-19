@@ -63,7 +63,7 @@ bool Swapchain::isValid() const noexcept {
 }
 
 void Swapchain::create(Surface &surface, VkSurfaceFormatKHR surfaceFormat, VkExtent2D extent, const uint32_t minImageCount, const std::vector<QueueFamily> &queueFamilies) noexcept {
-    VkSwapchainCreateInfoKHR swapchainCreateInfo{}; FILL_S_TYPE(swapchainCreateInfo);
+    DEFINE_VK_STRUCTURE(VkSwapchainCreateInfoKHR, swapchainCreateInfo);
     swapchainCreateInfo.surface = surface.getHandle();
     swapchainCreateInfo.minImageCount = minImageCount;
     swapchainCreateInfo.imageFormat = surfaceFormat.format;
@@ -130,7 +130,7 @@ void Swapchain::createDepthImage(const uint32_t imgW, const uint32_t imgH, Physi
         {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT},
         physDevice.getHandle(), VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
 
-    VkImageCreateInfo imageCreateInfo{}; FILL_S_TYPE(imageCreateInfo);
+    DEFINE_VK_STRUCTURE(VkImageCreateInfo, imageCreateInfo);
     imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
     imageCreateInfo.extent.depth = 1;
     imageCreateInfo.extent.width = imgW;
@@ -156,7 +156,7 @@ void Swapchain::createDepthImage(const uint32_t imgW, const uint32_t imgH, Physi
 
     const uint32_t foundType = physDevice.findMemoryTypeIndex(memoryFlags, memRequirements.memoryTypeBits);
 
-    VkMemoryAllocateInfo imageMemAI{}; FILL_S_TYPE(imageMemAI);
+    DEFINE_VK_STRUCTURE(VkMemoryAllocateInfo, imageMemAI);
     imageMemAI.allocationSize = memRequirements.size;
     imageMemAI.memoryTypeIndex = foundType;
 
@@ -182,7 +182,7 @@ VkImage Swapchain::getDepthImage() noexcept {
 }
 
 VkImageView Swapchain::createImageView(VkImage image, VkFormat format, const VkImageAspectFlags aspectFlags) {
-    VkImageViewCreateInfo createInfo{}; FILL_S_TYPE(createInfo);
+    DEFINE_VK_STRUCTURE(VkImageViewCreateInfo, createInfo);
     createInfo.image = image;
     createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
     createInfo.format = format;
@@ -220,15 +220,17 @@ void Swapchain::createFramebuffers(VkRenderPass renderPass, VkExtent2D extent) {
     assert(_swapchain != VK_NULL_HANDLE && "Handle mustn't be null.");
 
     _framebuffers.resize(_images.size());
+
+    DEFINE_VK_STRUCTURE(VkFramebufferCreateInfo, framebufferCI);
+    framebufferCI.renderPass = renderPass;
+    framebufferCI.attachmentCount = 2;
+    framebufferCI.width = extent.width;
+    framebufferCI.height = extent.height;
+    framebufferCI.layers = 1;
+
     for (size_t i = 0; i < _imageViews.size(); i++) {
         VkImageView attachments[] = {_imageViews[i], _depthImageView};
-        VkFramebufferCreateInfo framebufferCI{}; FILL_S_TYPE(framebufferCI);
-        framebufferCI.renderPass = renderPass;
-        framebufferCI.attachmentCount = 2;
         framebufferCI.pAttachments = attachments;
-        framebufferCI.width = extent.width;
-        framebufferCI.height = extent.height;
-        framebufferCI.layers = 1;
         const VkResult result = vkCreateFramebuffer(_device, &framebufferCI, nullptr, &_framebuffers[i]);
         setHasError(result != VK_SUCCESS);
         if (hasError()) {

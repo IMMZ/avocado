@@ -29,6 +29,8 @@ public:
     void setSharingMode(const VkSharingMode sharingMode);
     void setUsage(const VkImageUsageFlags usageFlags);
 
+    uint32_t width = 0, height = 0;
+
 private:
     ImagePtr _handle;
     DeviceMemoryPtr _textureImageMemory;

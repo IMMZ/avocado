@@ -16,7 +16,7 @@ Buffer::Buffer(const VkDeviceSize size, const VkBufferUsageFlagBits usage, const
     const std::vector<QueueFamily> &queueFamilies):
     _dev(logicalDevice.getHandle()),
     _bufSize(size) {
-    VkBufferCreateInfo bufferCI{}; FILL_S_TYPE(bufferCI);
+    DEFINE_VK_STRUCTURE(VkBufferCreateInfo, bufferCI);
     bufferCI.size = _bufSize;
     bufferCI.usage = usage;
     bufferCI.sharingMode = sharingMode;
@@ -81,7 +81,7 @@ void Buffer::allocateMemory(PhysicalDevice &physDevice, const VkMemoryPropertyFl
     const uint32_t foundType = physDevice.findMemoryTypeIndex(memoryFlags, memReq.memoryTypeBits);
 
     // Allocate memory.
-    VkMemoryAllocateInfo memAllocInfo{}; FILL_S_TYPE(memAllocInfo);
+    DEFINE_VK_STRUCTURE(VkMemoryAllocateInfo, memAllocInfo);
     memAllocInfo.allocationSize = memReq.size;
     memAllocInfo.memoryTypeIndex = foundType;
 
@@ -117,7 +117,7 @@ void Buffer::fill(const void * const dataToCopy, const VkDeviceSize dataSize, co
     vkUnmapMemory(_dev, _devMem);
 }
 
-VkDeviceSize Buffer::getSize() const noexcept {
+VkDeviceSize Buffer::getSizeBytes() const noexcept {
     return _bufSize;
 }
 

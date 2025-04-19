@@ -11,7 +11,7 @@ namespace avocado::vulkan {
 
 CommandPool::CommandPool(LogicalDevice &device, const VkCommandPoolCreateFlags flags, const QueueFamily queueFamilyIndex):
     _device(device) {
-    VkCommandPoolCreateInfo poolCreateInfo{}; FILL_S_TYPE(poolCreateInfo);
+    DEFINE_VK_STRUCTURE(VkCommandPoolCreateInfo, poolCreateInfo);
     poolCreateInfo.flags = flags;
     poolCreateInfo.queueFamilyIndex = queueFamilyIndex;
 
@@ -30,7 +30,7 @@ size_t CommandPool::allocateBuffers(const uint32_t count, const VkCommandBufferL
     assert(_pool != VK_NULL_HANDLE && "Null command pool.");
     assert(count > 0 && "Command buffer count must be > 0.");
 
-    VkCommandBufferAllocateInfo allocInfo{}; FILL_S_TYPE(allocInfo);
+    DEFINE_VK_STRUCTURE(VkCommandBufferAllocateInfo, allocInfo);
     allocInfo.commandPool = _pool;
     allocInfo.level = static_cast<VkCommandBufferLevel>(bufferLevel);
     allocInfo.commandBufferCount = count;

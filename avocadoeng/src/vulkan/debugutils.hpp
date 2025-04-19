@@ -18,7 +18,7 @@ public:
 
         assert(_dev.getHandle() != VK_NULL_HANDLE);
 
-        VkDebugUtilsObjectNameInfoEXT objNameInfo{}; FILL_S_TYPE(objNameInfo);
+        DEFINE_VK_STRUCTURE(VkDebugUtilsObjectNameInfoEXT, objNameInfo);
         objNameInfo.objectType = ObjectType<T>;
         objNameInfo.objectHandle = reinterpret_cast<uint64_t>(object);
         objNameInfo.pObjectName = objectName;
@@ -36,7 +36,7 @@ public:
 
     template <typename T, typename Tag>
     void setObjectTag(T object, const uint64_t tagName, const Tag *tag, const size_t tagSize) noexcept {
-        VkDebugUtilsObjectTagInfoEXT tagInfo{}; FILL_S_TYPE(tagInfo);
+        DEFINE_VK_STRUCTURE(VkDebugUtilsObjectTagInfoEXT, tagInfo);
         tagInfo.objectType = ObjectType<T>;
         tagInfo.objectHandle = reinterpret_cast<uint64_t>(object);
         tagInfo.tagName = tagName;

@@ -128,7 +128,7 @@ void GraphicsPipelineBuilder::bindShaderModules(const std::vector<VkPipelineShad
 }
 
 PipelinePtr GraphicsPipelineBuilder::createPipeline(VkRenderPass renderPass) {
-    VkGraphicsPipelineCreateInfo pipelineCI{}; FILL_S_TYPE(pipelineCI);
+    DEFINE_VK_STRUCTURE(VkGraphicsPipelineCreateInfo, pipelineCI);
     pipelineCI.subpass = 0;
     pipelineCI.renderPass = renderPass;
 
@@ -231,7 +231,7 @@ void GraphicsPipelineBuilder::setupStates(VkGraphicsPipelineCreateInfo &pipeline
 }
 
 void GraphicsPipelineBuilder::createLayout(VkGraphicsPipelineCreateInfo &pipelineCreateInfo) noexcept {
-    VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo{}; FILL_S_TYPE(pipelineLayoutCreateInfo);
+    DEFINE_VK_STRUCTURE(VkPipelineLayoutCreateInfo, pipelineLayoutCreateInfo);
     pipelineLayoutCreateInfo.setLayoutCount = _descriptorSetLayouts.size();
     pipelineLayoutCreateInfo.pSetLayouts = _descriptorSetLayouts.data();
     VkPipelineLayout pipelineLayout;

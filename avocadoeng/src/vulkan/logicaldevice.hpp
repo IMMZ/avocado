@@ -31,8 +31,6 @@ public:
 
     void updateDescriptorSet(const std::vector<VkWriteDescriptorSet> &descriptorWriteSets) noexcept;
     VkDescriptorBufferInfo createDescriptorBufferInfo(Buffer &buffer, const size_t bufferSize) noexcept;
-    std::pair<VkDescriptorSet, VkWriteDescriptorSet> createWriteDescriptorSet(
-        VkDescriptorPool descriptorPool, VkDescriptorSetLayout descriptorSetLayout, VkDescriptorBufferInfo &descriptorBufferInfo);
     DescriptorPoolPtr createDescriptorPool(const size_t descriptorCount);
     RenderPassPtr createRenderPass(VkFormat format, VkFormat depthFormat);
     Queue getGraphicsQueue(const uint32_t index) noexcept;
@@ -41,8 +39,6 @@ public:
 
     std::unique_ptr<DebugUtils> createDebugUtils();
 
-    // todo this is supposed to be used by PhysicalDevice, not straightly.
-    void setQueueFamilies(const QueueFamily graphicsQF, const QueueFamily presentQF, const QueueFamily transferQF) noexcept;
     FencePtr createFence() noexcept;
     void waitForFences(const std::vector<VkFence> &fences, const bool waitAll, uint64_t timeout = std::numeric_limits<uint64_t>::max()) noexcept;
     void resetFences(const std::vector<VkFence> &fences) noexcept;
@@ -67,10 +63,11 @@ public:
     }
 
 private:
-    // todo do we really need it public? Only physical device can create this.
+    friend class PhysicalDevice;
+
     explicit LogicalDevice();
     explicit LogicalDevice(VkDevice dev);
-    friend class PhysicalDevice;
+    void setQueueFamilies(const QueueFamily graphicsQF, const QueueFamily presentQF, const QueueFamily transferQF) noexcept;
 
     DevicePtr _dev;
     QueueFamily _graphicsQueueFamily = 0, _presentQueueFamily = 0, _transferQueueFamily = 0;

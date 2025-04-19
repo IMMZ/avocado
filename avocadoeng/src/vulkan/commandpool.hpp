@@ -28,7 +28,7 @@ public:
     CommandPool(const CommandPool &) = delete;
     CommandPool& operator=(const CommandPool&) = delete;
 
-    size_t allocateBuffers(const uint32_t count, const VkCommandBufferLevel bufferLevel);
+    size_t allocateBuffers(const uint32_t count, const VkCommandBufferLevel bufferLevel = VK_COMMAND_BUFFER_LEVEL_PRIMARY);
     void freeBuffers(const size_t indexFrom, const size_t indexTo);
     inline void freeBuffer(const size_t index) { freeBuffers(index, index); }
     void freeBuffers();

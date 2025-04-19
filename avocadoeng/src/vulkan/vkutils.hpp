@@ -31,12 +31,21 @@ constexpr VkIndexType toIndexType() {
     return VK_INDEX_TYPE_MAX_ENUM;
 }
 
-void copyBufferToImage(vulkan::CommandPool &commandPool, vulkan::Queue &queue, vulkan::Buffer &buffer,
-    vulkan::Image &image, uint32_t width, uint32_t height);
+template <VkIndexType indexType>
+constexpr size_t sizeOf() {
+    if constexpr (indexType == VK_INDEX_TYPE_UINT16)
+        return sizeof(uint16_t);
 
-void transitImageLayout(vulkan::CommandBuffer &cmdBuf, vulkan::Queue &queue, avocado::vulkan::Image &image, VkFormat format, VkImageLayout oldLayout,
-    VkImageLayout newLayout, const VkImageAspectFlags aspectFlags);
+    if constexpr (indexType == VK_INDEX_TYPE_UINT8_KHR || indexType == VK_INDEX_TYPE_UINT8_EXT)
+        return sizeof(uint8_t);
+
+    if constexpr (indexType == VK_INDEX_TYPE_UINT32)
+        return sizeof(uint32_t);
+
+    return 0;
 }
+
+} // namespace avocado::vulkan
 
 #endif
 

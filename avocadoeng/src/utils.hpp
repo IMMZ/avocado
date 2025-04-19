@@ -62,6 +62,13 @@ void makeUniqueContainer(Container &cont) {
     cont.erase(newEnd, cont.end());
 }
 
+template <typename Enum>
+consteval std::underlying_type_t<Enum> enumToInteger(Enum enumValue) {
+    static_assert(std::is_enum_v<Enum>, "Enum must be of enum type.");
+
+    return static_cast<std::underlying_type_t<Enum>>(enumValue);
+}
+
 } // namespace avocado::utils.
 
 #endif

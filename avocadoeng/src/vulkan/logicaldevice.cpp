@@ -41,38 +41,14 @@ VkDescriptorBufferInfo LogicalDevice::createDescriptorBufferInfo(Buffer &buffer,
         bufferSize};
 }
 
-std::pair<VkDescriptorSet, VkWriteDescriptorSet> LogicalDevice::createWriteDescriptorSet(VkDescriptorPool descriptorPool, VkDescriptorSetLayout descriptorSetLayout, VkDescriptorBufferInfo &descriptorBufferInfo) {
-    VkWriteDescriptorSet descriptorWrite{}; FILL_S_TYPE(descriptorWrite);
-    VkDescriptorSetAllocateInfo allocInfo{}; FILL_S_TYPE(allocInfo);
-    allocInfo.descriptorPool = descriptorPool;
-    allocInfo.descriptorSetCount = 1;
-    allocInfo.pSetLayouts = &descriptorSetLayout;
-
-    VkDescriptorSet dSet;
-    const VkResult ads = vkAllocateDescriptorSets(_dev.get(), &allocInfo, &dSet);
-    setHasError(ads != VK_SUCCESS);
-    if (hasError()) {
-        setErrorMessage("vkAllocateDescriptorSets returned "s + getVkResultString(ads));
-        return {dSet, descriptorWrite};
-    }
-
-    descriptorWrite.dstSet = dSet;
-    descriptorWrite.dstBinding = 0;
-    descriptorWrite.dstArrayElement = 0;
-    descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    descriptorWrite.descriptorCount = 1;
-    descriptorWrite.pBufferInfo = &descriptorBufferInfo;
-    return {dSet, descriptorWrite};
-}
-
 DescriptorPoolPtr LogicalDevice::createDescriptorPool(const size_t descriptorCount) {
     std::array<VkDescriptorPoolSize, 2> descriptorPoolSizes{};
     descriptorPoolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    descriptorPoolSizes[0].descriptorCount = descriptorCount;
+    descriptorPoolSizes[0].descriptorCount = 2;
     descriptorPoolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    descriptorPoolSizes[1].descriptorCount = descriptorCount;
+    descriptorPoolSizes[1].descriptorCount = 4;
 
-    VkDescriptorPoolCreateInfo dPoolCI{}; FILL_S_TYPE(dPoolCI);
+    DEFINE_VK_STRUCTURE(VkDescriptorPoolCreateInfo, dPoolCI);
     dPoolCI.poolSizeCount = descriptorPoolSizes.size();
     dPoolCI.pPoolSizes = descriptorPoolSizes.data();
     dPoolCI.maxSets = static_cast<uint32_t>(descriptorCount);
@@ -117,7 +93,7 @@ void LogicalDevice::setQueueFamilies(const QueueFamily graphicsQueueFamily, cons
 }
 
 FencePtr LogicalDevice::createFence() noexcept {
-    VkFenceCreateInfo fenceCI{}; FILL_S_TYPE(fenceCI);
+    DEFINE_VK_STRUCTURE(VkFenceCreateInfo, fenceCI);
     fenceCI.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
     VkFence fence;
@@ -147,7 +123,7 @@ void LogicalDevice::resetFences(const std::vector<VkFence> &fences) noexcept {
 
 SemaphorePtr LogicalDevice::createSemaphore() noexcept {
     VkSemaphore semaphore;
-    VkSemaphoreCreateInfo semaphoreCI{}; FILL_S_TYPE(semaphoreCI);
+    DEFINE_VK_STRUCTURE(VkSemaphoreCreateInfo, semaphoreCI);
     const VkResult result = vkCreateSemaphore(_dev.get(), &semaphoreCI, nullptr, &semaphore);
     setHasError(result != VK_SUCCESS);
     if (hasError())
@@ -156,6 +132,7 @@ SemaphorePtr LogicalDevice::createSemaphore() noexcept {
     return createObjectPointer(semaphore);
 }
 
+// todo Do we actually need to use physical device in this method? Extract outside?
 SamplerPtr LogicalDevice::createSampler(PhysicalDevice &physicalDevice) {
     VkSamplerCreateInfo samplerInfo{};
     samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -240,7 +217,7 @@ RenderPassPtr LogicalDevice::createRenderPass(VkFormat format, VkFormat depthFor
     dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 
     std::array<VkAttachmentDescription, 2> attachments = {colorAttachment, depthAttachment};
-    VkRenderPassCreateInfo renderPassCreateInfo{}; FILL_S_TYPE(renderPassCreateInfo);
+    DEFINE_VK_STRUCTURE(VkRenderPassCreateInfo, renderPassCreateInfo);
     renderPassCreateInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
     renderPassCreateInfo.pAttachments = attachments.data();
     renderPassCreateInfo.subpassCount = 1;

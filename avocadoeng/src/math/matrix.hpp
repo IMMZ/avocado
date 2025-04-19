@@ -35,9 +35,8 @@ public:
 
     static constexpr Matrix createIdentityMatrix() noexcept {
         Matrix result;
-        for (size_t i = 0; i < N; ++i) {
+        for (size_t i = 0; i < N; ++i)
             result[i][i] = T(1);
-        }
         return result;
     }
 

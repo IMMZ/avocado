@@ -7,16 +7,18 @@
 namespace avocado::vulkan
 {
 
-Image::Image(LogicalDevice &device, const uint32_t width, const uint32_t height, const VkImageType imageType):
+Image::Image(LogicalDevice &device, const uint32_t imgWidth, const uint32_t imgHeight, const VkImageType imageType):
     _handle(device.createObjectPointer<VkImage>(VK_NULL_HANDLE)),
     _textureImageMemory(device.createAllocatedObjectPointer<VkDeviceMemory>(VK_NULL_HANDLE)),
     _createInfo{},
     _device(device) {
-    FILL_S_TYPE(_createInfo);
-    _createInfo.extent.width = width;
-    _createInfo.extent.height = height;
+    _createInfo.sType = StructureType<decltype(_createInfo)>;
+    _createInfo.extent.width = imgWidth;
+    _createInfo.extent.height = imgHeight;
     _createInfo.imageType = imageType;
     _createInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    width = imgWidth;
+    height = imgHeight;
 }
 
 void Image::allocateMemory(PhysicalDevice &physDevice, const VkMemoryPropertyFlags memoryFlags) {
@@ -26,7 +28,7 @@ void Image::allocateMemory(PhysicalDevice &physDevice, const VkMemoryPropertyFla
 
     const uint32_t foundType = physDevice.findMemoryTypeIndex(memoryFlags, memRequirements.memoryTypeBits);
 
-    VkMemoryAllocateInfo imageMemAI{}; FILL_S_TYPE(imageMemAI);
+    DEFINE_VK_STRUCTURE(VkMemoryAllocateInfo, imageMemAI);
     imageMemAI.allocationSize = memRequirements.size;
     imageMemAI.memoryTypeIndex = foundType;
 

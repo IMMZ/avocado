@@ -12,9 +12,11 @@ inline constexpr VkStructureType StructureType<Vk##STRUCT> = VK_STRUCTURE_TYPE_#
 template <>\
 inline constexpr VkObjectType ObjectType<Vk##OBJECT> = VK_OBJECT_TYPE_##OBJECT_TYPE
 
-#define FILL_S_TYPE(variable) variable.sType = avocado::vulkan::StructureType<decltype(variable)>
-#define FILL_PTR_S_TYPE(variable) variable->sType = avocado::vulkan::StructureType<std::remove_pointer_t<decltype(variable)>>
-#define FILL_OBJECT_TYPE(variable) variable.objectType = avocado::vulkan::ObjectType<decltype(variable)>
+#define _FILL_S_TYPE(variable) variable.sType = avocado::vulkan::StructureType<decltype(variable)>
+#define _FILL_PTR_S_TYPE(variable) variable->sType = avocado::vulkan::StructureType<std::remove_pointer_t<decltype(variable)>>
+#define _FILL_OBJECT_TYPE(variable) variable.objectType = avocado::vulkan::ObjectType<decltype(variable)>
+
+#define DEFINE_VK_STRUCTURE(type, variable) type variable{}; _FILL_S_TYPE(variable);
 
 namespace avocado::vulkan {
 
@@ -32,6 +34,7 @@ DEFINE_OBJECT_TYPE(PipelineLayout, PIPELINE_LAYOUT);
 // Structure types.
 template<typename T>
 inline constexpr VkStructureType StructureType = VK_STRUCTURE_TYPE_MAX_ENUM;
+
 
 DEFINE_STRUCTURE_TYPE(ApplicationInfo, APPLICATION_INFO);
 DEFINE_STRUCTURE_TYPE(BufferCreateInfo, BUFFER_CREATE_INFO);
@@ -66,6 +69,7 @@ DEFINE_STRUCTURE_TYPE(PipelineViewportStateCreateInfo, PIPELINE_VIEWPORT_STATE_C
 DEFINE_STRUCTURE_TYPE(PresentInfoKHR, PRESENT_INFO_KHR);
 DEFINE_STRUCTURE_TYPE(RenderPassBeginInfo, RENDER_PASS_BEGIN_INFO);
 DEFINE_STRUCTURE_TYPE(RenderPassCreateInfo, RENDER_PASS_CREATE_INFO);
+DEFINE_STRUCTURE_TYPE(SamplerCreateInfo, SAMPLER_CREATE_INFO);
 DEFINE_STRUCTURE_TYPE(SemaphoreCreateInfo, SEMAPHORE_CREATE_INFO);
 DEFINE_STRUCTURE_TYPE(ShaderModuleCreateInfo, SHADER_MODULE_CREATE_INFO);
 DEFINE_STRUCTURE_TYPE(SwapchainCreateInfoKHR, SWAPCHAIN_CREATE_INFO_KHR);

@@ -74,7 +74,7 @@ LogicalDevice PhysicalDevice::createLogicalDevice(
     const std::vector<std::string> &extensions,
     const std::vector<std::string> &instanceLayers,
     const uint32_t queueCount, const float queuePriority) {
-    VkDeviceQueueCreateInfo deviceQueueCI{}; FILL_S_TYPE(deviceQueueCI);
+    DEFINE_VK_STRUCTURE(VkDeviceQueueCreateInfo, deviceQueueCI);
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos(uniqueQueueFamilyIndices.size(), deviceQueueCI);
     for (size_t i = 0; i < uniqueQueueFamilyIndices.size(); ++i) {
         queueCreateInfos[i].queueFamilyIndex = uniqueQueueFamilyIndices[i];
@@ -87,7 +87,7 @@ LogicalDevice PhysicalDevice::createLogicalDevice(
         extensionsCString[i] = extensions[i].c_str();
     }
 
-    VkDeviceCreateInfo devCreateInfo{}; FILL_S_TYPE(devCreateInfo);
+    DEFINE_VK_STRUCTURE(VkDeviceCreateInfo, devCreateInfo);
     devCreateInfo.queueCreateInfoCount = static_cast<decltype(devCreateInfo.queueCreateInfoCount)>(queueCreateInfos.size());
     devCreateInfo.pQueueCreateInfos = queueCreateInfos.data();
     devCreateInfo.enabledExtensionCount = static_cast<decltype(devCreateInfo.enabledExtensionCount)>(extensionsCString.size());

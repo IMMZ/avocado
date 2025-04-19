@@ -3,7 +3,7 @@
 
 #include "../core.hpp"
 
-#include <iostream>
+#include "vecn.hpp"
 
 namespace avocado::math {
 
@@ -68,6 +68,10 @@ struct Quaternion {
 
     [[nodiscard]] float norm() const {
         return std::pow(x * x + y * y + z * z + w * w, 0.5f);
+    }
+
+    [[nodiscard]] vec4f toVec4f() const noexcept {
+        return vec4f{x, y, z, w};
     }
 
     void normalize();

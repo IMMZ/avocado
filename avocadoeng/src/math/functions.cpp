@@ -26,7 +26,7 @@ Mat4x4 createRotationMatrixY(const float angleDegrees) {
 
     return Mat4x4({{
         {cosA, 0.f, sinA, 0.f},
-        {0.f, 1.f, 0.f, 0.f},
+        {0.f, -1.f, 0.f, 0.f},
         {-sinA, 0.f, cosA, 0.f},
         {0.f, 0.f, 0.f, 1.f}}});
 }

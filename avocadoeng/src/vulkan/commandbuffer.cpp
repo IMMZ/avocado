@@ -27,7 +27,7 @@ VkCommandBuffer& CommandBuffer::getHandle() noexcept {
 void CommandBuffer::begin(const VkCommandBufferUsageFlags flags) noexcept {
     assert(_cmdBuf != VK_NULL_HANDLE && "Null command buffer.");
 
-    VkCommandBufferBeginInfo beginInfo{}; FILL_S_TYPE(beginInfo);
+    DEFINE_VK_STRUCTURE(VkCommandBufferBeginInfo, beginInfo);
     beginInfo.flags = flags;
     const VkResult result = vkBeginCommandBuffer(_cmdBuf, &beginInfo);
     setHasError(result != VK_SUCCESS);
@@ -51,7 +51,7 @@ void CommandBuffer::beginOneTimeSubmit() {
 void CommandBuffer::endOneTimeAndSubmit(Queue &queue) {
     end();
 
-    VkSubmitInfo submitInfo{}; FILL_S_TYPE(submitInfo);
+    DEFINE_VK_STRUCTURE(VkSubmitInfo, submitInfo);
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &_cmdBuf;
     queue.submit(submitInfo);
@@ -70,7 +70,7 @@ void CommandBuffer::endOneTimeAndSubmit(Queue &queue) {
 void CommandBuffer::beginRenderPass(Swapchain &swapchain, VkRenderPass renderPass, const VkExtent2D extent, const VkOffset2D offset, const uint32_t imageIndex) noexcept {
     assert(_cmdBuf != VK_NULL_HANDLE && "Null command buffer.");
 
-    VkRenderPassBeginInfo renderPassInfo{}; FILL_S_TYPE(renderPassInfo);
+    DEFINE_VK_STRUCTURE(VkRenderPassBeginInfo, renderPassInfo);
     renderPassInfo.renderPass = renderPass;
     renderPassInfo.framebuffer = swapchain.getFramebuffer(imageIndex);
     renderPassInfo.renderArea.offset = offset;
@@ -94,7 +94,7 @@ void CommandBuffer::copyBuffer(Buffer &srcBuf, Buffer &dstBuf, const std::vector
     vkCmdCopyBuffer(_cmdBuf, srcBuf.getHandle(), dstBuf.getHandle(), static_cast<uint32_t>(regions.size()), regions.data());
 }
 
-void CommandBuffer::copyBufferToImage(Buffer &buffer, Image &image, const uint32_t width, const uint32_t height) {
+void CommandBuffer::copyBufferToImage(Buffer &buffer, Image &image) {
     VkBufferImageCopy region{};
 
     region.bufferOffset = 0;
@@ -107,7 +107,7 @@ void CommandBuffer::copyBufferToImage(Buffer &buffer, Image &image, const uint32
     region.imageSubresource.layerCount = 1;
 
     region.imageOffset = {0, 0, 0};
-    region.imageExtent = { width, height, 1 };
+    region.imageExtent = { image.width, image.height, 1 };
 
     assert(_cmdBuf != VK_NULL_HANDLE && "Null command buffer.");
     vkCmdCopyBufferToImage(_cmdBuf, buffer.getHandle(), image.getHandle(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);

@@ -30,7 +30,11 @@ public:
     inline void fill(const void * const dataToCopy) {
         fill(dataToCopy, _bufSize, 0);
     }
-    VkDeviceSize getSize() const noexcept;
+    [[nodiscard]] VkDeviceSize getSizeBytes() const noexcept;
+
+    [[nodiscard]] constexpr VkIndexType getIndexType() const noexcept {
+        return VK_INDEX_TYPE_UINT32;
+    }
 
 private:
     VkDevice _dev = VK_NULL_HANDLE;

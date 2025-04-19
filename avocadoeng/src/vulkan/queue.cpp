@@ -27,7 +27,7 @@ void Queue::waitIdle() noexcept {
 
 VkSubmitInfo Queue::createSubmitInfo(VkSemaphore &waitSemaphore, VkSemaphore &signalSemaphore,
     VkCommandBuffer &commandBuffer, const std::vector<VkPipelineStageFlags> &flags) {
-    VkSubmitInfo submitInfo{}; FILL_S_TYPE(submitInfo);
+    DEFINE_VK_STRUCTURE(VkSubmitInfo, submitInfo);
     submitInfo.waitSemaphoreCount = 1;
     submitInfo.pWaitSemaphores = &waitSemaphore;
     submitInfo.signalSemaphoreCount = 1;
@@ -52,7 +52,7 @@ void Queue::submit(const VkSubmitInfo &submitInfo, VkFence fence) noexcept {
 }
 
 void Queue::present(VkSemaphore &waitSemaphore, uint32_t &imageIndex, VkSwapchainKHR &swapchain) {
-    VkPresentInfoKHR presentInfo{}; FILL_S_TYPE(presentInfo);
+    DEFINE_VK_STRUCTURE(VkPresentInfoKHR, presentInfo);
 
     presentInfo.waitSemaphoreCount = 1;
     presentInfo.pWaitSemaphores = &waitSemaphore;

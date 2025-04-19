@@ -21,9 +21,9 @@ namespace avocado::vulkan {
 
 void Vulkan::createInstance(const std::vector<std::string> &extensions,
     const std::vector<std::string> &layers, const VulkanInstanceInfo &vii) {
-    VkInstanceCreateInfo instanceCreateInfo{}; FILL_S_TYPE(instanceCreateInfo);
+    DEFINE_VK_STRUCTURE(VkInstanceCreateInfo, instanceCreateInfo);
 
-    VkApplicationInfo appInfo{}; FILL_S_TYPE(appInfo);
+    DEFINE_VK_STRUCTURE(VkApplicationInfo, appInfo);
     appInfo.pApplicationName = vii.appName;
     appInfo.applicationVersion = VK_MAKE_VERSION(vii.appMajorVersion, vii.appMinorVersion, vii.appPatchVersion);
     appInfo.pEngineName = avocado::core::Config::ENGINE_NAME;
