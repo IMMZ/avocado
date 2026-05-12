@@ -21,7 +21,7 @@ foreach(SHADER ${SHADERS})
 
     add_custom_command(
         OUTPUT ${SHADER_OUTPUT}
-        COMMAND glslc ${SHADER} -o ${SHADER_OUTPUT}
+        COMMAND ${VULKAN_SDK}/bin/glslc ${SHADER} -o ${SHADER_OUTPUT}
         DEPENDS ${SHADER}
         COMMENT "Compiling ${SHADER_NAME}..."
     )

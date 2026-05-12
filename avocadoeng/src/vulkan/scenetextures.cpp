@@ -6,8 +6,10 @@
 #include "structuretypes.hpp"
 #include "swapchain.hpp"
 
-#include "../scene.hpp"
-#include "vulkan/vulkan_core.h"
+#include "../scene/sampler.hpp"
+#include "../scene/scenemanager.hpp"
+
+#include <vulkan/vulkan_core.h>
 
 namespace avocado::vulkan {
 
@@ -100,23 +102,7 @@ void SceneTextures::loadImage(const core::Texture &texture, Swapchain &swapchain
 void SceneTextures::loadSampler(const core::Texture &texture) {
     if (texture._sampler != nullptr) {
         const core::Sampler &sampler = *texture._sampler;
-        DEFINE_VK_STRUCTURE(VkSamplerCreateInfo, createInfo);
-        createInfo.minFilter = static_cast<VkFilter>(sampler._minFilter);
-        createInfo.magFilter = static_cast<VkFilter>(sampler._magFilter);
-        createInfo.addressModeU = static_cast<VkSamplerAddressMode>(sampler._wrapS);
-        createInfo.addressModeV = static_cast<VkSamplerAddressMode>(sampler._wrapT);
-        createInfo.anisotropyEnable = VK_FALSE;
-        VkPhysicalDeviceProperties properties{};
-        vkGetPhysicalDeviceProperties(_physicalDevice.getHandle(), &properties);
-        createInfo.unnormalizedCoordinates = VK_FALSE;
-        createInfo.compareEnable = VK_FALSE;
-        createInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-        createInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-        createInfo.mipLodBias = 0.0f;
-        createInfo.minLod = 0.0f;
-        createInfo.maxLod = 0.0f;
-        createInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
-
+        const VkSamplerCreateInfo createInfo = sampler.generateVulkanCreateInfo();
         VkSampler textureSampler = VK_NULL_HANDLE;
         // todo process error!
         [[maybe_unused]] const VkResult samplerCreateResult = vkCreateSampler(_logicalDevice.getHandle(), &createInfo, nullptr, &textureSampler);

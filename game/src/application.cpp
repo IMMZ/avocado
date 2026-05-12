@@ -6,7 +6,7 @@
 #include "vertex.hpp"
 #include "utils.hpp"
 
-#include <scene.hpp>
+#include <scene/scene.hpp>
 #include <os/osutils.hpp>
 #include <vulkan/commandbuffer.hpp>
 #include <vulkan/graphicspipeline.hpp>
@@ -29,6 +29,8 @@
 #include <vulkan/surface.hpp>
 #include <vulkan/swapchain.hpp>
 #include <vulkan/vkutils.hpp>
+
+#include <scene/scenemanager.hpp>
 
 #include <core.hpp>
 
@@ -160,8 +162,8 @@ vulkan::GraphicsPipelineBuilder Application::preparePipeline(const VkExtent2D ex
     rastState.rasterizerDiscardEnable = VK_FALSE;
     rastState.depthBiasEnable = VK_FALSE;
     rastState.polygonMode = VK_POLYGON_MODE_FILL;
-    rastState.cullMode = VK_CULL_MODE_FRONT_BIT;
-    rastState.frontFace = VK_FRONT_FACE_CLOCKWISE;
+    rastState.cullMode = VK_CULL_MODE_BACK_BIT;
+    rastState.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rastState.lineWidth = 1.f;
 
     VkPipelineDepthStencilStateCreateInfo &depthStencilState = pipelineBuilder.createDepthStencilState();
@@ -203,12 +205,8 @@ vulkan::GraphicsPipelineBuilder Application::preparePipeline(const VkExtent2D ex
 
 int Application::run() {
     // Check resources.
-    // todo The variants below are for tests. Each of them should work properly.
-    //const std::string modelFile = avocado::os::getExecutablePath() + "/assets/models/non_textured_cube.glb";
-    //const std::string modelFile = avocado::os::getExecutablePath() + "/assets/models/textured_cube.gltf";
-    //const std::string modelFile = avocado::os::getExecutablePath() + "/assets/models/two_non_textured_cubes.glb";
-    const std::string modelFile = avocado::os::getExecutablePath() + "/assets/models/scene1/scene.gltf";
-    //const std::string modelFile = avocado::os::getExecutablePath() + "/assets/models/two_non_textured_cubes.gltf";
+    const std::string modelFile = avocado::os::getExecutablePath() + "/assets/models/cube.glb";
+    //const std::string modelFile = avocado::os::getExecutablePath() + "/assets/models/scene1/scene.glb";
     if (!std::filesystem::exists(modelFile)) {
         std::cout << "File " << modelFile << " doesn't exist" << std::endl;
         return 1;
@@ -306,6 +304,15 @@ int Application::run() {
     vulkan::SceneTextures sceneTextures(_physicalDevice, _logicalDevice);
     sceneTextures.load(sceneManager, swapChain, queueManager);
 
+
+    math::Mat4x4 cameraLookAt {};
+    math::Mat4x4 cameraProjection {};
+
+    if (sceneManager.hasCameras()) {
+        cameraProjection = sceneManager.getCamera().perspective;
+        cameraLookAt = math::lookAt(sceneManager.getCamera().position, math::vec3f{0.f, 0.f, 0.f}, sceneManager.getCamera().up);
+    }
+
     auto vertexBuffer = sceneManager.formVertexBuffer(_physicalDevice, static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT), VK_SHARING_MODE_EXCLUSIVE, _logicalDevice);
     auto indexBuffer = sceneManager.formIndexBuffer(_physicalDevice, static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT), VK_SHARING_MODE_EXCLUSIVE, _logicalDevice);
 
@@ -324,11 +331,16 @@ int Application::run() {
     uniformBufferForFrame2.bindMemory();
 
     UniformBufferObject ubo{};
-    ubo.view = math::lookAt(math::vec3f(0.f, 0.f, -8.f), math::vec3f(0.f, 0.f, 0.f), math::vec3f(0.f, 1.f, 0.f));
-    //ubo.view = math::lookAt(math::vec3f(5.f, 0.f, -8.f), math::vec3f(0.f, 0.f, 0.f), math::vec3f(0.f, 1.f, 0.f));
-    ubo.proj = math::perspectiveProjection(45.f, static_cast<float>(GameConfig::RESOLUTION_WIDTH) / static_cast<float>(GameConfig::RESOLUTION_HEIGHT), 0.1f, 50.f);
+    if (!sceneManager.hasCameras())
+        ubo.view = math::lookAt(math::vec3f(0.f, 0.f, 10.f), math::vec3f(0.f, 0.f, 0.f), math::vec3f(0.f, 1.f, 0.f));
+    else
+        ubo.view = cameraLookAt;
+
+    if (!sceneManager.hasCameras())
+        ubo.proj = math::perspectiveProjection(60.f, static_cast<float>(GameConfig::RESOLUTION_WIDTH) / static_cast<float>(GameConfig::RESOLUTION_HEIGHT), 0.1f, 100.f);
+    else
+        ubo.proj = cameraProjection;
     ubo.model = math::Mat4x4::createIdentityMatrix();
-    ubo.model[1][1] = -1.f; // Flip Y axis.
     const VkFormat depthFormat = swapChain.findSupportedFormat(
         {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT},
         _physicalDevice.getHandle(),
@@ -414,17 +426,24 @@ int Application::run() {
     uint32_t imageIndex = 0;
     uint32_t currentFrame = 0;
 
-    float angle = 0.5f;
+    float x = 0.f;
+    float z = 10.f;
 
     // Main loop.
     while (true) {
         if (SDL_PollEvent(&event)) {
             if ((event.type == SDL_QUIT) || (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE))
                 break;
-            if ((event.type == SDL_KEYDOWN) && event.key.keysym.sym == SDLK_RIGHT)
-                angle += 0.2f;
-            else if ((event.type == SDL_KEYDOWN) && event.key.keysym.sym == SDLK_LEFT)
-                angle -= 0.2f;
+            if (event.type == SDL_KEYDOWN) {
+                if (event.key.keysym.sym == SDLK_DOWN)
+                    z += 1.f;
+                else if (event.key.keysym.sym == SDLK_UP)
+                    z -= 1.f;
+                else if (event.key.keysym.sym == SDLK_RIGHT)
+                    x += 1.f;
+                else if (event.key.keysym.sym == SDLK_LEFT)
+                    x -= 1.f;
+            }
         }
 
         std::vector<VkFence> fenceToWait{fences[currentFrame].get()};
@@ -436,13 +455,10 @@ int Application::run() {
         const auto& currentTime = std::chrono::high_resolution_clock::now();
         const float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
-        // Update camera position based on angle
-        constexpr float radius = 25.f;
-        math::vec3f camera;
-        float speed = 0.5f;
-        camera.x = radius * cos(angle);
-        camera.y = 0.f;
-        camera.z = radius * sin(angle);
+        if (sceneManager.hasCameras())
+            ubo.view = math::lookAt(sceneManager.getCamera().position, math::vec3f{0.f, 0.f, 0.f}, sceneManager.getCamera().up);
+        else
+            ubo.view = math::lookAt(math::vec3f(x, 0.f, z), math::vec3f(0.f, 0.f, 0.f), math::vec3f(0.f, 1.f, 0.f));
         uniformBuffers[currentFrame]->fill(&ubo);
 
 

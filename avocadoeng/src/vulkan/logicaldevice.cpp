@@ -132,10 +132,8 @@ SemaphorePtr LogicalDevice::createSemaphore() noexcept {
     return createObjectPointer(semaphore);
 }
 
-// todo Do we actually need to use physical device in this method? Extract outside?
 SamplerPtr LogicalDevice::createSampler(PhysicalDevice &physicalDevice) {
-    VkSamplerCreateInfo samplerInfo{};
-    samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    DEFINE_VK_STRUCTURE(VkSamplerCreateInfo, samplerInfo);
     samplerInfo.magFilter = VK_FILTER_LINEAR;
     samplerInfo.minFilter = VK_FILTER_LINEAR;
     samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
@@ -143,8 +141,8 @@ SamplerPtr LogicalDevice::createSampler(PhysicalDevice &physicalDevice) {
     samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
     samplerInfo.anisotropyEnable = VK_FALSE;
 
-    VkPhysicalDeviceProperties properties{};
-    vkGetPhysicalDeviceProperties(physicalDevice.getHandle(), &properties);
+    VkPhysicalDeviceProperties properties{}; vkGetPhysicalDeviceProperties(physicalDevice.getHandle(), &properties);
+
     samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
     samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
     samplerInfo.unnormalizedCoordinates = VK_FALSE;
@@ -155,8 +153,15 @@ SamplerPtr LogicalDevice::createSampler(PhysicalDevice &physicalDevice) {
     samplerInfo.minLod = 0.0f;
     samplerInfo.maxLod = 0.0f;
 
+    return createSampler(physicalDevice, samplerInfo);
+}
+
+SamplerPtr LogicalDevice::createSampler(PhysicalDevice &physicalDevice, const VkSamplerCreateInfo &createInfo) {
+    VkPhysicalDeviceProperties properties{};
+    vkGetPhysicalDeviceProperties(physicalDevice.getHandle(), &properties);
+
     VkSampler textureSampler;
-    const VkResult samplerCreateResult = vkCreateSampler(_dev.get(), &samplerInfo, nullptr, &textureSampler);
+    const VkResult samplerCreateResult = vkCreateSampler(_dev.get(), &createInfo, nullptr, &textureSampler);
     setHasError(samplerCreateResult != VK_SUCCESS);
     if (hasError())
         setErrorMessage("vkCreateSampler returned "s + getVkResultString(samplerCreateResult));

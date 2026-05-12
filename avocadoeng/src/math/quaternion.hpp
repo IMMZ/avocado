@@ -70,11 +70,17 @@ struct Quaternion {
         return std::pow(x * x + y * y + z * z + w * w, 0.5f);
     }
 
-    [[nodiscard]] vec4f toVec4f() const noexcept {
-        return vec4f{x, y, z, w};
+    void normalize();
+
+    [[nodiscard]] Quaternion fromVec4(const vec4f &vec) const noexcept {
+        return Quaternion{vec.x, vec.y, vec.z, vec.w};
     }
 
-    void normalize();
+    [[nodiscard]] vec3f toVec3f() const noexcept {
+        return vec3f{x, y, z};
+    }
+
+    [[nodiscard]] vec3f rotateVector(const vec3f &vecToRotate) const noexcept;
 };
 
 std::ostream& operator<<(std::ostream &stream, const Quaternion &q);

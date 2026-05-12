@@ -182,6 +182,10 @@ struct vec<T, 3> {
             z * other.x - x * other.z,
             x * other.y - y * other.x);
     }
+
+    [[nodiscard]] vec<T, 4> toVec4(const float value4) const noexcept {
+        return vec<T, 4>(x, y, z, value4);
+    }
 };
 
 template <typename T>
@@ -244,6 +248,10 @@ struct vec<T, 4> {
         if (len > 0.0) {
             x /= len; y /= len; z /= len, w /= len;
         }
+    }
+
+    [[nodiscard]] vec<T, 3> toVec3() const noexcept {
+        return vec<T, 3>(x, y, z);
     }
 };
 

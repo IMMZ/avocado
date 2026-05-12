@@ -1,156 +1,14 @@
 #define TINYGLTF_IMPLEMENTATION
-#define TINYGLTF_NOEXCEPTION
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#define JSON_NOEXCEPTION
+#include "scenemanager.hpp"
 
-#include "scene.hpp"
+#include "../math/functions.hpp"
 
-#include "vulkan/logicaldevice.hpp"
-#include "vulkan/swapchain.hpp"
-
-
-#include <iostream> // todo remove
-#include <algorithm>
-#include <memory>
 #include <functional>
-
-namespace {
-
-enum class ModelTopology {
-    Points
-    , Lines
-    , LineLoop
-    , LineStrip
-    , Triangles
-    , TriangleStrip
-    , TriangleFan
-};
-
-enum class AccessorType: int {
-    Scalar = TINYGLTF_TYPE_SCALAR
-    , Vec2 = TINYGLTF_TYPE_VEC2
-    , Vec3 = TINYGLTF_TYPE_VEC3
-    , Vec4 = TINYGLTF_TYPE_VEC4
-    , Mat2 = TINYGLTF_TYPE_MAT2
-    , Mat3 = TINYGLTF_TYPE_MAT3
-    , Mat4 = TINYGLTF_TYPE_MAT4
-};
-
-constexpr size_t getNumberOfComponents(const AccessorType accessorType) {
-    if (accessorType == AccessorType::Scalar) return 1;
-    if (accessorType == AccessorType::Vec2) return 2;
-    if (accessorType == AccessorType::Vec3) return 3;
-    if (accessorType == AccessorType::Vec4) return 4;
-    if (accessorType == AccessorType::Mat2) return 4;
-    if (accessorType == AccessorType::Mat3) return 9;
-    if (accessorType == AccessorType::Mat4) return 16;
-
-    return 0;
-}
-
-enum class ComponentType: int {
-    Byte = TINYGLTF_COMPONENT_TYPE_BYTE
-    , UByte = TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE
-    , Short = TINYGLTF_COMPONENT_TYPE_SHORT
-    , UShort = TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT
-    , Int = TINYGLTF_COMPONENT_TYPE_INT
-    , UInt = TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT
-    , Float = TINYGLTF_COMPONENT_TYPE_FLOAT
-    , Double = TINYGLTF_COMPONENT_TYPE_DOUBLE
-};
-
-constexpr size_t getComponentTypeSize(const ComponentType componentType) {
-    if (componentType == ComponentType::Byte) return 1;
-    if (componentType == ComponentType::UByte) return 1;
-    if (componentType == ComponentType::Short) return 2;
-    if (componentType == ComponentType::UShort) return 2;
-    if (componentType == ComponentType::Int) return 4;
-    if (componentType == ComponentType::UInt) return 4;
-    if (componentType == ComponentType::Float) return 4;
-    if (componentType == ComponentType::Double) return 8;
-
-    return 0;
-}
-
-} // anonymous namespace.
-
-// todo remove
-struct VulkanObjectFactory {
-    explicit VulkanObjectFactory(avocado::vulkan::PhysicalDevice &physicalDevice, avocado::vulkan::LogicalDevice &logicalDevice, avocado::vulkan::Swapchain &swapchain):
-        _physicalDevice(physicalDevice),
-        _logicalDevice(logicalDevice),
-        _swapchain(swapchain) {
-    }
-
-    avocado::vulkan::Image createImage(const avocado::core::Image &sceneImage) {
-        avocado::vulkan::Image textureImage(_logicalDevice, sceneImage._width, sceneImage._height, VK_IMAGE_TYPE_2D);
-        textureImage.setDepth(1);
-        textureImage.setFormat(VK_FORMAT_R8G8B8A8_SRGB);
-        textureImage.setMipLevels(1);
-        textureImage.setImageTiling(VK_IMAGE_TILING_OPTIMAL);
-        textureImage.setUsage(VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
-        textureImage.setSampleCount(VK_SAMPLE_COUNT_1_BIT);
-        textureImage.setArrayLayerCount(1);
-        textureImage.setSharingMode(VK_SHARING_MODE_EXCLUSIVE);
-        textureImage.create();
-        // todo Log this error
-        //if (textureImage.hasError()) {
-        //}
-        textureImage.allocateMemory(_physicalDevice, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-        textureImage.bindMemory();
-        return textureImage;
-    }
-
-
-
-    avocado::vulkan::ImageViewPtr createImageView(avocado::vulkan::Image image){
-        return _logicalDevice.createObjectPointer(_swapchain.createImageView(image.getHandle(), VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT));
-    }
-
-    avocado::vulkan::SamplerPtr createSampler() {
-        return _logicalDevice.createSampler(_physicalDevice);
-    }
-
-    avocado::vulkan::PhysicalDevice &_physicalDevice;
-    avocado::vulkan::LogicalDevice &_logicalDevice;
-    avocado::vulkan::Swapchain &_swapchain;
-};
-
 
 namespace avocado::core {
 
-    //// Node class
-    void Node::addChild(Node * const childNode) {
-    if (nullptr != childNode)
-        _children.push_back(childNode);
-}
-
-bool Node::hasMatrix() const noexcept {
-    return (nullptr != matrix);
-}
-
-bool Node::hasMesh() const noexcept {
-    return (nullptr != mesh);
-}
-
-bool Node::hasRotation() const noexcept {
-    return (nullptr != rotation);
-}
-
-
-//// Sampler class
-VkSamplerCreateInfo Sampler::generateVulkanCreateInfo() const {
-    VkSamplerCreateInfo createInfo{};
-    createInfo.minFilter = static_cast<VkFilter>(_minFilter);
-    createInfo.magFilter = static_cast<VkFilter>(_magFilter);
-    createInfo.addressModeU = static_cast<VkSamplerAddressMode>(_wrapS);
-    createInfo.addressModeV = static_cast<VkSamplerAddressMode>(_wrapT);
-    return createInfo;
-}
-
-
-//// SceneManager class.
 void SceneManager::load(const std::string &filepath) {
     auto loadFunction = std::mem_fn(&tinygltf::TinyGLTF::LoadASCIIFromFile);
     if (filepath.ends_with(".glb"))
@@ -159,8 +17,7 @@ void SceneManager::load(const std::string &filepath) {
 
     tinygltf::TinyGLTF loader;
     std::string error, warning;
-    bool loadOk = false;
-    loadOk = loadFunction(loader, &model, &error, &warning, filepath, tinygltf::REQUIRE_VERSION);
+    const bool loadOk = loadFunction(loader, &model, &error, &warning, filepath, tinygltf::REQUIRE_VERSION);
     if (!loadOk) {
         ; // todo Process error.
     }
@@ -233,12 +90,10 @@ void SceneManager::load(const std::string &filepath) {
             }
 
             // Read texture coordinates.
-            constexpr char TEXCOORD[] = "TEXCOORD";
-            constexpr size_t TEXCOORD_LENGTH = std::size(TEXCOORD) - 1;
+            constexpr const char * const TEXCOORD = "TEXCOORD";
             size_t texCoordNumberOfComponents = 0;
             for (const auto &attrIndexPair: attributes) {
-                // [cpp20] Replace this by begins_with()
-                if (attrIndexPair.first.length() > TEXCOORD_LENGTH && attrIndexPair.first.substr(0, TEXCOORD_LENGTH) == TEXCOORD) {
+                if (attrIndexPair.first.starts_with(TEXCOORD)) {
                     const size_t texCoordAccessorIndex = attributes.at(attrIndexPair.first);
                     texCoordsCount = model.accessors[texCoordAccessorIndex].count;
                     const size_t texCoordAccessorOffset = model.accessors[texCoordAccessorIndex].byteOffset;
@@ -266,13 +121,12 @@ void SceneManager::load(const std::string &filepath) {
                 }
             }
 
+            // todo Looks like this code is similar to read texture coordinates. Refactor!
             // Read colors.
             constexpr char COLOR[] = "COLOR";
-            constexpr size_t COLOR_LENGTH = std::size(COLOR) - 1;
             size_t colorNumberOfComponents = 0;
             for (const auto &attrIndexPair: attributes) {
-                // [cpp20] Replace this by begins_with()
-                if (attrIndexPair.first.length() > COLOR_LENGTH && attrIndexPair.first.substr(0, COLOR_LENGTH) == COLOR) {
+                if (attrIndexPair.first.starts_with(COLOR)) {
                     const size_t colorAccessorIndex = attributes.at(attrIndexPair.first);
                     colorCount = model.accessors[colorAccessorIndex].count;
                     const size_t colorAccessorOffset = model.accessors[colorAccessorIndex].byteOffset;
@@ -307,31 +161,27 @@ void SceneManager::load(const std::string &filepath) {
                 vertices[i].position.x = positions[positionI];
                 vertices[i].position.y = positions[positionI + 1];
                 vertices[i].position.z = positions[positionI + 2];
-                vertices[i].textureCoordinate.x = texCoords[textureCoordinatesI];
-                vertices[i].textureCoordinate.y = texCoords[textureCoordinatesI + 1];
+                if (nullptr != texCoords) {
+                    vertices[i].textureCoordinate.x = texCoords[textureCoordinatesI];
+                    vertices[i].textureCoordinate.y = texCoords[textureCoordinatesI + 1];
+                }
+
                 if (nullptr != colors) {
                     vertices[i].color.r = colors[colorI];
                     vertices[i].color.g = colors[colorI + 1];
                     vertices[i].color.b = colors[colorI + 2];
-                } else { // Paint as red by default.
-                    if (0 == meshIndex) {
-                        vertices[i].color.r = 16.f / 255.f;
-                        vertices[i].color.g = 103.f / 255.f;
-                        vertices[i].color.b = 57.f / 255.f;
-                    } else {
-//148, 73, 23
-                        vertices[i].color.r = 148.f / 255.f;
-                        vertices[i].color.g = 73.f / 255.f;
-                        vertices[i].color.b = 23.f / 255.f;
+                    // todo Decide if we need this 4th alpha component of color.
+                    //if (4 == colorNumberOfComponents)
+                    //    vertices[i].color.a = colors[colorI + 3];
 
-                    }
+                } else { // Paint as red by default.
+                    vertices[i].color.r = 1.f;
+                    vertices[i].color.g = 0.f;
+                    vertices[i].color.b = 0.f;
                 }
+
                 positionI += numberOfComponents; textureCoordinatesI += texCoordNumberOfComponents;
             }
-
-            parseSamplers();
-            parseImages();
-            parseTextures();
 
             // todo Could we reserve here anything for each primitive?
             for (size_t i = 0; i < positionsCount; ++i)
@@ -343,6 +193,10 @@ void SceneManager::load(const std::string &filepath) {
         meshIndex++;
     } // for each mesh.
 
+    parseSamplers();
+    parseImages();
+    parseTextures();
+    parseCameras();
     parseNodes();
     parseScenes();
 }
@@ -352,16 +206,18 @@ void SceneManager::parseSamplers() {
         Sampler newSampler;
         
         switch (sampler.magFilter) {
-            case TINYGLTF_TEXTURE_FILTER_LINEAR: {
-                newSampler._magFilter = Sampler::MagFilter::Linear;
+            case TINYGLTF_TEXTURE_FILTER_LINEAR:
+            case TINYGLTF_TEXTURE_FILTER_LINEAR_MIPMAP_LINEAR: {
+                newSampler._magFilter = VK_FILTER_LINEAR;
                 break;
             }
-            case TINYGLTF_TEXTURE_FILTER_NEAREST: {
-                newSampler._magFilter = Sampler::MagFilter::Nearest;
+            case TINYGLTF_TEXTURE_FILTER_NEAREST:
+            case TINYGLTF_TEXTURE_FILTER_NEAREST_MIPMAP_NEAREST: {
+                newSampler._magFilter = VK_FILTER_NEAREST;
                 break;
             }
             case -1: {
-                newSampler._magFilter = Sampler::MagFilter::None;
+                newSampler._magFilter = VK_FILTER_MAX_ENUM;
                 break;
             }
             default: {
@@ -370,32 +226,18 @@ void SceneManager::parseSamplers() {
         }
 
         switch (sampler.minFilter) {
-            case TINYGLTF_TEXTURE_FILTER_LINEAR: {
-                newSampler._minFilter = Sampler::MinFilter::Linear;
-                break;
-            }
-            case TINYGLTF_TEXTURE_FILTER_NEAREST: {
-                newSampler._minFilter = Sampler::MinFilter::Nearest;
-                break;
-            }
-            case TINYGLTF_TEXTURE_FILTER_NEAREST_MIPMAP_NEAREST: {
-                newSampler._minFilter = Sampler::MinFilter::NearestMipMapNearest;
-                break;
-            }
-            case TINYGLTF_TEXTURE_FILTER_NEAREST_MIPMAP_LINEAR: {
-                newSampler._minFilter = Sampler::MinFilter::NearestMipMapLinear;
-                break;
-            }
-            case TINYGLTF_TEXTURE_FILTER_LINEAR_MIPMAP_NEAREST: {
-                newSampler._minFilter = Sampler::MinFilter::LinearMipMapNearest;
-                break;
-            }
+            case TINYGLTF_TEXTURE_FILTER_LINEAR:
             case TINYGLTF_TEXTURE_FILTER_LINEAR_MIPMAP_LINEAR: {
-                newSampler._minFilter = Sampler::MinFilter::LinearMipMapLinear;
+                newSampler._minFilter = VK_FILTER_LINEAR;
+                break;
+            }
+            case TINYGLTF_TEXTURE_FILTER_NEAREST:
+            case TINYGLTF_TEXTURE_FILTER_NEAREST_MIPMAP_NEAREST: {
+                newSampler._minFilter = VK_FILTER_NEAREST;
                 break;
             }
             case -1: {
-                newSampler._minFilter = Sampler::MinFilter::None;
+                newSampler._minFilter = VK_FILTER_MAX_ENUM;
                 break;
             }
             default: {
@@ -443,7 +285,6 @@ void SceneManager::parseSamplers() {
 
 void SceneManager::parseImages() {
     for (tinygltf::Image &image: model.images) {
-        std::cout << "IMAGE: " << image.name << std::endl;
         Image newImage;
         if (!image.uri.empty())
             newImage._uri = image.uri;
@@ -461,14 +302,7 @@ void SceneManager::parseImages() {
                 newImage._mimeType = Image::MimeType::Gif;
         }
 
-        if (image.uri.empty() && image.bufferView != -1) {
-            const tinygltf::BufferView &bufferView = model.bufferViews[image.bufferView];
-            tinygltf::Buffer buffer = model.buffers[bufferView.buffer];
-            newImage._data = std::move(buffer.data);
-        } else {
-            newImage._data = std::move(image.image);
-        }
-
+        newImage._data = std::move(image.image);
         _images.push_back(std::move(newImage));
     }
 }
@@ -478,7 +312,6 @@ void SceneManager::parseTextures() {
     for (const tinygltf::Texture &texture: model.textures) {
         Texture newTexture;
         
-        std::cout << "TEXTURE: " << texture.name << std::endl;
         if (-1 != texture.source)
             newTexture._image = &_images[texture.source];
         if (-1 != texture.sampler)
@@ -549,6 +382,9 @@ void SceneManager::parseNodes() {
     for (const tinygltf::Node &node: model.nodes) {
         Node newNode;
         newNode._name = node.name;
+        newNode._cameraIndex = node.camera;
+
+
         if (-1 != node.mesh) {
             assert(node.mesh < meshes.size());
             newNode.mesh = &meshes[node.mesh];
@@ -570,12 +406,20 @@ void SceneManager::parseNodes() {
                 static_cast<float>(node.rotation[2]), static_cast<float>(node.rotation[3])};
         }
 
+        if (!node.scale.empty()) {
+            newNode.scale = new math::vec3f;
+            newNode.scale->x = node.scale[0];
+            newNode.scale->y = node.scale[1];
+            newNode.scale->z = node.scale[2];
+        }
+
         if (!node.translation.empty()) {
             newNode.translation = new math::vec3f;
             newNode.translation->x = node.translation[0];
             newNode.translation->y = node.translation[1];
             newNode.translation->z = node.translation[2];
         }
+
 
         using namespace avocado::math;
         // mesh * vec
@@ -586,16 +430,40 @@ void SceneManager::parseNodes() {
                 v.y = vertex.position.y;
                 v.z = vertex.position.z;
                 v = v * (*newNode.matrix);
-
                 vertex.position.x = v.x;                
                 vertex.position.y = v.y;
                 vertex.position.z = v.z;
+
             }
         }
 
-        if (newNode.translation != nullptr && newNode.hasMesh()) {
+        // For row vectors the order is: scale, rotation, translation.
+        if (newNode.hasScale()) {
+            for (avocado::Vertex &vertex: newNode.mesh->vertices) {
+                vertex.position.x *= newNode.scale->x;
+                vertex.position.y *= newNode.scale->y;
+                vertex.position.z *= newNode.scale->z;
+            }
+        }
+
+        if (!newNode.hasCamera() && newNode.hasRotation()) {
+            for (avocado::Vertex &vertex: newNode.mesh->vertices) {
+                vertex.position = newNode.rotation->rotateVector(vertex.position);
+            }
+        }
+
+        if (newNode.hasMesh() && newNode.hasTranslation()) {
             for (avocado::Vertex &vertex: newNode.mesh->vertices)
                 vertex.position = vertex.position + (*newNode.translation);
+        }
+
+        if (newNode.hasCamera()) {
+            if (newNode.hasTranslation())
+                _cameras[newNode._cameraIndex].position = (*newNode.translation);
+
+            if (newNode.hasRotation()) {
+                _cameras[newNode._cameraIndex].up = newNode.rotation->rotateVector(_cameras[newNode._cameraIndex].up);
+            }
         }
 
         nodes.push_back(std::move(newNode));
@@ -625,5 +493,19 @@ void SceneManager::parseScenes() {
     _defaultScene = &_scenes[model.defaultScene];
 }
 
-} // namespace avocado::core
+void SceneManager::parseCameras() {
+    for (const tinygltf::Camera &camera: model.cameras) {
+        assert(camera.type == "perspective"); //No support for non-perspective projective on camera.
 
+        _cameras.push_back(Camera {
+            .perspective = math::perspectiveProjection(
+                static_cast<float>(math::toDegrees(camera.perspective.yfov)),
+                static_cast<float>(camera.perspective.aspectRatio),
+                static_cast<float>(camera.perspective.znear),
+                static_cast<float>(camera.perspective.zfar)),
+            .up = math::vec3f{0.f, 1.f, 0.f}});
+
+    }
+}
+
+}

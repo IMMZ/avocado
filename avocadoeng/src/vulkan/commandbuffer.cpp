@@ -77,7 +77,7 @@ void CommandBuffer::beginRenderPass(Swapchain &swapchain, VkRenderPass renderPas
     renderPassInfo.renderArea.extent = extent;
 
     std::array<VkClearValue, 2> clearColors{};
-    clearColors[0].color = {{0.f, 0.f, 0.f, 0.f}};
+    clearColors[0].color = {{.22f, .37f, .6f, 0.f}};
     clearColors[1].depthStencil = {1.f, 0};
     renderPassInfo.clearValueCount = static_cast<uint32_t>(clearColors.size());
     renderPassInfo.pClearValues = clearColors.data();
@@ -95,19 +95,21 @@ void CommandBuffer::copyBuffer(Buffer &srcBuf, Buffer &dstBuf, const std::vector
 }
 
 void CommandBuffer::copyBufferToImage(Buffer &buffer, Image &image) {
-    VkBufferImageCopy region{};
+    const VkBufferImageCopy region {
+        .bufferOffset = 0,
+        .bufferRowLength = 0,
+        .bufferImageHeight = 0,
 
-    region.bufferOffset = 0;
-    region.bufferRowLength = 0;
-    region.bufferImageHeight = 0;
+        .imageSubresource = VkImageSubresourceLayers {
+            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .mipLevel = 0,
+            .baseArrayLayer = 0,
+            .layerCount = 1,
+        },
 
-    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    region.imageSubresource.mipLevel = 0;
-    region.imageSubresource.baseArrayLayer = 0;
-    region.imageSubresource.layerCount = 1;
-
-    region.imageOffset = {0, 0, 0};
-    region.imageExtent = { image.width, image.height, 1 };
+        .imageOffset = {0, 0, 0},
+        .imageExtent = { image.width, image.height, 1 }
+    };
 
     assert(_cmdBuf != VK_NULL_HANDLE && "Null command buffer.");
     vkCmdCopyBufferToImage(_cmdBuf, buffer.getHandle(), image.getHandle(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);

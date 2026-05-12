@@ -44,7 +44,9 @@ public:
     void resetFences(const std::vector<VkFence> &fences) noexcept;
     SemaphorePtr createSemaphore() noexcept;
 
+    // todo Looks like physicalDevice param is extra. It should be as a class member.
     SamplerPtr createSampler(PhysicalDevice &physicalDevice);
+    SamplerPtr createSampler(PhysicalDevice &physicalDevice, const VkSamplerCreateInfo &createInfo);
 
     template <typename T>
     ObjectPtr<T> createObjectPointer(T objectHandle) {

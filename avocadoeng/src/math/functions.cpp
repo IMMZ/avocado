@@ -54,8 +54,9 @@ Mat4x4 createRotationMatrix(Quaternion q) {
 
 Mat4x4 lookAt(const vec3f cameraPos, const vec3f targetPos, const vec3f up) {
     vec3f forward = (targetPos - cameraPos); forward.normalize();
-    vec3f right = up.crossProduct(forward); right.normalize();
-    const vec3f newUp = forward.crossProduct(right);
+    vec3f u = up; u.normalize();
+    vec3f right = forward.crossProduct(u); right.normalize();
+    const vec3f newUp = right.crossProduct(forward);
 
     return Mat4x4({{
         {right.x,    right.y,    right.z,    -right.dotProduct(cameraPos)},
@@ -65,10 +66,11 @@ Mat4x4 lookAt(const vec3f cameraPos, const vec3f targetPos, const vec3f up) {
 }
 
 Mat4x4 perspectiveProjection(const float verticalFOV, const float aspectRatio, const float near, const float far) {
-    const float f = 1.0f / tan(toRadians(0.5f * verticalFOV));
+    const float tanHalfFov = tan(toRadians(0.5f * verticalFOV));
+    const float focalLength = 1 / tanHalfFov;
     return Mat4x4({{
-        {f / aspectRatio, 0.f, 0.f, 0.f},
-        {0.f, -f, 0.f, 0.f},
+        {focalLength / aspectRatio, 0.f, 0.f, 0.f},
+        {0.f, -focalLength, 0.f, 0.f},
         {0.f, 0.f, far / (near - far), (near * far) / (near - far)},
         {0.f, 0.f, -1.f, 0.f}}});
 }
