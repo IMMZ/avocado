@@ -103,6 +103,11 @@ LogicalDevice PhysicalDevice::createLogicalDevice(
         devCreateInfo.ppEnabledLayerNames = layerNamesCString.data();
     }
 
+    DEFINE_VK_STRUCTURE(VkPhysicalDeviceDescriptorIndexingFeatures, indexingFeatures);
+    DEFINE_VK_STRUCTURE(VkPhysicalDeviceFeatures2, physicalDeviceFeatures2);
+    physicalDeviceFeatures2.pNext = &indexingFeatures;
+    devCreateInfo.pNext = &physicalDeviceFeatures2;
+
     VkDevice logicDevHandle;
     const VkResult createDeviceResult = vkCreateDevice(_device, &devCreateInfo, nullptr, &logicDevHandle);
     setHasError(createDeviceResult != VK_SUCCESS);
@@ -183,6 +188,15 @@ bool PhysicalDevice::areExtensionsSupported(const std::vector<std::string> &extN
     }
 
     return true;
+}
+
+bool PhysicalDevice::isBindlessSupported() const {
+    // Check for bindless texturing.
+    DEFINE_VK_STRUCTURE(VkPhysicalDeviceDescriptorIndexingFeatures, indexingFeatures);
+    DEFINE_VK_STRUCTURE(VkPhysicalDeviceFeatures2, physicalDeviceFeatures2);
+    physicalDeviceFeatures2.pNext = &indexingFeatures;
+    vkGetPhysicalDeviceFeatures2(_device, &physicalDeviceFeatures2);
+    return (indexingFeatures.descriptorBindingPartiallyBound && indexingFeatures.runtimeDescriptorArray);
 }
 
 

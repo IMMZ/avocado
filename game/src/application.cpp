@@ -240,6 +240,11 @@ int Application::run() {
         return 1;
     }
 
+    if (!_physicalDevice.isBindlessSupported()) {
+        std::cout << "Your hardware doesn't support bindless texturing." << std::endl;
+        return 1;
+    }
+
     vulkan::Surface surface = _vulkan.createSurface(sdlWindow.get(), _physicalDevice);
     if (_vulkan.hasError()) {
         std::cerr << "Can't create surface: " << _vulkan.getErrorMessage() << std::endl;

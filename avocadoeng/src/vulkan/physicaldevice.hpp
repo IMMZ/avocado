@@ -38,6 +38,7 @@ public:
         const std::vector<std::string> &instanceLayers,
         const uint32_t queueCount, const float queuePriority);
     bool areExtensionsSupported(const std::vector<std::string> &extNames) const;
+    [[nodiscard]] bool isBindlessSupported() const;
 
 private:
     NON_COPYABLE(PhysicalDevice);
