@@ -96,8 +96,14 @@ LogicalDevice PhysicalDevice::createLogicalDevice(
         devCreateInfo.ppEnabledLayerNames = layerNamesCString.data();
     }
 
-    DEFINE_VK_STRUCTURE(VkPhysicalDeviceDescriptorIndexingFeatures, indexingFeatures);
     DEFINE_VK_STRUCTURE(VkPhysicalDeviceFeatures2, physicalDeviceFeatures2);
+    vkGetPhysicalDeviceFeatures2(_device, &physicalDeviceFeatures2);
+    DEFINE_VK_STRUCTURE(VkPhysicalDeviceDescriptorIndexingFeatures, indexingFeatures);
+    indexingFeatures.descriptorBindingPartiallyBound = VK_TRUE;
+    indexingFeatures.runtimeDescriptorArray = VK_TRUE;
+    indexingFeatures.descriptorBindingSampledImageUpdateAfterBind = VK_TRUE;
+    indexingFeatures.descriptorBindingUniformBufferUpdateAfterBind = VK_TRUE;
+    indexingFeatures.descriptorBindingVariableDescriptorCount = VK_TRUE;
     physicalDeviceFeatures2.pNext = &indexingFeatures;
     devCreateInfo.pNext = &physicalDeviceFeatures2;
 

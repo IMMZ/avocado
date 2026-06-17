@@ -16,9 +16,11 @@
 
 #include <vulkan/buffer.hpp>
 #include <vulkan/clipping.hpp>
+#include <vulkan/commandbuffer.hpp>
 #include <vulkan/commandpool.hpp>
 #include <vulkan/debugutils.hpp>
-#include <vulkan/descriptorsetpool.hpp>
+#include <vulkan/descriptormanager.hpp>
+#include <vulkan/graphicspipeline.hpp>
 #include <vulkan/image.hpp>
 #include <vulkan/logicaldevice.hpp>
 #include <vulkan/pointertypes.hpp>
@@ -285,20 +287,20 @@ int Application::run() {
         VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
     const auto renderPassPtr = _logicalDevice.createRenderPass(surfaceFormat.format, depthFormat);
 
-    vulkan::DescriptorSetPool descriptorSetPool = sceneTextures.exportToDescriptorSet();
+    vulkan::DescriptorManager descriptorManager(_logicalDevice);
+
+    sceneTextures.exportToDescriptorManager(descriptorManager);
 
     // Create descriptor set layout.
     std::vector<vulkan::Buffer*> uniformBuffers = {&uniformBuffer, &uniformBufferForFrame2};
     constexpr uint32_t BUFFER_BINDING = 0;
-    const size_t writeIndexForFirstBuffer = descriptorSetPool.addBuffer(0, BUFFER_BINDING, *(uniformBuffers[0]), sizeof(UniformBufferObject));
-    const size_t writeIndexForSecondBuffer = descriptorSetPool.addBuffer(1, BUFFER_BINDING, *(uniformBuffers[1]), sizeof(UniformBufferObject));
 
     const std::vector<VkViewport> viewPorts { vulkan::Clipping::createViewport(0.f, 0.f, extent) };
     const std::vector<VkRect2D> scissors { vulkan::Clipping::createScissor(viewPorts.front()) };
     vulkan::ShaderStorage shaderStorage(_logicalDevice);
     shaderStorage.loadShaders(GameConfig::getShadersPath());
 
-    vulkan::GraphicsPipelineBuilder pipelineBuilder = preparePipeline(extent, descriptorSetPool.getLayouts(), viewPorts, scissors);
+    vulkan::GraphicsPipelineBuilder pipelineBuilder = preparePipeline(extent, descriptorManager.getLayouts(), viewPorts, scissors);
 
     {
       const std::vector<VkPipelineShaderStageCreateInfo> &redColorShaders = shaderStorage.createStageCIs({
@@ -326,7 +328,7 @@ int Application::run() {
 
     swapChain.createFramebuffers(renderPassPtr.get(), extent);
 
-    descriptorSetPool.update();
+    //descriptorSetPool.update();
 
     VkBuffer vertexBufferHandle = vertexBuffer.getHandle();
     VkDeviceSize offset = 0;
@@ -342,6 +344,9 @@ int Application::run() {
 
     float x = 0.f;
     float z = 10.f;
+
+
+    descriptorManager.addBuffer(uniformBuffer, sizeof(UniformBufferObject), 0);
 
     // Main loop.
     while (true) {
@@ -376,6 +381,7 @@ int Application::run() {
         uniformBuffers[currentFrame]->fill(&ubo);
 
 
+        descriptorManager.update();
         vulkan::CommandBuffer cmdBuf = commandPool.getBuffer(currentFrame);
         cmdBuf.reset();
         cmdBuf.begin();
@@ -384,8 +390,7 @@ int Application::run() {
             cmdBuf.bindVertexBuffers(0, 1, &vertexBufferHandle, &offset);
             cmdBuf.bindIndexBuffer(indexBuffer.getHandle(), 0, VK_INDEX_TYPE_UINT32);
             cmdBuf.bindPipeline(graphicsPipeline.get(), VK_PIPELINE_BIND_POINT_GRAPHICS);
-            cmdBuf.bindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineBuilder.getPipelineLayout(), 0, 1, &descriptorSetPool.getSet(currentFrame));
-
+            cmdBuf.bindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineBuilder.getPipelineLayout(), 0, 2, descriptorManager.getSets().data());
             cmdBuf.beginRenderPass(swapChain, renderPassPtr.get(), extent, {0, 0}, imageIndex);
                 cmdBuf.drawIndexed(indexBuffer.getSizeBytes() / avocado::vulkan::utils::sizeOf<indexBuffer.getIndexType()>(), 1, 0,0,0);
             cmdBuf.endRenderPass();

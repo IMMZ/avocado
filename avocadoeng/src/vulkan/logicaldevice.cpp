@@ -7,6 +7,8 @@
 #include "vulkan/pointertypes.hpp"
 #include "vkutils.hpp"
 
+#include "../config.hpp"
+
 #include <cstdint>
 #include <memory>
 
@@ -42,16 +44,15 @@ VkDescriptorBufferInfo LogicalDevice::createDescriptorBufferInfo(Buffer &buffer,
 }
 
 DescriptorPoolPtr LogicalDevice::createDescriptorPool(const size_t descriptorCount) {
-    std::array<VkDescriptorPoolSize, 2> descriptorPoolSizes{};
-    descriptorPoolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    descriptorPoolSizes[0].descriptorCount = 2;
-    descriptorPoolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    descriptorPoolSizes[1].descriptorCount = 4;
+    constexpr std::array<VkDescriptorPoolSize, 1> descriptorPoolSizes {
+        {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, avocado::core::Config::MAX_BINDLESS_RESOURCES}
+    };
 
     DEFINE_VK_STRUCTURE(VkDescriptorPoolCreateInfo, dPoolCI);
     dPoolCI.poolSizeCount = descriptorPoolSizes.size();
     dPoolCI.pPoolSizes = descriptorPoolSizes.data();
     dPoolCI.maxSets = static_cast<uint32_t>(descriptorCount);
+    dPoolCI.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
 
     VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
 

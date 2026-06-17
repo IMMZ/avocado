@@ -17,7 +17,7 @@ class Texture;
 
 namespace avocado::vulkan {
 
-class DescriptorSetPool;
+class DescriptorManager;
 class LogicalDevice;
 class PhysicalDevice;
 class QueueManager;
@@ -31,7 +31,7 @@ public:
         return _samplers.size();
     }
 
-    DescriptorSetPool exportToDescriptorSet();
+    void exportToDescriptorManager(DescriptorManager &descriptorManager);
 
 private:
     void loadImage(const core::Texture &texture, Swapchain &swapchain);

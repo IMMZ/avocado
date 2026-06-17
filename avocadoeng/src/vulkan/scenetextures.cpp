@@ -1,11 +1,12 @@
 #include "scenetextures.hpp"
 
-#include "descriptorsetpool.hpp"
+#include "descriptormanager.hpp"
 #include "physicaldevice.hpp"
 #include "queuemanager.hpp"
 #include "structuretypes.hpp"
 #include "swapchain.hpp"
 
+#include "../config.hpp"
 #include "../scene/sampler.hpp"
 #include "../scene/scenemanager.hpp"
 
@@ -44,29 +45,16 @@ void SceneTextures::load(const core::SceneManager &sceneManager, Swapchain &swap
     _buffers.clear();
 }
 
-DescriptorSetPool SceneTextures::exportToDescriptorSet() {
-    DescriptorSetPool descriptorSet(_logicalDevice, 2);
-    descriptorSet.addLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT);
-    for (size_t i = 0; i < _imagesMapping.size(); ++i) {
-        const bool hasSampler = (_samplersMapping[i] != std::numeric_limits<size_t>::max());
-        const VkDescriptorType descriptorType = hasSampler ?
-            VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER :
-            VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-        descriptorSet.addLayoutBinding(descriptorType, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
-    }
-
-    descriptorSet.allocate(2);
-
+void SceneTextures::exportToDescriptorManager(DescriptorManager &descriptorManager) {
     for (size_t i = 0; i < _imagesMapping.size(); ++i) {
         const bool hasImage = (_imagesMapping[i] != std::numeric_limits<size_t>::max());
         const bool hasSampler = (_samplersMapping[i] != std::numeric_limits<size_t>::max());
         const bool hasSamplerAndImage = hasImage && hasSampler;
         if (hasSamplerAndImage) {
-            descriptorSet.addImage(0, i + 1, _imageViews[_imagesMapping[i]], _samplers[_samplersMapping[i]], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-            descriptorSet.addImage(1, i + 1, _imageViews[_imagesMapping[i]], _samplers[_samplersMapping[i]], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+            descriptorManager.addImage(_imageViews[_imagesMapping[i]], _samplers[_samplersMapping[i]], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+            descriptorManager.addImage(_imageViews[_imagesMapping[i]], _samplers[_samplersMapping[i]], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
         }
     }
-    return descriptorSet;
 }
 
 void SceneTextures::loadImage(const core::Texture &texture, Swapchain &swapchain) {

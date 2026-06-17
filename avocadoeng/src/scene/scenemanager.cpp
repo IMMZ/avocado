@@ -189,7 +189,7 @@ void SceneManager::load(const std::string &filepath) {
             for (size_t i = 0; i < indicesCount; ++i)
                 newMesh.indices.emplace_back(indices[i]);
         } // for each primitive.
-        meshes.push_back(std::move(newMesh)); 
+        meshes.push_back(std::move(newMesh));
         meshIndex++;
     } // for each mesh.
 
@@ -430,7 +430,7 @@ void SceneManager::parseNodes() {
                 v.y = vertex.position.y;
                 v.z = vertex.position.z;
                 v = v * (*newNode.matrix);
-                vertex.position.x = v.x;                
+                vertex.position.x = v.x;
                 vertex.position.y = v.y;
                 vertex.position.z = v.z;
 
