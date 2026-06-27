@@ -134,19 +134,12 @@ PipelinePtr GraphicsPipelineBuilder::createPipeline(VkRenderPass renderPass) {
 
     setupStates(pipelineCI);
     createLayout(pipelineCI);
-    if (hasError()) {
-        setErrorMessage("Can't create pipeline layout: "s + getErrorMessage());
-        return makeObjectPtr<VkPipeline>(_logicalDevice, VK_NULL_HANDLE);
-    }
 
     // Create the pipeline.
     VkPipeline pipeline = VK_NULL_HANDLE;
-    const VkResult result = vkCreateGraphicsPipelines(_logicalDevice.getHandle(), VK_NULL_HANDLE, 1, &pipelineCI, nullptr, &pipeline);
-    setHasError(result != VK_SUCCESS);
-    if (hasError()) {
-        setErrorMessage("vkCreateGraphicsPipelines returned "s + getVkResultString(result));
-        return makeObjectPtr<VkPipeline>(_logicalDevice, VK_NULL_HANDLE);
-    }
+    CALL_VULKAN_AND_RETURN_VALUE(
+        makeObjectPtr<VkPipeline>(_logicalDevice, VK_NULL_HANDLE) /* return value */,
+        vkCreateGraphicsPipelines, _logicalDevice.getHandle(), VK_NULL_HANDLE, 1, &pipelineCI, nullptr, &pipeline);
 
     // Free unneeded resources.
     _shaderModuleCIs.clear();
@@ -235,13 +228,7 @@ void GraphicsPipelineBuilder::createLayout(VkGraphicsPipelineCreateInfo &pipelin
     pipelineLayoutCreateInfo.setLayoutCount = _descriptorSetLayouts.size();
     pipelineLayoutCreateInfo.pSetLayouts = _descriptorSetLayouts.data();
     VkPipelineLayout pipelineLayout;
-
-    const VkResult pipelineCreationResult = vkCreatePipelineLayout(_logicalDevice.getHandle(), &pipelineLayoutCreateInfo, nullptr, &pipelineLayout);
-    setHasError(pipelineCreationResult != VK_SUCCESS);
-    if (hasError()) {
-        setErrorMessage("vkCreatePipelineLayout returned "s + getVkResultString(pipelineCreationResult));
-        return;
-    }
+    CALL_VULKAN_AND_RETURN(vkCreatePipelineLayout, _logicalDevice.getHandle(), &pipelineLayoutCreateInfo, nullptr, &pipelineLayout);
 
     _pipelineLayout.reset(pipelineLayout);
     pipelineCreateInfo.layout = _pipelineLayout.get();

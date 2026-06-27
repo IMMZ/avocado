@@ -3,15 +3,13 @@
 
 #include "pointertypes.hpp"
 
-#include "../errorstorage.hpp"
-
 namespace avocado::vulkan
 {
 
 class LogicalDevice;
 class PhysicalDevice;
 
-class Image: public core::ErrorStorage {
+class Image {
 public:
     explicit Image(LogicalDevice &device, const uint32_t width, const uint32_t height, const VkImageType imageType);
     Image(Image &&image) = default;

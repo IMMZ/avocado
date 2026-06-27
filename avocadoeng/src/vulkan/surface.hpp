@@ -3,7 +3,6 @@
 
 #include "format.hpp"
 
-#include "../errorstorage.hpp"
 #include "../utils.hpp"
 
 #include <vulkan/vulkan_core.h>
@@ -16,7 +15,7 @@ namespace avocado::vulkan {
 
 class PhysicalDevice;
 
-class Surface final: public core::ErrorStorage {
+class Surface final {
 public:
     NON_COPYABLE(Surface);
     MAKE_MOVABLE(Surface);

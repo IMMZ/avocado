@@ -2,9 +2,9 @@ project(avocadoengine)
 cmake_minimum_required(VERSION 3.12)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ../bin)
-set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 include_directories(
+    "./src"
     ${VULKAN_SDK}/include
     "/usr/include/SDL2/"
     "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/Catch2-3.3.2"

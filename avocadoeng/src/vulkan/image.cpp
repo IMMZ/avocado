@@ -33,19 +33,13 @@ void Image::allocateMemory(PhysicalDevice &physDevice, const VkMemoryPropertyFla
     imageMemAI.memoryTypeIndex = foundType;
 
     VkDeviceMemory deviceMemory;
-    const VkResult allocationResult = vkAllocateMemory(_device.getHandle(), &imageMemAI, nullptr, &deviceMemory);
-    setHasError(allocationResult != VK_SUCCESS);
-    if (!hasError())
+    CALL_VULKAN(vkAllocateMemory, _device.getHandle(), &imageMemAI, nullptr, &deviceMemory);
+    if (VK_SUCCESS == callResult)
         _textureImageMemory.reset(deviceMemory);
-    else
-        setErrorMessage("vkAllocateMemory returned "s + getVkResultString(allocationResult));
 }
 
 void Image::bindMemory() {
-    const VkResult bindResult = vkBindImageMemory(_device.getHandle(), _handle.get(), _textureImageMemory.get(), 0);
-    setHasError(bindResult != VK_SUCCESS);
-    if (hasError())
-        setErrorMessage("vkBindImageMemory returned "s + getVkResultString(bindResult));
+    CALL_VULKAN(vkBindImageMemory, _device.getHandle(), _handle.get(), _textureImageMemory.get(), 0);
 }
 
 void Image::create() {
@@ -53,13 +47,7 @@ void Image::create() {
         return;
 
     VkImage imageToCreate;
-    VkResult result = vkCreateImage(_device.getHandle(), &_createInfo, nullptr, &imageToCreate);
-    setHasError(result != VK_SUCCESS);
-    if (hasError()) {
-        setErrorMessage("vkCreateImage returned "s );
-        return;
-    }
-
+    CALL_VULKAN_AND_RETURN(vkCreateImage, _device.getHandle(), &_createInfo, nullptr, &imageToCreate);
     _handle.reset(imageToCreate);
 }
 

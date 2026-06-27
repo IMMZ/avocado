@@ -26,10 +26,7 @@ Buffer::Buffer(const VkDeviceSize size, const VkBufferUsageFlagBits usage, const
         bufferCI.pQueueFamilyIndices = queueFamilies.data();
     }
 
-    const VkResult result = vkCreateBuffer(_dev, &bufferCI, nullptr, &_buf);
-    setHasError(result != VK_SUCCESS);
-    if (hasError())
-        setErrorMessage("vkCreateBuffer returned "s + getVkResultString(result));
+    CALL_VULKAN(vkCreateBuffer, _dev, &bufferCI, nullptr, &_buf);
 }
 
 Buffer::Buffer(Buffer &&other):
@@ -44,8 +41,6 @@ Buffer::Buffer(Buffer &&other):
 }
 
 Buffer& Buffer::operator=(Buffer &&other) {
-    core::ErrorStorage::operator=(other);
-
     _dev = std::move(other._dev);
     _buf = std::move(other._buf);
     _devMem = std::move(other._devMem);
@@ -85,34 +80,20 @@ void Buffer::allocateMemory(PhysicalDevice &physDevice, const VkMemoryPropertyFl
     memAllocInfo.allocationSize = memReq.size;
     memAllocInfo.memoryTypeIndex = foundType;
 
-    const VkResult allocRes = vkAllocateMemory(_dev, &memAllocInfo, nullptr, &_devMem);
-    setHasError(allocRes != VK_SUCCESS);
-    if (hasError()) {
-        setErrorMessage("vkAllocateMemory returned "s + getVkResultString(allocRes));
-    }
+    CALL_VULKAN(vkAllocateMemory, _dev, &memAllocInfo, nullptr, &_devMem);
 }
 
 void Buffer::bindMemory(const VkDeviceSize offset) noexcept {
     assert(_dev != VK_NULL_HANDLE && _buf != VK_NULL_HANDLE && _devMem != VK_NULL_HANDLE && "Handles mustn't be null.");
 
-    const VkResult bindBufResult = vkBindBufferMemory(_dev, _buf, _devMem, offset);
-    setHasError(bindBufResult != VK_SUCCESS);
-    if (hasError()) {
-        setErrorMessage("vkBindBuffer returned "s + getVkResultString(bindBufResult));
-    }
+    CALL_VULKAN(vkBindBufferMemory, _dev, _buf, _devMem, offset);
 }
 
 void Buffer::fill(const void * const dataToCopy, const VkDeviceSize dataSize, const size_t offset) {
     assert(_dev != VK_NULL_HANDLE && _devMem != VK_NULL_HANDLE && "Handles mustn't be null.");
 
     void *data = nullptr;
-    const VkResult mapRes = vkMapMemory(_dev, _devMem, offset, dataSize, 0, &data);
-    setHasError(mapRes != VK_SUCCESS);
-    if (hasError()) {
-        setErrorMessage("vkMapMemory returned "s + getVkResultString(mapRes));
-        return;
-    }
-
+    CALL_VULKAN_AND_RETURN(vkMapMemory, _dev, _devMem, offset, dataSize, 0, &data);
     memcpy(data, dataToCopy, dataSize);
     vkUnmapMemory(_dev, _devMem);
 }

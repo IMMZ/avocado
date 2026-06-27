@@ -1,8 +1,6 @@
 #ifndef AVOCADO_VULKAN_COMMAND_POOL
 #define AVOCADO_VULKAN_COMMAND_POOL
 
-#include "../errorstorage.hpp"
-
 #include "commandbuffer.hpp"
 #include "types.hpp"
 
@@ -18,7 +16,7 @@ class LogicalDevice;
 class Queue;
 class Swapchain;
 
-class CommandPool final: public core::ErrorStorage {
+class CommandPool final {
 public:
     explicit CommandPool(LogicalDevice &device, const VkCommandPoolCreateFlags flags, const QueueFamily queueFamilyIndex);
     ~CommandPool();

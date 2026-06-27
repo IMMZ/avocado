@@ -5,8 +5,6 @@
 #include "pointertypes.hpp"
 #include "types.hpp"
 
-#include "../errorstorage.hpp"
-
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_core.h>
 
@@ -23,9 +21,8 @@ class Buffer;
 class DebugUtils;
 class PhysicalDevice;
 
-class LogicalDevice: public avocado::core::ErrorStorage {
+class LogicalDevice {
 public:
-
     VkDevice getHandle() noexcept;
     bool isValid() const noexcept;
 

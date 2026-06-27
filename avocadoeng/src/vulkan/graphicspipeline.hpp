@@ -1,8 +1,6 @@
 #ifndef AVOCADO_VULKAN_GRAPHICS_PIPELINE
 #define AVOCADO_VULKAN_GRAPHICS_PIPELINE
 
-#include "../errorstorage.hpp"
-
 #include "logicaldevice.hpp"
 #include "pointertypes.hpp"
 
@@ -12,7 +10,7 @@
 
 namespace avocado::vulkan {
 
-class GraphicsPipelineBuilder: public avocado::core::ErrorStorage {
+class GraphicsPipelineBuilder {
 public:
     explicit GraphicsPipelineBuilder(LogicalDevice &device);
 

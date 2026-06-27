@@ -49,39 +49,25 @@ void Vulkan::createInstance(const std::vector<std::string> &extensions,
         vulkan::setExtensions(instanceCreateInfo, extensionNamesCString);
 
     VkInstance instance = VK_NULL_HANDLE;
-    const VkResult createInstanceResult = vkCreateInstance(&instanceCreateInfo, nullptr, &instance);
-    setHasError(createInstanceResult != VK_SUCCESS);
-    if (hasError())
-        setErrorMessage("vkCreateInstance returned "s + getVkResultString(createInstanceResult));
-    else
-        _instance.reset(instance);
+    CALL_VULKAN_AND_RETURN(vkCreateInstance, &instanceCreateInfo, nullptr, &instance);
+    _instance.reset(instance);
 }
 
 // todo change prototype.
 std::vector<std::string> Vulkan::getInstanceExtensions() const {
     unsigned int count = 0;
-    VkResult callResult = vkEnumerateInstanceExtensionProperties(nullptr, &count, nullptr);
-    setHasError(callResult != VK_SUCCESS);
-    if (hasError()) {
-        setErrorMessage("vkEnumerateInstanceExtensionProperties returned "s + getVkResultString(callResult));
-    }
+    CALL_VULKAN(vkEnumerateInstanceExtensionProperties, nullptr, &count, nullptr);
 
-    std::vector<std::string> result;
+    std::vector<std::string> instanceExtensions;
     if (count > 0) {
-        result.resize(count);
+        instanceExtensions.resize(count);
         std::vector<VkExtensionProperties> dataToFill(count);
-        callResult = vkEnumerateInstanceExtensionProperties(nullptr, &count, dataToFill.data());
-        setHasError(callResult != VK_SUCCESS);
-        if (!hasError()) {
-            for (size_t i = 0; i < result.size(); ++i) {
-                result[i] = dataToFill[i].extensionName;
-            }
-        } else {
-            setErrorMessage("vkEnumerateInstanceExtensionProperties returned "s + getVkResultString(callResult));
-        }
+        CALL_VULKAN_AND_RETURN_VALUE(instanceExtensions, vkEnumerateInstanceExtensionProperties, nullptr, &count, dataToFill.data());
+        for (size_t i = 0; i < instanceExtensions.size(); ++i)
+            instanceExtensions[i] = dataToFill[i].extensionName;
     }
 
-    return result;
+    return instanceExtensions;
 }
 
 
@@ -89,9 +75,8 @@ std::vector<std::string> Vulkan::getExtensionNamesForSDLSurface(SDL_Window *wind
     std::vector<std::string> result;
     unsigned int extensionCount = 0;
     const SDL_bool getExtensionsCountResult = SDL_Vulkan_GetInstanceExtensions(window, &extensionCount, nullptr);
-    setHasError(getExtensionsCountResult == SDL_FALSE);
-    if (hasError()) {
-        setErrorMessage("Can't get SDL surface extensions count");
+    if (SDL_FALSE == getExtensionsCountResult) {
+        LOG_ERROR("Can't get SDL surface extensions count");
         return result;
     }
 
@@ -99,14 +84,13 @@ std::vector<std::string> Vulkan::getExtensionNamesForSDLSurface(SDL_Window *wind
         result.resize(extensionCount);
         std::vector<const char*> dataToFill(extensionCount, nullptr);
         const SDL_bool extensionRetrievingResult = SDL_Vulkan_GetInstanceExtensions(window, &extensionCount, dataToFill.data());
-        setHasError(extensionRetrievingResult == SDL_FALSE);
-        if (!hasError()) {
-            for (size_t i = 0; i < extensionCount; ++i) {
-                result[i] = dataToFill[i];
-            }
-        } else {
-            setErrorMessage("Can't get SDL extensions' names");
+        if (SDL_FALSE == extensionRetrievingResult) {
+            LOG_ERROR("Can't get SDL extensions' names");
+            return result;
         }
+
+        for (size_t i = 0; i < extensionCount; ++i)
+            result[i] = dataToFill[i];
     }
 
     return result;
@@ -116,19 +100,11 @@ std::vector<VkLayerProperties> Vulkan::getLayerProperties() const {
     unsigned int count = 0;
 
     std::vector<VkLayerProperties> layerProps;
-    const VkResult firstCall = vkEnumerateInstanceLayerProperties(&count, nullptr);
-    setHasError(firstCall != VK_SUCCESS);
-    if (hasError()) {
-        setErrorMessage("vkEnumerateInstanceLayerProperties returned "s + getVkResultString(firstCall));
-        return layerProps;
-    }
+    CALL_VULKAN_AND_RETURN_VALUE(layerProps, vkEnumerateInstanceLayerProperties, &count, nullptr);
 
     if (count > 0) {
         layerProps.resize(count);
-        const VkResult secondCall = vkEnumerateInstanceLayerProperties(&count, layerProps.data());
-        setHasError(secondCall != VK_SUCCESS);
-        if (hasError())
-            setErrorMessage("2nd vkEnumerateInstanceLayerProperties returned "s + getVkResultString(secondCall));
+        CALL_VULKAN(vkEnumerateInstanceLayerProperties, &count, layerProps.data());
     }
 
     return layerProps;
@@ -138,28 +114,15 @@ std::vector<PhysicalDevice> Vulkan::getPhysicalDevices() {
     std::vector<VkPhysicalDevice> _result;
     std::vector<PhysicalDevice> result;
     uint32_t deviceCount = 0;
-    const VkResult enumerateResult1 = vkEnumeratePhysicalDevices(_instance.get(), &deviceCount, nullptr);
-    if (enumerateResult1 != VK_SUCCESS) {
-        setHasError(true);
-        if (hasError())
-            setErrorMessage("vkEnumeratePhysicalDevices returned "s + getVkResultString(enumerateResult1));
-        return result;
-    }
+    CALL_VULKAN_AND_RETURN_VALUE(result, vkEnumeratePhysicalDevices, _instance.get(), &deviceCount, nullptr);
 
     if (deviceCount > 0) {
         _result.resize(deviceCount);
         result.resize(deviceCount);
-        const VkResult enumerateResult2 = vkEnumeratePhysicalDevices(_instance.get(), &deviceCount, _result.data());
-        if (enumerateResult2 != VK_SUCCESS) {
-            setHasError(true);
-            if (hasError())
-                setErrorMessage("vkEnumeratePhysicalDevices returned "s + getVkResultString(enumerateResult2));
-            return result;
-        }
+        CALL_VULKAN_AND_RETURN_VALUE(result, vkEnumeratePhysicalDevices, _instance.get(), &deviceCount, _result.data());
 
-        for (size_t i = 0; i < _result.size(); ++i) {
+        for (size_t i = 0; i < _result.size(); ++i)
             result[i] = PhysicalDevice(_result[i]);
-        }
     }
 
     return result;
@@ -167,8 +130,6 @@ std::vector<PhysicalDevice> Vulkan::getPhysicalDevices() {
 
 bool Vulkan::areLayersSupported(const std::vector<std::string> &layerNames) const {
     std::vector<VkLayerProperties> layers = getLayerProperties();
-    if (hasError())
-        return false;
 
     for (const std::string &layerName: layerNames) {
         const auto &foundIterator = std::find_if(layers.cbegin(), layers.cend(),
@@ -176,7 +137,7 @@ bool Vulkan::areLayersSupported(const std::vector<std::string> &layerNames) cons
                 return (layerName == layerProps.layerName);
         });
         if (foundIterator == layers.cend()) {
-            setErrorMessage("Layer "s + layerName + " is not supported");
+            LOG_ERROR("Layer "s + layerName + " is not supported");
             return false;
         }
     }
@@ -184,22 +145,19 @@ bool Vulkan::areLayersSupported(const std::vector<std::string> &layerNames) cons
     return true;
 }
 
-
 Surface Vulkan::createSurface(SDL_Window *window, PhysicalDevice &physicalDevice) {
     SDL_version sdlVersion; SDL_GetVersion(&sdlVersion);
     SDL_SysWMinfo wmInfo; wmInfo.version = sdlVersion;
     SDL_bool result = SDL_GetWindowWMInfo(window, &wmInfo);
-    setHasError(result != SDL_TRUE);
-    if (hasError()) {
-        setErrorMessage("SDL_GetWindowWMInfo returned SDL_FALSE");
+    if (result != SDL_TRUE) {
+        LOG_ERROR("SDL_GetWindowWMInfo returned SDL_FALSE");
         return Surface(VK_NULL_HANDLE, _instance.get(), physicalDevice);
     }
 
     VkSurfaceKHR surface;
     result = SDL_Vulkan_CreateSurface(window, _instance.get(), &surface);
-    setHasError(result != SDL_TRUE);
-    if (hasError()) {
-        setErrorMessage("SDL_Vulkan_CreateSurface returned SDL_FALSE");
+    if (result != SDL_TRUE) {
+        LOG_ERROR("SDL_Vulkan_CreateSurface returned SDL_FALSE");
         return Surface(VK_NULL_HANDLE, _instance.get(), physicalDevice);
     }
 

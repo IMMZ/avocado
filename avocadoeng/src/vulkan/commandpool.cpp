@@ -14,11 +14,7 @@ CommandPool::CommandPool(LogicalDevice &device, const VkCommandPoolCreateFlags f
     DEFINE_VK_STRUCTURE(VkCommandPoolCreateInfo, poolCreateInfo);
     poolCreateInfo.flags = flags;
     poolCreateInfo.queueFamilyIndex = queueFamilyIndex;
-
-    const VkResult result = vkCreateCommandPool(_device.getHandle(), &poolCreateInfo, nullptr, &_pool);
-    setHasError(result != VK_SUCCESS);
-    if (hasError())
-        setErrorMessage("vkCreateCommandPool returned "s + getVkResultString(result));
+    CALL_VULKAN(vkCreateCommandPool, _device.getHandle(), &poolCreateInfo, nullptr, &_pool);
 }
 
 CommandPool::~CommandPool() {
@@ -37,11 +33,7 @@ size_t CommandPool::allocateBuffers(const uint32_t count, const VkCommandBufferL
 
     const size_t oldSize = _buffers.size();
     _buffers.resize(_buffers.size() + count);
-    const VkResult callResult = vkAllocateCommandBuffers(_device.getHandle(), &allocInfo, _buffers.data() + oldSize);
-    setHasError(callResult != VK_SUCCESS);
-    if (hasError())
-        setErrorMessage("vkAllocateCommandBuffers returned "s + getVkResultString(callResult));
-
+    CALL_VULKAN(vkAllocateCommandBuffers, _device.getHandle(), &allocInfo, _buffers.data() + oldSize);
     return oldSize; // old size = index of 1st allocated buffer.
 }
 

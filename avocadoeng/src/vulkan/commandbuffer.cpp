@@ -29,19 +29,13 @@ void CommandBuffer::begin(const VkCommandBufferUsageFlags flags) noexcept {
 
     DEFINE_VK_STRUCTURE(VkCommandBufferBeginInfo, beginInfo);
     beginInfo.flags = flags;
-    const VkResult result = vkBeginCommandBuffer(_cmdBuf, &beginInfo);
-    setHasError(result != VK_SUCCESS);
-    if (hasError())
-        setErrorMessage("vkBeginCommandBuffer returned "s + getVkResultString(result));
+    CALL_VULKAN(vkBeginCommandBuffer, _cmdBuf, &beginInfo);
 }
 
 void CommandBuffer::end() noexcept {
     assert(_cmdBuf != VK_NULL_HANDLE && "Null command buffer.");
 
-    const VkResult result = vkEndCommandBuffer(_cmdBuf);
-    setHasError(result != VK_SUCCESS);
-    if (hasError())
-        setErrorMessage("vkEndCommandBuffer returned "s + getVkResultString(result));
+    CALL_VULKAN(vkEndCommandBuffer, _cmdBuf);
 }
 
 void CommandBuffer::beginOneTimeSubmit() {
@@ -55,16 +49,7 @@ void CommandBuffer::endOneTimeAndSubmit(Queue &queue) {
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &_cmdBuf;
     queue.submit(submitInfo);
-    setHasError(queue.hasError());
-    if (hasError()) {
-        setErrorMessage(queue.getErrorMessage());
-        return;
-    }
-
     queue.waitIdle();
-    setHasError(queue.hasError());
-    if (hasError())
-        setErrorMessage(queue.getErrorMessage());
 }
 
 void CommandBuffer::beginRenderPass(Swapchain &swapchain, VkRenderPass renderPass, const VkExtent2D extent, const VkOffset2D offset, const uint32_t imageIndex) noexcept {
@@ -157,10 +142,7 @@ void CommandBuffer::drawIndexed(const uint32_t indexCount, const uint32_t instan
 void CommandBuffer::reset(const VkCommandPoolResetFlagBits flags) {
     assert(_cmdBuf != VK_NULL_HANDLE && "Null command buffer.");
 
-    const VkResult result = vkResetCommandBuffer(_cmdBuf, flags);
-    setHasError(result != VK_SUCCESS);
-    if (hasError())
-        setErrorMessage("vkResetCommandBuffer returned "s + getVkResultString(result));
+    CALL_VULKAN(vkResetCommandBuffer, _cmdBuf, flags);
 }
 
 void CommandBuffer::setViewports(const std::vector<VkViewport> &vps, const uint32_t firstIndex, const uint32_t count) noexcept {

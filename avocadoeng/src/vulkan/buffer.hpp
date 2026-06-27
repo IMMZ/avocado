@@ -3,7 +3,6 @@
 
 #include "types.hpp"
 
-#include "../errorstorage.hpp"
 #include "../utils.hpp"
 
 #include <vulkan/vulkan_core.h>
@@ -14,7 +13,7 @@ class Image;
 class LogicalDevice;
 class PhysicalDevice;
 
-class Buffer: public core::ErrorStorage {
+class Buffer final {
 public:
     NON_COPYABLE(Buffer);
 

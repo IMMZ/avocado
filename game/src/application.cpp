@@ -54,18 +54,13 @@ using namespace avocado;
 void Application::createInstance(SDL_Window &window, const std::vector<std::string> &instanceLayers) {
     const bool areLayersSupported = _vulkan.areLayersSupported(instanceLayers);
     if (!areLayersSupported) {
-        std::cerr << _vulkan.getErrorMessage() << std::endl;
+        std::cerr << "Layers are not supported!" << std::endl;
         return;
     }
 
     std::vector<std::string> instanceExtensions = _vulkan.getExtensionNamesForSDLSurface(&window);
     if constexpr (core::isDebugBuild())
         instanceExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-
-    if (_vulkan.hasError()) {
-        std::cerr << _vulkan.getErrorMessage() << std::endl;
-        return;
-    }
 
     constexpr vulkan::VulkanInstanceInfo vulkanInfo {
         GameConfig::GAME_NAME,
@@ -74,19 +69,10 @@ void Application::createInstance(SDL_Window &window, const std::vector<std::stri
     };
 
     _vulkan.createInstance(instanceExtensions, instanceLayers, vulkanInfo);
-    if (_vulkan.hasError()) {
-        std::cerr << _vulkan.getErrorMessage() << std::endl;
-        return;
-    }
 }
 
 void Application::createPhysicalDevice() {
     std::vector<vulkan::PhysicalDevice> physicalDevices = _vulkan.getPhysicalDevices();
-    if (_vulkan.hasError()) {
-        std::cout << "Can't get physical devices: " << _vulkan.getErrorMessage() << std::endl;
-        return;
-    }
-
     if (physicalDevices.empty()) {
         std::cout << "No physical devices found." << std::endl;
         return;
@@ -102,27 +88,9 @@ vulkan::Swapchain Application::createSwapchain(vulkan::Surface &surface, const V
     if (surface.getMaxImageCount() > 0 && imageCount > surface.getMaxImageCount())
         imageCount = surface.getMaxImageCount();
 
-    if (surface.hasError()) {
-        std::cerr << "Can't get surface format: " << surface.getErrorMessage() << std::endl;
-        return swapChain;
-    }
-
     swapChain.create(surface, surfaceFormat, extent, imageCount, queueFamilies); // todo we can forget to call create. Need solution.
-    if (swapChain.hasError()) {
-        std::cout << "Can't create swapchain: " << swapChain.getErrorMessage() << std::endl;
-        return swapChain;
-    }
     swapChain.getImages();
-    if (swapChain.hasError()) {
-        std::cout << "Can't get swapchain images: " << swapChain.getErrorMessage() << std::endl;
-        return swapChain;
-    }
-
     swapChain.createImageViews(surfaceFormat);
-
-    if (swapChain.hasError())
-        std::cout << "Can't get swapchain images: " << swapChain.getErrorMessage() << std::endl;
-
     return swapChain;
 }
 
@@ -230,11 +198,6 @@ int Application::run() {
 
     const std::vector<std::string> physExtensions {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
     const bool areExtensionsSupported = _physicalDevice.areExtensionsSupported(physExtensions);
-    if (_physicalDevice.hasError()) {
-        std::cerr << "Extensions error: " << _physicalDevice.getErrorMessage() << std::endl;
-        return 1;
-    }
-
     if (!areExtensionsSupported) {
         std::cerr << "Required extensions are not supported." << std::endl;
         return 1;
@@ -246,33 +209,13 @@ int Application::run() {
     }
 
     vulkan::Surface surface = _vulkan.createSurface(sdlWindow.get(), _physicalDevice);
-    if (_vulkan.hasError()) {
-        std::cerr << "Can't create surface: " << _vulkan.getErrorMessage() << std::endl;
-        return 1;
-    }
-
     _physicalDevice.initQueueFamilies(surface);
-    if (_physicalDevice.hasError()) {
-        std::cout << "Can't get queue families: " << _physicalDevice.getErrorMessage() << std::endl;
-        return 1;
-    }
     const vulkan::QueueFamily graphicsQueueFamily = _physicalDevice.getGraphicsQueueFamily();
     const vulkan::QueueFamily presentQueueFamily = _physicalDevice.getPresentQueueFamily();
-
-    if (surface.hasError()) {
-        std::cout << "Can't get present queue family index: " << surface.getErrorMessage() << std::endl;
-        return 1;
-    }
-
     std::vector queueFamilies {graphicsQueueFamily, presentQueueFamily};
     utils::makeUniqueContainer(queueFamilies);
 
     _logicalDevice = _physicalDevice.createLogicalDevice(queueFamilies, physExtensions, instanceLayers, 1, 1.0f);
-    if (_physicalDevice.hasError()) {
-        std::cerr << "Can't create logical device: " << _physicalDevice.getErrorMessage() << std::endl;
-        return 1;
-    }
-
     auto debugUtilsPtr = _logicalDevice.createDebugUtils();
 
     vulkan::QueueManager queueManager(_logicalDevice, graphicsQueueFamily);
@@ -290,16 +233,7 @@ int Application::run() {
     vulkan::Swapchain swapChain = createSwapchain(surface, surfaceFormat, extent, queueFamilies);
 
     vulkan::CommandPool commandPool(_logicalDevice, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, graphicsQueueFamily);
-    if (commandPool.hasError()) {
-        std::cout << "Can't create command pool: " << commandPool.getErrorMessage() << std::endl;
-        return 1;
-    }
-
     commandPool.allocateBuffers(FRAMES_IN_FLIGHT + 3, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
-    if (commandPool.hasError()) {
-        std::cout << "Can't allocate command buffers: " << commandPool.getErrorMessage() << std::endl;
-        return 1;
-    }
 
     vulkan::Queue graphicsQueue(_logicalDevice.getGraphicsQueue(0));
     debugUtilsPtr->setObjectName(graphicsQueue.getHandle(), "Graphics queue");
@@ -380,39 +314,16 @@ int Application::run() {
     }
 
     vulkan::PipelinePtr graphicsPipeline = pipelineBuilder.createPipeline(renderPassPtr.get());
-    if (pipelineBuilder.hasError()) {
-        std::cout << "Can't create pipeline: " << pipelineBuilder.getErrorMessage() << std::endl;
-        return 1;
-    }
-
     swapChain.createDepthImage(extent.width, extent.height, _physicalDevice, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    if (swapChain.hasError()) {
-        std::cout << "Error: can't create depth image (" << swapChain.getErrorMessage() << ")" << std::endl;
-        return 1;
-    }
-
     debugUtilsPtr->setObjectName(swapChain.getDepthImage(), "Depth image");
 
     // Synchronization objects.
     const std::array<vulkan::SemaphorePtr, FRAMES_IN_FLIGHT> imageAvailableSemaphores = {_logicalDevice.createSemaphore(), _logicalDevice.createSemaphore()};
-    if (_logicalDevice.hasError()) {
-        std::cout << "Can't create semaphore: " << _logicalDevice.getErrorMessage() << std::endl;
-        return 1;
-    }
 
     const std::array<vulkan::SemaphorePtr, FRAMES_IN_FLIGHT> renderFinishedSemaphores = {_logicalDevice.createSemaphore(), _logicalDevice.createSemaphore()};
-    if (_logicalDevice.hasError()) {
-        std::cout << "Can't create semaphore: " << _logicalDevice.getErrorMessage() << std::endl;
-        return 1;
-    }
 
     const std::array<vulkan::FencePtr, FRAMES_IN_FLIGHT> fences = {_logicalDevice.createFence(), _logicalDevice.createFence()};
     std::vector<VkFence> fenceHandles {fences[0].get(), fences[1].get()};
-    if (_logicalDevice.hasError()) {
-        std::cout << "Can't create fence: " << _logicalDevice.getErrorMessage() << std::endl;
-        return 1;
-    }
-
     std::vector<VkSwapchainKHR> swapChainHandles{swapChain.getHandle()};
 
     swapChain.createFramebuffers(renderPassPtr.get(), extent);
@@ -484,11 +395,6 @@ int Application::run() {
 
         auto submitInfo = graphicsQueue.createSubmitInfo(waitSemaphores[currentFrame], signalSemaphores[currentFrame], cmdBuf.getHandle(), flags);
         graphicsQueue.submit(submitInfo, fenceToWait[0]);
-        if (graphicsQueue.hasError()) {
-            std::cout << "Can't submit graphics queue: " << graphicsQueue.getErrorMessage() << std::endl;
-            break;
-        }
-
         presentQueue.present(signalSemaphores[currentFrame], imageIndex, swapChainHandles[0]);
         currentFrame = (currentFrame + 1) % FRAMES_IN_FLIGHT;
     } // Main loop.

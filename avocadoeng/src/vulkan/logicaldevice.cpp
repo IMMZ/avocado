@@ -4,7 +4,7 @@
 #include "debugutils.hpp"
 #include "objectdeleter.hpp"
 #include "physicaldevice.hpp"
-#include "src/vulkan/pointertypes.hpp"
+#include "vulkan/pointertypes.hpp"
 #include "vkutils.hpp"
 
 #include <cstdint>
@@ -54,12 +54,11 @@ DescriptorPoolPtr LogicalDevice::createDescriptorPool(const size_t descriptorCou
     dPoolCI.maxSets = static_cast<uint32_t>(descriptorCount);
 
     VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
-    const VkResult cdp = vkCreateDescriptorPool(_dev.get(), &dPoolCI, nullptr, &descriptorPool);
-    setHasError(cdp != VK_SUCCESS);
-    if (hasError()) {
-        setErrorMessage("vkCreateDescriptorPool returned "s + getVkResultString(cdp));
-        return createObjectPointer<VkDescriptorPool>(VK_NULL_HANDLE);
-    }
+
+    CALL_VULKAN_AND_RETURN_VALUE(
+        createObjectPointer<VkDescriptorPool>(VK_NULL_HANDLE),
+        vkCreateDescriptorPool,_dev.get(), &dPoolCI, nullptr, &descriptorPool);
+
     return createObjectPointer(descriptorPool);
 }
 
@@ -97,37 +96,23 @@ FencePtr LogicalDevice::createFence() noexcept {
     fenceCI.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
     VkFence fence;
-    const VkResult result = vkCreateFence(_dev.get(), &fenceCI, nullptr, &fence);
-    setHasError(result != VK_SUCCESS);
-    if (hasError())
-        setErrorMessage("vkCreateFence returned "s + getVkResultString(result));
+    CALL_VULKAN(vkCreateFence, _dev.get(), &fenceCI, nullptr, &fence);
 
     return createObjectPointer(fence);
 }
 
 void LogicalDevice::waitForFences(const std::vector<VkFence> &fences, const bool waitAll, uint64_t timeout) noexcept {
-    const VkResult result = vkWaitForFences(_dev.get(), static_cast<uint32_t>(fences.size()), fences.data(), waitAll ? VK_TRUE : VK_FALSE, timeout);
-    setHasError(result != VK_SUCCESS);
-    if (hasError()) {
-        setErrorMessage("vkWaitForFences returned "s + getVkResultString(result));
-    }
+    CALL_VULKAN(vkWaitForFences, _dev.get(), static_cast<uint32_t>(fences.size()), fences.data(), waitAll ? VK_TRUE : VK_FALSE, timeout);
 }
 
 void LogicalDevice::resetFences(const std::vector<VkFence> &fences) noexcept {
-    const VkResult result = vkResetFences(_dev.get(), static_cast<uint32_t>(fences.size()), fences.data());
-    setHasError(result != VK_SUCCESS);
-    if (hasError()) {
-        setErrorMessage("vkResetFences returned "s + getVkResultString(result));
-    }
+    CALL_VULKAN(vkResetFences, _dev.get(), static_cast<uint32_t>(fences.size()), fences.data());
 }
 
 SemaphorePtr LogicalDevice::createSemaphore() noexcept {
     VkSemaphore semaphore;
     DEFINE_VK_STRUCTURE(VkSemaphoreCreateInfo, semaphoreCI);
-    const VkResult result = vkCreateSemaphore(_dev.get(), &semaphoreCI, nullptr, &semaphore);
-    setHasError(result != VK_SUCCESS);
-    if (hasError())
-        setErrorMessage("vkCreateSemaphore returned "s + getVkResultString(result));
+    CALL_VULKAN(vkCreateSemaphore, _dev.get(), &semaphoreCI, nullptr, &semaphore);
 
     return createObjectPointer(semaphore);
 }
@@ -161,20 +146,13 @@ SamplerPtr LogicalDevice::createSampler(PhysicalDevice &physicalDevice, const Vk
     vkGetPhysicalDeviceProperties(physicalDevice.getHandle(), &properties);
 
     VkSampler textureSampler;
-    const VkResult samplerCreateResult = vkCreateSampler(_dev.get(), &createInfo, nullptr, &textureSampler);
-    setHasError(samplerCreateResult != VK_SUCCESS);
-    if (hasError())
-        setErrorMessage("vkCreateSampler returned "s + getVkResultString(samplerCreateResult));
+    CALL_VULKAN(vkCreateSampler, _dev.get(), &createInfo, nullptr, &textureSampler);
 
     return createObjectPointer(textureSampler);
 }
 
 void LogicalDevice::waitIdle() noexcept {
-    const VkResult result = vkDeviceWaitIdle(_dev.get());
-    setHasError(result != VK_SUCCESS);
-    if (hasError()) {
-        setErrorMessage("vkDeviceWaitIdle returned "s + getVkResultString(result));
-    }
+    CALL_VULKAN(vkDeviceWaitIdle, _dev.get());
 }
 
 RenderPassPtr LogicalDevice::createRenderPass(VkFormat format, VkFormat depthFormat) {
@@ -230,12 +208,9 @@ RenderPassPtr LogicalDevice::createRenderPass(VkFormat format, VkFormat depthFor
     renderPassCreateInfo.dependencyCount = 1;
     renderPassCreateInfo.pDependencies = &dependency;
     VkRenderPass renderPass;
-    const VkResult result = vkCreateRenderPass(_dev.get(), &renderPassCreateInfo, nullptr, &renderPass);
-    setHasError(result != VK_SUCCESS);
-    if (hasError()) {
-        setErrorMessage("vkCreateRenderPass returned "s + getVkResultString(result));
-        return RenderPassPtr(makeObjectPtr<VkRenderPass>(*this, VK_NULL_HANDLE));
-    }
+    CALL_VULKAN_AND_RETURN_VALUE(
+        RenderPassPtr(makeObjectPtr<VkRenderPass>(*this, VK_NULL_HANDLE)),
+        vkCreateRenderPass,_dev.get(), &renderPassCreateInfo, nullptr, &renderPass);
 
     return RenderPassPtr(makeObjectPtr(*this, renderPass));
 }

@@ -42,13 +42,8 @@ void DescriptorSetPool::createLayouts(const uint32_t copiesCount) {
     layoutInfo.pBindings = _layoutBindings.data();
 
     VkDescriptorSetLayout descriptorSetLayout = VK_NULL_HANDLE;
-    const VkResult result = vkCreateDescriptorSetLayout(_device.getHandle(), &layoutInfo, nullptr, &descriptorSetLayout);
-    setHasError(result != VK_SUCCESS);
-    if (!hasError()) {
-        _layouts.insert(_layouts.cend(), copiesCount, descriptorSetLayout);
-    } else {
-        setErrorMessage("vkCreateDescriptorSetLayout returned "s + getVkResultString(result));
-    }
+    CALL_VULKAN_AND_RETURN(vkCreateDescriptorSetLayout, _device.getHandle(), &layoutInfo, nullptr, &descriptorSetLayout);
+    _layouts.insert(_layouts.cend(), copiesCount, descriptorSetLayout);
 }
 
 const std::vector<VkDescriptorSetLayout>& DescriptorSetPool::getLayouts() const {
@@ -62,14 +57,8 @@ void DescriptorSetPool::allocate(const uint32_t setCount) {
     layoutInfo.pBindings = _layoutBindings.data();
 
     VkDescriptorSetLayout descriptorSetLayout = VK_NULL_HANDLE;
-    VkResult result = vkCreateDescriptorSetLayout(_device.getHandle(), &layoutInfo, nullptr, &descriptorSetLayout);
-    setHasError(result != VK_SUCCESS);
-    if (!hasError()) {
-        _layouts.insert(_layouts.cend(), setCount, descriptorSetLayout);
-    } else {
-        setErrorMessage("vkCreateDescriptorSetLayout returned "s + getVkResultString(result));
-        return;
-    }
+    CALL_VULKAN_AND_RETURN(vkCreateDescriptorSetLayout, _device.getHandle(), &layoutInfo, nullptr, &descriptorSetLayout);
+    _layouts.insert(_layouts.cend(), setCount, descriptorSetLayout);
 
     DEFINE_VK_STRUCTURE(VkDescriptorSetAllocateInfo, allocInfo);
     allocInfo.descriptorPool = _descriptorPool.get();
@@ -77,10 +66,7 @@ void DescriptorSetPool::allocate(const uint32_t setCount) {
     allocInfo.pSetLayouts = _layouts.data();
 
     _descriptorSets.resize(setCount);
-    result = vkAllocateDescriptorSets(_device.getHandle(), &allocInfo, _descriptorSets.data());
-    setHasError(result != VK_SUCCESS);
-    if (hasError())
-        setErrorMessage("vkAllocateDescriptorSets returned "s + getVkResultString(result));
+    CALL_VULKAN_AND_DEFINE_VARIABLE(allocationResult, vkAllocateDescriptorSets, _device.getHandle(), &allocInfo, _descriptorSets.data());
 }
 
 void DescriptorSetPool::updateBuffer(const size_t bufferIndex, Buffer &buffer) {

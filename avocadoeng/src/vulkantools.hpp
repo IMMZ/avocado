@@ -1,7 +1,6 @@
 #ifndef VULKANTOOLS_HPP
 #define VULKANTOOLS_HPP
 
-#include "errorstorage.hpp"
 #include "vulkan/pointertypes.hpp"
 #include "vulkan/physicaldevice.hpp"
 #include "vulkan/surface.hpp"
@@ -56,7 +55,7 @@ struct VulkanInstanceInfo {
     uint32_t apiMinorVersion = 0;
 };
 
-class Vulkan: public avocado::core::ErrorStorage {
+class Vulkan {
 public:
     std::vector<std::string> getInstanceExtensions() const;
 

@@ -4,8 +4,6 @@
 #include "pointertypes.hpp"
 #include "types.hpp"
 
-#include "../errorstorage.hpp"
-
 #include <vulkan/vulkan_core.h>
 
 #include <vector>
@@ -17,7 +15,7 @@ class PhysicalDevice;
 class Queue;
 class Surface;
 
-class Swapchain final: public core::ErrorStorage {
+class Swapchain final {
 public:
     explicit Swapchain(LogicalDevice &logicalDevice);
     ~Swapchain();

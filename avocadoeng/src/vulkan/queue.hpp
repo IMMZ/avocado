@@ -1,7 +1,7 @@
 #ifndef AVOCADO_VULKAN_QUEUE
 #define AVOCADO_VULKAN_QUEUE
 
-#include "../errorstorage.hpp"
+#include <vulkan/vulkan_core.h>
 
 #include <vector>
 
@@ -11,7 +11,7 @@ class CommandBuffer;
 
 struct VkQueue_T;
 
-class Queue: public core::ErrorStorage {
+class Queue {
 public:
     explicit Queue(VkQueue q);
 

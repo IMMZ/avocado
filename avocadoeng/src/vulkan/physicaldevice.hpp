@@ -1,7 +1,6 @@
 #ifndef AVOCADO_VULKAN_PHYSICAL_DEVICE
 #define AVOCADO_VULKAN_PHYSICAL_DEVICE
 
-#include "../errorstorage.hpp"
 #include "../utils.hpp"
 
 #include "types.hpp"
@@ -15,7 +14,7 @@ namespace avocado::vulkan {
 
 class Surface;
 
-class PhysicalDevice final: public core::ErrorStorage {
+class PhysicalDevice final {
 public:
     MAKE_MOVABLE(PhysicalDevice);
 

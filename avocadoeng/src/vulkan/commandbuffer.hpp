@@ -1,8 +1,6 @@
 #ifndef AVOCADO_VULKAN_COMMANDBUFFER
 #define AVOCADO_VULKAN_COMMANDBUFFER
 
-#include "../errorstorage.hpp"
-
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_core.h>
 
@@ -15,7 +13,7 @@ class Image;
 class Queue;
 class Swapchain;
 
-class CommandBuffer final: public core::ErrorStorage {
+class CommandBuffer final {
 public:
     explicit CommandBuffer(const VkCommandBuffer cmdBuf);
 

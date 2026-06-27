@@ -10,12 +10,10 @@ using namespace std::literals::string_literals;
 namespace avocado::vulkan {
 
 PhysicalDevice::PhysicalDevice():
-    ErrorStorage(),
     _device(VK_NULL_HANDLE) {
 }
 
 PhysicalDevice::PhysicalDevice(VkPhysicalDevice device):
-    ErrorStorage(),
     _device(device) {
 }
 
@@ -44,12 +42,7 @@ void PhysicalDevice::initQueueFamilies(Surface &surface) {
             }
 
             if (_presentQueueFamily == std::numeric_limits<QueueFamily>::max()) {
-                const VkResult surfSupportResult = vkGetPhysicalDeviceSurfaceSupportKHR(_device, static_cast<uint32_t>(i), surface.getHandle(), &presentSupport);
-                setHasError(surfSupportResult != VK_SUCCESS);
-                if (hasError()) {
-                    setErrorMessage("vkGetPhysicalDeviceSurfaceSupportKHR returned "s + getVkResultString(surfSupportResult));
-                }
-
+                CALL_VULKAN(vkGetPhysicalDeviceSurfaceSupportKHR, _device, static_cast<uint32_t>(i), surface.getHandle(), &presentSupport);
                 if (presentSupport == VK_TRUE)
                     _presentQueueFamily = static_cast<uint32_t>(i);
             }
@@ -109,12 +102,9 @@ LogicalDevice PhysicalDevice::createLogicalDevice(
     devCreateInfo.pNext = &physicalDeviceFeatures2;
 
     VkDevice logicDevHandle;
-    const VkResult createDeviceResult = vkCreateDevice(_device, &devCreateInfo, nullptr, &logicDevHandle);
-    setHasError(createDeviceResult != VK_SUCCESS);
-    if (hasError()) {
-        setErrorMessage("vkCreateDevice() returned "s + getVkResultString(createDeviceResult));
-        return LogicalDevice(VK_NULL_HANDLE);
-    }
+    CALL_VULKAN_AND_RETURN_VALUE(
+        LogicalDevice(VK_NULL_HANDLE),
+        vkCreateDevice, _device, &devCreateInfo, nullptr, &logicDevHandle);
 
     LogicalDevice logicalDevice(logicDevHandle);
     logicalDevice.setQueueFamilies(getGraphicsQueueFamily(), getPresentQueueFamily(), getTransferQueueFamily());
@@ -124,22 +114,16 @@ LogicalDevice PhysicalDevice::createLogicalDevice(
 std::vector<std::string> PhysicalDevice::getPhysicalDeviceExtensions() const {
     std::vector<std::string> extensions;
     uint32_t count = std::numeric_limits<uint32_t>::max();
-    const VkResult enumerateDevExt1 = vkEnumerateDeviceExtensionProperties(_device, nullptr, &count, nullptr);
-    setHasError(enumerateDevExt1 != VK_SUCCESS);
-    if (hasError()) {
-        setErrorMessage("VkEnumerateDeviceExtensionProperties returned "s + getVkResultString(enumerateDevExt1));
-        return extensions;
-    }
+    CALL_VULKAN_AND_RETURN_VALUE(
+        extensions,
+        vkEnumerateDeviceExtensionProperties, _device, nullptr, &count, nullptr);
 
     if (count > 0) {
         extensions.resize(count);
         std::vector<VkExtensionProperties> extProps(count);
-        const VkResult enumerateDevExt2 = vkEnumerateDeviceExtensionProperties(_device, nullptr, &count, extProps.data());
-        setHasError(enumerateDevExt2 != VK_SUCCESS);
-        if (hasError()) {
-            setErrorMessage("VkEnumerateDeviceExtensionProperties returned "s + getVkResultString(enumerateDevExt2));
-            return extensions;
-        }
+        CALL_VULKAN_AND_RETURN_VALUE(
+            extensions,
+            vkEnumerateDeviceExtensionProperties, _device, nullptr, &count, extProps.data());
 
         for (size_t i = 0; i < extProps.size(); ++i)
             extensions[i] = extProps[i].extensionName;
@@ -165,13 +149,8 @@ uint32_t PhysicalDevice::findMemoryTypeIndex(const VkMemoryPropertyFlags memoryF
 
 bool PhysicalDevice::areExtensionsSupported(const std::vector<std::string> &extNames) const {
     std::vector<std::string> deviceExtensions = getPhysicalDeviceExtensions();
-    if (hasError()) {
-        setErrorMessage("getDeviceExtensions() returned Error ("s + getErrorMessage() + ')');
-        return false;
-    }
-
     bool extFound = false;
-    for (const std::string &extName: extNames) {
+    for (const std::string &extName: extNames) { // todo use any <algorithm>?
         extFound = false;
         for (const std::string &devExt: deviceExtensions) {
             if (devExt == extName) {
@@ -181,8 +160,7 @@ bool PhysicalDevice::areExtensionsSupported(const std::vector<std::string> &extN
         }
 
         if (!extFound) {
-            setHasError(true);
-            setErrorMessage("Physical extension '"s + extName + "' isn't supported");
+            LOG_ERROR("Physical extension '"s + extName + "' isn't supported");
             return false;
         }
     }

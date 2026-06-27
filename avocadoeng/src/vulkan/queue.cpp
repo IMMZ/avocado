@@ -1,5 +1,6 @@
 #include "queue.hpp"
 
+#include "../utils.hpp"
 #include "vkutils.hpp"
 
 #include <vulkan/vulkan_core.h>
@@ -19,10 +20,7 @@ VkQueue Queue::getHandle() noexcept {
 void Queue::waitIdle() noexcept {
     assert(_queue != VK_NULL_HANDLE && "Queue handle mustn't be null.");
 
-    const VkResult res = vkQueueWaitIdle(_queue);
-    setHasError(res != VK_SUCCESS);
-    if (hasError())
-        setErrorMessage("vkQueueWaitIdle returned "s + getVkResultString(res));
+    CALL_VULKAN(vkQueueWaitIdle, _queue);
 }
 
 VkSubmitInfo Queue::createSubmitInfo(VkSemaphore &waitSemaphore, VkSemaphore &signalSemaphore,
@@ -44,11 +42,7 @@ VkSubmitInfo Queue::createSubmitInfo(VkSemaphore &waitSemaphore, VkSemaphore &si
 void Queue::submit(const VkSubmitInfo &submitInfo, VkFence fence) noexcept {
     assert((getHandle() != VK_NULL_HANDLE) && "Queue handle mustn't be null.");
 
-    const VkResult result = vkQueueSubmit(getHandle(), 1, &submitInfo, fence);
-    setHasError(result != VK_SUCCESS);
-    if (hasError()) {
-        setErrorMessage("vkQueueSubmit returned "s + getVkResultString(result));
-    }
+    CALL_VULKAN(vkQueueSubmit, getHandle(), 1 /* submitCount */, &submitInfo, fence);
 }
 
 void Queue::present(VkSemaphore &waitSemaphore, uint32_t &imageIndex, VkSwapchainKHR &swapchain) {
@@ -62,11 +56,7 @@ void Queue::present(VkSemaphore &waitSemaphore, uint32_t &imageIndex, VkSwapchai
     presentInfo.swapchainCount = 1;
     presentInfo.pSwapchains = &swapchain;
 
-    const VkResult result = vkQueuePresentKHR(getHandle(), &presentInfo);
-    setHasError(result != VK_SUCCESS);
-    if (hasError()) {
-        setErrorMessage("vkQueuePresentKHR returned "s + getVkResultString(result));
-    }
+    CALL_VULKAN(vkQueuePresentKHR, getHandle(), &presentInfo);
 }
 
 }

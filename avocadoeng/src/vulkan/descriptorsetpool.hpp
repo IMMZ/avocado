@@ -1,8 +1,6 @@
 #ifndef AVOCADO_VULKAN_DESCRIPTOR_SET
 #define AVOCADO_VULKAN_DESCRIPTOR_SET
 
-#include "../errorstorage.hpp"
-
 #include "pointertypes.hpp"
 
 #include <vulkan/vulkan.h>
@@ -16,7 +14,7 @@ class LogicalDevice;
 
 
 
-class DescriptorSetPool: public core::ErrorStorage {
+class DescriptorSetPool {
 public:
     explicit DescriptorSetPool(LogicalDevice &logicalDevice, const uint32_t count);
     DescriptorSetPool(DescriptorSetPool &&other);

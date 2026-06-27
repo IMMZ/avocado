@@ -81,12 +81,7 @@ void Swapchain::create(Surface &surface, VkSurfaceFormatKHR surfaceFormat, VkExt
         VK_SHARING_MODE_CONCURRENT : VK_SHARING_MODE_EXCLUSIVE;
 
     VkSwapchainKHR swapchain = VK_NULL_HANDLE;
-    const VkResult result = vkCreateSwapchainKHR(_device, &swapchainCreateInfo, nullptr, &swapchain);
-    setHasError(result != VK_SUCCESS);
-    if (hasError()) {
-        setErrorMessage("vkCreateSwapchainKHR returned "s + getVkResultString(result));
-        return;
-    }
+    CALL_VULKAN_AND_RETURN(vkCreateSwapchainKHR, _device, &swapchainCreateInfo, nullptr, &swapchain);
     _swapchain.reset(swapchain);
 }
 
@@ -94,19 +89,10 @@ void Swapchain::getImages() {
     assert(_swapchain != VK_NULL_HANDLE && "Handle mustn't be null.");
 
     uint32_t imageCount = std::numeric_limits<uint32_t>::max();
-    const VkResult result = vkGetSwapchainImagesKHR(_device, _swapchain.get(), &imageCount, nullptr);
-    setHasError(result != VK_SUCCESS);
-    if (hasError()) {
-        setErrorMessage("vkGetSwapchainImagesKHR returned "s + getVkResultString(result));
-        return;
-    }
-
+    CALL_VULKAN_AND_RETURN(vkGetSwapchainImagesKHR, _device, _swapchain.get(), &imageCount, nullptr);
     _images.resize(imageCount);
-    const VkResult result2 = vkGetSwapchainImagesKHR(_device, _swapchain.get(), &imageCount, _images.data());
-    setHasError(result2 != VK_SUCCESS);
-    if (hasError()) {
-        setErrorMessage("vkGetSwapchainImagesKHR returned "s + getVkResultString(result2));
-        return;
+    {
+        CALL_VULKAN(vkGetSwapchainImagesKHR, _device, _swapchain.get(), &imageCount, _images.data());
     }
 }
 
@@ -144,36 +130,18 @@ void Swapchain::createDepthImage(const uint32_t imgW, const uint32_t imgH, Physi
     imageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-    VkResult result = vkCreateImage(_device, &imageCreateInfo, nullptr, &_depthImage);
-    setHasError(result != VK_SUCCESS);
-    if (hasError()) {
-        setErrorMessage("vkCreateImage returned "s );
-        return;
-    }
+    CALL_VULKAN_DEFINE_VARIABLE_AND_RETURN(imageCreationResult, vkCreateImage, _device, &imageCreateInfo, nullptr, &_depthImage);
 
     VkMemoryRequirements memRequirements{};
     vkGetImageMemoryRequirements(_device, _depthImage, &memRequirements);
-
     const uint32_t foundType = physDevice.findMemoryTypeIndex(memoryFlags, memRequirements.memoryTypeBits);
 
     DEFINE_VK_STRUCTURE(VkMemoryAllocateInfo, imageMemAI);
     imageMemAI.allocationSize = memRequirements.size;
     imageMemAI.memoryTypeIndex = foundType;
 
-    const VkResult allocationResult = vkAllocateMemory(_device, &imageMemAI, nullptr, &_depthImageMemory);
-    setHasError(allocationResult != VK_SUCCESS);
-    if (hasError()) {
-        setErrorMessage("vkAllocateMemory returned "s + getVkResultString(allocationResult));
-        return;
-    }
-
-    const VkResult bindResult = vkBindImageMemory(_device, _depthImage, _depthImageMemory, 0);
-    setHasError(bindResult != VK_SUCCESS);
-    if (hasError()) {
-        setErrorMessage("vkBindImageMemory returned "s + getVkResultString(bindResult));
-        return;
-    }
-
+    CALL_VULKAN_DEFINE_VARIABLE_AND_RETURN(allocateResult, vkAllocateMemory, _device, &imageMemAI, nullptr, &_depthImageMemory);
+    CALL_VULKAN_DEFINE_VARIABLE_AND_RETURN(bindingResult, vkBindImageMemory, _device, _depthImage, _depthImageMemory, 0);
     _depthImageView = createImageView(_depthImage, format, VK_IMAGE_ASPECT_DEPTH_BIT);
 }
 
@@ -195,12 +163,7 @@ VkImageView Swapchain::createImageView(VkImage image, VkFormat format, const VkI
     createInfo.subresourceRange.layerCount = 1;
 
     VkImageView imageView = VK_NULL_HANDLE;
-    const VkResult result = vkCreateImageView(_device, &createInfo, nullptr, &imageView);
-    setHasError(result != VK_SUCCESS);
-    if (hasError()) {
-        setErrorMessage("vkCreateImageView returned "s + getVkResultString(result));
-    }
-
+    CALL_VULKAN(vkCreateImageView, _device, &createInfo, nullptr, &imageView);
     return imageView;
 }
 
@@ -210,9 +173,8 @@ void Swapchain::createImageViews(VkSurfaceFormatKHR surfaceFormat) {
     _imageViews.resize(_images.size());
     for (size_t i = 0; i < _images.size(); ++i) {
         _imageViews[i] = createImageView(_images[i], surfaceFormat.format, VK_IMAGE_ASPECT_COLOR_BIT);
-        if (hasError()) {
+        if (VK_NULL_HANDLE == _imageViews[i])
             return;
-        }
     }
 }
 
@@ -231,11 +193,7 @@ void Swapchain::createFramebuffers(VkRenderPass renderPass, VkExtent2D extent) {
     for (size_t i = 0; i < _imageViews.size(); i++) {
         VkImageView attachments[] = {_imageViews[i], _depthImageView};
         framebufferCI.pAttachments = attachments;
-        const VkResult result = vkCreateFramebuffer(_device, &framebufferCI, nullptr, &_framebuffers[i]);
-        setHasError(result != VK_SUCCESS);
-        if (hasError()) {
-            setErrorMessage("vkCreateFramebuffer returned "s +  getVkResultString(result));
-        }
+        CALL_VULKAN(vkCreateFramebuffer, _device, &framebufferCI, nullptr, &_framebuffers[i]);
     }
 }
 
@@ -243,11 +201,7 @@ uint32_t Swapchain::acquireNextImage(VkSemaphore semaphore) noexcept {
     assert(_swapchain != VK_NULL_HANDLE && "Handle mustn't be null.");
 
     auto imageIndex = std::numeric_limits<uint32_t>::max();
-    const VkResult result = vkAcquireNextImageKHR(_device, _swapchain.get(), UINT64_MAX, semaphore, VK_NULL_HANDLE, &imageIndex);
-    setHasError(result != VK_SUCCESS);
-    if (hasError()) {
-        setErrorMessage("vkAcquireNextImageKHR returned "s + getVkResultString(result));
-    }
+    CALL_VULKAN_AND_RETURN_VALUE(imageIndex,vkAcquireNextImageKHR, _device, _swapchain.get(), UINT64_MAX, semaphore, VK_NULL_HANDLE, &imageIndex);
     return imageIndex;
 }
 
