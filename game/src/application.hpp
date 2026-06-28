@@ -2,11 +2,11 @@
 #define APPLICATION_HPP
 
 #include "vertex.hpp"
-#include "vulkantools.hpp" // todo get rid of this header file
 
 #include <vulkan/commandpool.hpp>
 #include <vulkan/graphicspipeline.hpp>
 #include <vulkan/swapchain.hpp>
+#include <vulkan/vulkaninstance.hpp>
 
 #include <SDL.h>
 
@@ -43,7 +43,7 @@ private:
         avocado::vulkan::CommandPool &commandPool, avocado::vulkan::Queue &graphicsQueue, const tinygltf::Image &image);
 
     tinygltf::Model _model;
-    avocado::vulkan::Vulkan _vulkan;
+    avocado::vulkan::VulkanInstance _vulkanInstance;
     avocado::vulkan::PhysicalDevice _physicalDevice;
     avocado::vulkan::LogicalDevice _logicalDevice = avocado::vulkan::LogicalDevice::createNullDevice();
     static constexpr size_t FRAMES_IN_FLIGHT = 2;

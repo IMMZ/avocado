@@ -1,4 +1,4 @@
-#include "vulkantools.hpp"
+#include "vulkaninstance.hpp"
 
 #include "config.hpp"
 
@@ -19,7 +19,7 @@ using namespace std::literals::string_literals;
 
 namespace avocado::vulkan {
 
-void Vulkan::createInstance(const std::vector<std::string> &extensions,
+void VulkanInstance::createInstance(const std::vector<std::string> &extensions,
     const std::vector<std::string> &layers, const VulkanInstanceInfo &vii) {
     DEFINE_VK_STRUCTURE(VkInstanceCreateInfo, instanceCreateInfo);
 
@@ -38,40 +38,27 @@ void Vulkan::createInstance(const std::vector<std::string> &extensions,
     for (size_t i = 0; i < layers.size(); ++i) {
         layerNamesCString[i] = layers[i].c_str();
     }
-    if (!layers.empty())
-        setLayers(instanceCreateInfo, layerNamesCString);
+    if (!layers.empty()) {
+        instanceCreateInfo.enabledLayerCount = static_cast<uint32_t>(layerNamesCString.size());
+        instanceCreateInfo.ppEnabledLayerNames = layerNamesCString.data();
+    }
 
     std::vector<const char*> extensionNamesCString(extensions.size());
     for (size_t i = 0; i < extensions.size(); ++i) {
         extensionNamesCString[i] = extensions[i].c_str();
     }
-    if (!extensions.empty())
-        vulkan::setExtensions(instanceCreateInfo, extensionNamesCString);
+
+    if (!extensions.empty()) {
+        instanceCreateInfo.enabledExtensionCount = static_cast<uint32_t>(extensionNamesCString.size());
+        instanceCreateInfo.ppEnabledExtensionNames = extensionNamesCString.data();
+    }
 
     VkInstance instance = VK_NULL_HANDLE;
     CALL_VULKAN_AND_RETURN(vkCreateInstance, &instanceCreateInfo, nullptr, &instance);
     _instance.reset(instance);
 }
 
-// todo change prototype.
-std::vector<std::string> Vulkan::getInstanceExtensions() const {
-    unsigned int count = 0;
-    CALL_VULKAN(vkEnumerateInstanceExtensionProperties, nullptr, &count, nullptr);
-
-    std::vector<std::string> instanceExtensions;
-    if (count > 0) {
-        instanceExtensions.resize(count);
-        std::vector<VkExtensionProperties> dataToFill(count);
-        CALL_VULKAN_AND_RETURN_VALUE(instanceExtensions, vkEnumerateInstanceExtensionProperties, nullptr, &count, dataToFill.data());
-        for (size_t i = 0; i < instanceExtensions.size(); ++i)
-            instanceExtensions[i] = dataToFill[i].extensionName;
-    }
-
-    return instanceExtensions;
-}
-
-
-std::vector<std::string> Vulkan::getExtensionNamesForSDLSurface(SDL_Window *window) {
+std::vector<std::string> VulkanInstance::getExtensionNamesForSDLSurface(SDL_Window *window) {
     std::vector<std::string> result;
     unsigned int extensionCount = 0;
     const SDL_bool getExtensionsCountResult = SDL_Vulkan_GetInstanceExtensions(window, &extensionCount, nullptr);
@@ -96,7 +83,7 @@ std::vector<std::string> Vulkan::getExtensionNamesForSDLSurface(SDL_Window *wind
     return result;
 }
 
-std::vector<VkLayerProperties> Vulkan::getLayerProperties() const {
+std::vector<VkLayerProperties> VulkanInstance::getLayerProperties() const {
     unsigned int count = 0;
 
     std::vector<VkLayerProperties> layerProps;
@@ -110,7 +97,7 @@ std::vector<VkLayerProperties> Vulkan::getLayerProperties() const {
     return layerProps;
 }
 
-std::vector<PhysicalDevice> Vulkan::getPhysicalDevices() {
+std::vector<PhysicalDevice> VulkanInstance::getPhysicalDevices() {
     std::vector<VkPhysicalDevice> _result;
     std::vector<PhysicalDevice> result;
     uint32_t deviceCount = 0;
@@ -128,7 +115,7 @@ std::vector<PhysicalDevice> Vulkan::getPhysicalDevices() {
     return result;
 }
 
-bool Vulkan::areLayersSupported(const std::vector<std::string> &layerNames) const {
+bool VulkanInstance::areLayersSupported(const std::vector<std::string> &layerNames) const {
     std::vector<VkLayerProperties> layers = getLayerProperties();
 
     for (const std::string &layerName: layerNames) {
@@ -145,7 +132,7 @@ bool Vulkan::areLayersSupported(const std::vector<std::string> &layerNames) cons
     return true;
 }
 
-Surface Vulkan::createSurface(SDL_Window *window, PhysicalDevice &physicalDevice) {
+Surface VulkanInstance::createSurface(SDL_Window *window, PhysicalDevice &physicalDevice) {
     SDL_version sdlVersion; SDL_GetVersion(&sdlVersion);
     SDL_SysWMinfo wmInfo; wmInfo.version = sdlVersion;
     SDL_bool result = SDL_GetWindowWMInfo(window, &wmInfo);

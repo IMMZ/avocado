@@ -1,5 +1,7 @@
 #include "utils.hpp"
 
+#include <filesystem>
+
 namespace avocado::utils {
 
 std::vector<char> readFile(const std::string &filePath) {
@@ -52,6 +54,25 @@ std::vector<std::string> splitString(const std::string &str, const std::string &
     }
 
     return tokens;
+}
+
+namespace os {
+
+std::string getExecutablePath() {
+#ifdef __linux__
+    std::string fullExePath = std::filesystem::canonical("/proc/self/exe").string();
+    const std::string::size_type index = fullExePath.find_last_of('/');
+    if (std::string::npos != index)
+        fullExePath.erase(index, fullExePath.length() - index);
+
+#elif
+    static_assert(false, "Implement for Windows");
+    return std::string(); // todo implement for Windows.
+#endif
+
+    return fullExePath;
+}
+
 }
 
 } // namespace avocado::utils.

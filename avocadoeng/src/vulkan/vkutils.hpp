@@ -8,7 +8,7 @@
 #include <cassert>
 #include <vector>
 
-namespace avocado::vulkan {
+namespace avocado::vulkan::utils {
 
 class Buffer;
 class CommandBuffer;
@@ -96,7 +96,7 @@ constexpr const char* getVkResultString(const VkResult vkres) noexcept {
     #undef PROCESS_CODE
 }
 
-} // namespace avocado::vulkan
+} // namespace avocado::vulkan::utils.
 
 #endif
 

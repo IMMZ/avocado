@@ -1,8 +1,8 @@
 #include "gameconfig.hpp"
 
-#include <os/osutils.hpp>
 #include <utils.hpp>
 
+#include <filesystem>
 #include <fstream>
 
 bool GameConfig::load(const std::string_view &filePath) {
@@ -67,6 +67,6 @@ void GameConfig::setValue(const std::string &key, std::string &&value) {
 }
 
 std::string GameConfig::getShadersPath() {
-    return avocado::os::getExecutablePath() + "/assets/shaders";
+    return avocado::utils::os::getExecutablePath() + "/assets/shaders";
 }
 

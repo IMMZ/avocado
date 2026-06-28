@@ -83,7 +83,7 @@ LogicalDevice PhysicalDevice::createLogicalDevice(
     DEFINE_VK_STRUCTURE(VkDeviceCreateInfo, devCreateInfo);
     devCreateInfo.queueCreateInfoCount = static_cast<decltype(devCreateInfo.queueCreateInfoCount)>(queueCreateInfos.size());
     devCreateInfo.pQueueCreateInfos = queueCreateInfos.data();
-    devCreateInfo.enabledExtensionCount = static_cast<decltype(devCreateInfo.enabledExtensionCount)>(extensionsCString.size());
+    devCreateInfo.enabledExtensionCount = static_cast<uint32_t>(extensionsCString.size());
     devCreateInfo.ppEnabledExtensionNames = extensionsCString.data();
 
     std::vector<const char*> layerNamesCString(instanceLayers.size(), nullptr);

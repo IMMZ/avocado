@@ -25,7 +25,7 @@ DescriptorSetPool::DescriptorSetPool(DescriptorSetPool &&other):
 }
 
 DescriptorSetPool::~DescriptorSetPool() {
-    utils::makeUniqueContainer(_layouts);
+    avocado::utils::makeUniqueContainer(_layouts);
     for (VkDescriptorSetLayout &layout: _layouts)
         vkDestroyDescriptorSetLayout(_device.getHandle(), layout, nullptr);
 }

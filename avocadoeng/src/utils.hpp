@@ -1,6 +1,7 @@
 #ifndef AVOCADO_UTILS
 #define AVOCADO_UTILS
 
+#include "callvulkan.hpp"
 #include "logger.hpp"
 
 #include <vulkan/vkutils.hpp>
@@ -43,20 +44,21 @@ constexpr std::common_type_t<Enums...> enumBitwiseOr(Enums ...enums) noexcept {
     return static_cast<std::common_type_t<Enums...>>((static_cast<std::underlying_type_t<Enums>>(enums) | ...));
 }
 
-std::vector<char> readFile(const std::string &filePath);
+[[nodiscard]] std::vector<char> readFile(const std::string &filePath);
 
 [[nodiscard]] bool endsWith(const std::string_view &string, const std::string_view &target);
 inline bool hasExtension(const std::string_view &filename, const std::string_view &extension) {
     return endsWith(filename, extension);
 }
 
+// todo [c++23] Replace by std::string::contains
 [[nodiscard]] inline bool stringContains(const std::string &str, const std::string &value) {
     return (str.find(value) != std::string::npos);
 }
 
-std::vector<std::string> splitString(const std::string &str, const std::string &delimiter, const bool includeEmpty);
+[[nodiscard]] std::vector<std::string> splitString(const std::string &str, const std::string &delimiter, const bool includeEmpty);
 
-inline bool areFloatEq(const float a, const float b) noexcept {
+[[nodiscard]] inline bool areFloatsEq(const float a, const float b) noexcept {
     return fabs(a - b) < std::numeric_limits<float>::epsilon();
 }
 
@@ -74,78 +76,13 @@ consteval std::underlying_type_t<Enum> enumToInteger(Enum enumValue) {
     return static_cast<std::underlying_type_t<Enum>>(enumValue);
 }
 
+namespace os {
+
+// todo [SDL 2.0.1] there's ready function for this is SDL.
+[[nodiscard]] std::string getExecutablePath();
+
+} // namespace avocado::utils::os.
+
 } // namespace avocado::utils.
-
-/*
- * @brief Calls Vulkan API function and logs error if it hasn't returned VK_SUCCESS.
- *
- * @param variableName Name of the result variable you can use later.
- * @param Fn Vulkan function to call.
- * @param args Arguments for Vulkan function.
- */
-#define CALL_VULKAN_AND_DEFINE_VARIABLE(variableName, Fn, ...)\
-    const VkResult variableName = Fn(__VA_ARGS__);\
-    if (VK_SUCCESS != variableName)\
-        LOG_ERROR(std::string(#Fn) + " returned " + avocado::vulkan::getVkResultString(variableName))
-
-/*
- * @brief Calls Vulkan API function, in case of fail it logs an error and calls 'return'.
- *
- * @param variableName Name of the result variable you can use later.
- * @param Fn Vulkan function to call.
- * @param args Arguments for Vulkan function.
- */
-#define CALL_VULKAN_DEFINE_VARIABLE_AND_RETURN(variableName, Fn, ...)\
-    const VkResult variableName = Fn(__VA_ARGS__);\
-    if (VK_SUCCESS != variableName) {\
-        LOG_ERROR(std::string(#Fn) + " returned " + avocado::vulkan::getVkResultString(variableName));\
-        return;\
-    }\
-
-/*
- * @brief Calls Vulkan API function, in case of fail it logs an error and calls 'return' with specified value.
- *
- * @param variableName Name of the result variable you can use later.
- * @param returnValue Value to return in case of fail.
- * @param Fn Vulkan function to call.
- * @param args Arguments for Vulkan function.
- */
-#define CALL_VULKAN_DEFINE_VARIABLE_AND_RETURN_VALUE(variableName, returnValue, Fn, ...)\
-    const VkResult variableName = Fn(__VA_ARGS__);\
-    if (VK_SUCCESS != variableName) {\
-        LOG_ERROR(std::string(#Fn) + " returned " + avocado::vulkan::getVkResultString(variableName));\
-        return returnValue;\
-    }\
-
-/*
- * @brief Calls Vulkan API function and logs error if it hasn't returned VK_SUCCESS.
- *
- * @param Fn Vulkan function to call.
- * @param args Arguments for Vulkan function.
- *
- * @note This macro defines variable 'VkResult callResult'.
- */
-#define CALL_VULKAN(Fn, ...) CALL_VULKAN_AND_DEFINE_VARIABLE(callResult, Fn, __VA_ARGS__)
-
-/*
- * @brief Calls Vulkan API function, in case of fail it logs an error and calls 'return'.
- *
- * @param Fn Vulkan function to call.
- * @param args Arguments for Vulkan function.
- *
- * @note This macro defines variable 'VkResult callResult'.
- */
-#define CALL_VULKAN_AND_RETURN(Fn, ...) CALL_VULKAN_DEFINE_VARIABLE_AND_RETURN(callResult, Fn, __VA_ARGS__)
-
-/*
- * @brief Calls Vulkan API function, in case of fail it logs an error and calls 'return' with specified value.
- *
- * @param returnValue Value to return in case of fail.
- * @param Fn Vulkan function to call.
- * @param args Arguments for Vulkan function.
- *
- * @note This macro defines variable 'VkResult callResult'.
- */
-#define CALL_VULKAN_AND_RETURN_VALUE(returnValue, Fn, ...) CALL_VULKAN_DEFINE_VARIABLE_AND_RETURN_VALUE(callResult, returnValue, Fn, __VA_ARGS__)
 
 #endif

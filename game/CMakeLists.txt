@@ -19,7 +19,6 @@ add_executable(${PROJECT_NAME}_tests
     src/gameconfig.cpp
     ${TEST_SOURCES}
     ${AVOCADO_SRC_DIR}/utils.cpp
-    ${AVOCADO_SRC_DIR}/os/osutils.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../third_party/Catch2-3.3.2/catch_amalgamated.cpp)
 
 target_link_libraries(${PROJECT_NAME}

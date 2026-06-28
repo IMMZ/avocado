@@ -13,7 +13,6 @@ template <>\
 inline constexpr VkObjectType ObjectType<Vk##OBJECT> = VK_OBJECT_TYPE_##OBJECT_TYPE
 
 #define _FILL_S_TYPE(variable) variable.sType = avocado::vulkan::StructureType<decltype(variable)>
-#define _FILL_PTR_S_TYPE(variable) variable->sType = avocado::vulkan::StructureType<std::remove_pointer_t<decltype(variable)>>
 #define _FILL_OBJECT_TYPE(variable) variable.objectType = avocado::vulkan::ObjectType<decltype(variable)>
 
 #define DEFINE_VK_STRUCTURE(type, variable) type variable{}; _FILL_S_TYPE(variable);
@@ -78,8 +77,9 @@ DEFINE_STRUCTURE_TYPE(SwapchainCreateInfoKHR, SWAPCHAIN_CREATE_INFO_KHR);
 DEFINE_STRUCTURE_TYPE(SubmitInfo, SUBMIT_INFO);
 DEFINE_STRUCTURE_TYPE(WriteDescriptorSet, WRITE_DESCRIPTOR_SET);
 
-}
+} // namespace avocado::vulkan
 
+#undef _FILL_OBJECT_TYPE
 #undef DEFINE_STRUCTURE_TYPE
 #undef DEFINE_OBJECT_TYPE
 

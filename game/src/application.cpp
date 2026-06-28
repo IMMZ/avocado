@@ -7,7 +7,6 @@
 #include "utils.hpp"
 
 #include <scene/scene.hpp>
-#include <os/osutils.hpp>
 #include <vulkan/commandbuffer.hpp>
 #include <vulkan/graphicspipeline.hpp>
 
@@ -52,13 +51,13 @@
 using namespace avocado;
 
 void Application::createInstance(SDL_Window &window, const std::vector<std::string> &instanceLayers) {
-    const bool areLayersSupported = _vulkan.areLayersSupported(instanceLayers);
+    const bool areLayersSupported = _vulkanInstance.areLayersSupported(instanceLayers);
     if (!areLayersSupported) {
         std::cerr << "Layers are not supported!" << std::endl;
         return;
     }
 
-    std::vector<std::string> instanceExtensions = _vulkan.getExtensionNamesForSDLSurface(&window);
+    std::vector<std::string> instanceExtensions = _vulkanInstance.getExtensionNamesForSDLSurface(&window);
     if constexpr (core::isDebugBuild())
         instanceExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 
@@ -68,11 +67,11 @@ void Application::createInstance(SDL_Window &window, const std::vector<std::stri
         1, 3 // Vulkan API version.
     };
 
-    _vulkan.createInstance(instanceExtensions, instanceLayers, vulkanInfo);
+    _vulkanInstance.createInstance(instanceExtensions, instanceLayers, vulkanInfo);
 }
 
 void Application::createPhysicalDevice() {
-    std::vector<vulkan::PhysicalDevice> physicalDevices = _vulkan.getPhysicalDevices();
+    std::vector<vulkan::PhysicalDevice> physicalDevices = _vulkanInstance.getPhysicalDevices();
     if (physicalDevices.empty()) {
         std::cout << "No physical devices found." << std::endl;
         return;
@@ -173,8 +172,7 @@ vulkan::GraphicsPipelineBuilder Application::preparePipeline(const VkExtent2D ex
 
 int Application::run() {
     // Check resources.
-    const std::string modelFile = avocado::os::getExecutablePath() + "/assets/models/cube.glb";
-    //const std::string modelFile = avocado::os::getExecutablePath() + "/assets/models/scene1/scene.glb";
+    const std::string modelFile = avocado::utils::os::getExecutablePath() + "/assets/models/cube.glb";
     if (!std::filesystem::exists(modelFile)) {
         std::cout << "File " << modelFile << " doesn't exist" << std::endl;
         return 1;
@@ -208,7 +206,7 @@ int Application::run() {
         return 1;
     }
 
-    vulkan::Surface surface = _vulkan.createSurface(sdlWindow.get(), _physicalDevice);
+    vulkan::Surface surface = _vulkanInstance.createSurface(sdlWindow.get(), _physicalDevice);
     _physicalDevice.initQueueFamilies(surface);
     const vulkan::QueueFamily graphicsQueueFamily = _physicalDevice.getGraphicsQueueFamily();
     const vulkan::QueueFamily presentQueueFamily = _physicalDevice.getPresentQueueFamily();
@@ -389,7 +387,7 @@ int Application::run() {
             cmdBuf.bindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineBuilder.getPipelineLayout(), 0, 1, &descriptorSetPool.getSet(currentFrame));
 
             cmdBuf.beginRenderPass(swapChain, renderPassPtr.get(), extent, {0, 0}, imageIndex);
-                cmdBuf.drawIndexed(indexBuffer.getSizeBytes() / avocado::vulkan::sizeOf<indexBuffer.getIndexType()>(), 1, 0,0,0);
+                cmdBuf.drawIndexed(indexBuffer.getSizeBytes() / avocado::vulkan::utils::sizeOf<indexBuffer.getIndexType()>(), 1, 0,0,0);
             cmdBuf.endRenderPass();
         cmdBuf.end();
 
