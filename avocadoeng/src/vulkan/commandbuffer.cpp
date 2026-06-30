@@ -5,6 +5,7 @@
 #include "queue.hpp"
 #include "structuretypes.hpp"
 #include "swapchain.hpp"
+#include "vulkan/vulkan_core.h"
 
 #include <array>
 
@@ -125,6 +126,10 @@ void CommandBuffer::pipelineBarrier(const VkPipelineStageFlags srcStage, const V
     const uint32_t imageMemoryBarriersCount, const VkImageMemoryBarrier *imageBarriers) {
     vkCmdPipelineBarrier(_cmdBuf, srcStage, dstStage, dependencyFlags, memoryBarriersCount, memoryBarriers, bufferMemoryBarriersCount, bufBarriers,
         imageMemoryBarriersCount, imageBarriers);
+}
+
+void CommandBuffer::pushConstants(VkPipelineLayout pipelineLayout, const uint32_t offset, const uint32_t size, const void *values) {
+    vkCmdPushConstants(_cmdBuf, pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, offset, size, values);
 }
 
 void CommandBuffer::draw(const uint32_t vertexCount, const uint32_t instanceCount,

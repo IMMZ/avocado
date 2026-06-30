@@ -154,7 +154,6 @@ void SceneManager::load(const std::string &filepath) {
                 }
             }
 
-
             // Form output vertices.
             vertices = new Vertex[positionsCount];
             for (size_t i = 0, positionI = 0, colorI = 0, textureCoordinatesI = 0; i < positionsCount; ++i) {
@@ -204,7 +203,7 @@ void SceneManager::load(const std::string &filepath) {
 void SceneManager::parseSamplers() {
     for (const tinygltf::Sampler &sampler: model.samplers) {
         Sampler newSampler;
-        
+
         switch (sampler.magFilter) {
             case TINYGLTF_TEXTURE_FILTER_LINEAR:
             case TINYGLTF_TEXTURE_FILTER_LINEAR_MIPMAP_LINEAR: {
@@ -311,7 +310,7 @@ void SceneManager::parseImages() {
 void SceneManager::parseTextures() {
     for (const tinygltf::Texture &texture: model.textures) {
         Texture newTexture;
-        
+
         if (-1 != texture.source)
             newTexture._image = &_images[texture.source];
         if (-1 != texture.sampler)
@@ -321,12 +320,13 @@ void SceneManager::parseTextures() {
     }
 }
 
-void foo(const Node &node, std::vector<Vertex> &totalVertices) {
+// todo Mustn't be as a free function.
+void copyVerticesFromNode(const Node &node, std::vector<Vertex> &totalVertices) {
     if (node.hasMesh())
         std::copy(node.mesh->vertices.begin(), node.mesh->vertices.end(), std::back_inserter(totalVertices));
 
     for (const Node * const childNode: node._children)
-        foo(*childNode, totalVertices);
+        copyVerticesFromNode(*childNode, totalVertices);
 }
 
 avocado::vulkan::Buffer SceneManager::formVertexBuffer(avocado::vulkan::PhysicalDevice &physicalDevice, const VkBufferUsageFlagBits usage, const VkSharingMode sharingMode, avocado::vulkan::LogicalDevice &device) {
@@ -335,7 +335,7 @@ avocado::vulkan::Buffer SceneManager::formVertexBuffer(avocado::vulkan::Physical
 
     std::vector<Vertex> totalVertices;
     for (const Node * const rootNode: _defaultScene->_rootNodes)
-        foo(*rootNode, totalVertices);
+        copyVerticesFromNode(*rootNode, totalVertices);
 
     const size_t sizeBytes = sizeof(decltype(totalVertices)::value_type) * totalVertices.size();
     avocado::vulkan::Buffer buffer(sizeBytes, usage, sharingMode, device);
@@ -345,7 +345,8 @@ avocado::vulkan::Buffer SceneManager::formVertexBuffer(avocado::vulkan::Physical
     return buffer;
 }
 
-void bar(const Node &node, std::vector<uint32_t> &totalIndices) {
+// todo Mustn't be as a free function.
+void copyIndiciesFromNode(const Node &node, std::vector<uint32_t> &totalIndices) {
     if (node.hasMesh()) {
         auto max_element = std::max_element(totalIndices.cbegin(), totalIndices.cend());
         uint32_t offset = 0;
@@ -357,7 +358,7 @@ void bar(const Node &node, std::vector<uint32_t> &totalIndices) {
     }
 
     for (const Node * const childNode: node._children)
-        bar(*childNode, totalIndices);
+        copyIndiciesFromNode(*childNode, totalIndices);
 }
 
 avocado::vulkan::Buffer SceneManager::formIndexBuffer(avocado::vulkan::PhysicalDevice &physicalDevice, const VkBufferUsageFlagBits usage, const VkSharingMode sharingMode, avocado::vulkan::LogicalDevice &device) {
@@ -367,7 +368,7 @@ avocado::vulkan::Buffer SceneManager::formIndexBuffer(avocado::vulkan::PhysicalD
     std::vector<uint32_t> totalIndices;
     for (size_t i = 0; i < _defaultScene->_rootNodes.size(); ++i) {
         const Node * const rootNode = _defaultScene->_rootNodes[i];
-        bar(*rootNode, totalIndices);
+        copyIndiciesFromNode(*rootNode, totalIndices);
     }
 
     const size_t sizeBytes = sizeof(decltype(totalIndices)::value_type) * totalIndices.size();

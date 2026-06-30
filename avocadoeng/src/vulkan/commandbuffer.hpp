@@ -39,7 +39,7 @@ public:
         const VkDependencyFlags dependencyFlags, const uint32_t memoryBarriersCount, VkMemoryBarrier *memoryBarriers,
         const uint32_t bufferMemoryBarriersCount, const VkBufferMemoryBarrier *bufBarriers,
         const uint32_t imageMemoryBarriersCount, const VkImageMemoryBarrier *imageBarriers);
-
+    void pushConstants(VkPipelineLayout pipelineLayout, const uint32_t offset, const uint32_t size, const void *values);
     void draw(const uint32_t vertexCount, const uint32_t instanceCount,
         const uint32_t firstVertex = 0, const uint32_t firstInstance = 0) noexcept;
     void drawIndexed(const uint32_t indexCount, const uint32_t instanceCount,

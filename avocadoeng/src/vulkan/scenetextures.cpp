@@ -50,10 +50,8 @@ void SceneTextures::exportToDescriptorManager(DescriptorManager &descriptorManag
         const bool hasImage = (_imagesMapping[i] != std::numeric_limits<size_t>::max());
         const bool hasSampler = (_samplersMapping[i] != std::numeric_limits<size_t>::max());
         const bool hasSamplerAndImage = hasImage && hasSampler;
-        if (hasSamplerAndImage) {
+        if (hasSamplerAndImage)
             descriptorManager.addImage(_imageViews[_imagesMapping[i]], _samplers[_samplersMapping[i]], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-            descriptorManager.addImage(_imageViews[_imagesMapping[i]], _samplers[_samplersMapping[i]], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-        }
     }
 }
 

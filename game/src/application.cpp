@@ -131,7 +131,7 @@ vulkan::GraphicsPipelineBuilder Application::preparePipeline(const VkExtent2D ex
     rastState.rasterizerDiscardEnable = VK_FALSE;
     rastState.depthBiasEnable = VK_FALSE;
     rastState.polygonMode = VK_POLYGON_MODE_FILL;
-    rastState.cullMode = VK_CULL_MODE_BACK_BIT;
+    rastState.cullMode = VK_CULL_MODE_NONE; // todo Should be specified using material->doubleSided from GLTF.
     rastState.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rastState.lineWidth = 1.f;
 
@@ -328,8 +328,6 @@ int Application::run() {
 
     swapChain.createFramebuffers(renderPassPtr.get(), extent);
 
-    //descriptorSetPool.update();
-
     VkBuffer vertexBufferHandle = vertexBuffer.getHandle();
     VkDeviceSize offset = 0;
     const auto startTime = std::chrono::high_resolution_clock::now();
@@ -382,9 +380,12 @@ int Application::run() {
 
 
         descriptorManager.update();
+
+        int32_t materialId = 0;
         vulkan::CommandBuffer cmdBuf = commandPool.getBuffer(currentFrame);
         cmdBuf.reset();
         cmdBuf.begin();
+            cmdBuf.pushConstants(pipelineBuilder.getPipelineLayout(), 0, sizeof(materialId), &materialId);
             cmdBuf.setViewports(viewPorts);
             cmdBuf.setScissors(scissors);
             cmdBuf.bindVertexBuffers(0, 1, &vertexBufferHandle, &offset);

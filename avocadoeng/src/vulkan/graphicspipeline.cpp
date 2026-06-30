@@ -227,6 +227,15 @@ void GraphicsPipelineBuilder::createLayout(VkGraphicsPipelineCreateInfo &pipelin
     DEFINE_VK_STRUCTURE(VkPipelineLayoutCreateInfo, pipelineLayoutCreateInfo);
     pipelineLayoutCreateInfo.setLayoutCount = _descriptorSetLayouts.size();
     pipelineLayoutCreateInfo.pSetLayouts = _descriptorSetLayouts.data();
+
+    // Push constants
+    std::array<VkPushConstantRange, 1> ranges{};
+    ranges[0].offset = 0;
+    ranges[0].size = sizeof(int32_t);
+    ranges[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    pipelineLayoutCreateInfo.pPushConstantRanges = ranges.data();
+    pipelineLayoutCreateInfo.pushConstantRangeCount = ranges.size();
+
     VkPipelineLayout pipelineLayout;
     CALL_VULKAN_AND_RETURN(vkCreatePipelineLayout, _logicalDevice.getHandle(), &pipelineLayoutCreateInfo, nullptr, &pipelineLayout);
 
