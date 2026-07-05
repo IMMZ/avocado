@@ -89,7 +89,6 @@ struct Texture {
 
 struct SceneManager {
     std::vector<Node> nodes;
-    std::vector<Mesh> meshes;
     std::vector<Scene> _scenes;
     std::vector<Sampler> _samplers;
     std::vector<Image> _images;
@@ -98,8 +97,19 @@ struct SceneManager {
     Scene * _defaultScene = nullptr;
 
     void load(const std::string &filepath);
-    avocado::vulkan::Buffer formVertexBuffer(avocado::vulkan::PhysicalDevice &physicalDevice, const VkBufferUsageFlagBits usage, const VkSharingMode sharingMode, avocado::vulkan::LogicalDevice &device);
-    avocado::vulkan::Buffer formIndexBuffer(avocado::vulkan::PhysicalDevice &physicalDevice, const VkBufferUsageFlagBits usage, const VkSharingMode sharingMode, avocado::vulkan::LogicalDevice &device);
+
+    std::vector<Vertex> copyVerticesFromPrimitive(const tinygltf::Primitive &primitive);
+    std::vector<uint32_t> copyIndiciesFromPrimitive(const tinygltf::Primitive &primitive);
+    tinygltf::Primitive* findPrimitive(const int32_t primitiveIndex);
+    avocado::vulkan::Buffer formVertexBuffer(avocado::vulkan::PhysicalDevice &physicalDevice, const VkBufferUsageFlagBits usage, const VkSharingMode sharingMode, avocado::vulkan::LogicalDevice &device, const int32_t primitiveIndex);
+    avocado::vulkan::Buffer formIndexBuffer(avocado::vulkan::PhysicalDevice &physicalDevice, const VkBufferUsageFlagBits usage, const VkSharingMode sharingMode, avocado::vulkan::LogicalDevice &device, const int32_t primitiveIndex);
+    int32_t getMaterialIndex(const int32_t primitiveIndex);
+    VkPrimitiveTopology getPrimitiveTopology(const int32_t primitiveIndex) noexcept;
+    VkCullModeFlags getCullMode(const int32_t primitiveIndex) noexcept;
+
+    [[nodiscard]] inline int32_t getPrimitivesCount() const noexcept {
+        return _primitivesCount;
+    }
 
     [[nodiscard]] bool hasCameras() const noexcept {
         return !_cameras.empty();
@@ -117,11 +127,8 @@ private:
     void parseImages();
     void parseTextures();
 
-    std::vector<avocado::vulkan::Image> _vulkanImages; 
-    std::vector<avocado::vulkan::ImageViewPtr> _vulkanImageViews;
-    std::vector<avocado::vulkan::SamplerPtr> _vulkanSamplers;
-
-    tinygltf::Model model;
+    tinygltf::Model _model;
+    int32_t _primitivesCount = 0;
     bool _nodesAreParsed = false;
 };
 

@@ -16,12 +16,12 @@ struct Mesh;
 struct Node {
     std::vector<Node*> _children;
     std::string _name;
-    Mesh *mesh = nullptr;
     avocado::math::Mat4x4 *matrix = nullptr;
     avocado::math::Quaternion *rotation = nullptr;
     avocado::math::vec3f * translation = nullptr;
     avocado::math::vec3f * scale = nullptr;
     int _cameraIndex = -1;
+    bool _hasMesh = false;
 
     [[nodiscard]] inline bool hasTranslation() noexcept {
         return (nullptr != translation);
@@ -33,10 +33,13 @@ struct Node {
 
     void addChild(Node * const childNode);
     [[nodiscard]] bool hasMatrix() const noexcept;
-    [[nodiscard]] bool hasMesh() const noexcept;
     [[nodiscard]] bool hasRotation() const noexcept;
     [[nodiscard]] inline bool hasCamera() const noexcept {
         return (_cameraIndex > -1);
+    }
+
+    [[nodiscard]] inline bool hasMesh() const noexcept {
+        return _hasMesh;
     }
 };
 

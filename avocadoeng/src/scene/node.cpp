@@ -11,10 +11,6 @@ bool Node::hasMatrix() const noexcept {
     return (nullptr != matrix);
 }
 
-bool Node::hasMesh() const noexcept {
-    return (nullptr != mesh);
-}
-
 bool Node::hasRotation() const noexcept {
     return (nullptr != rotation);
 }

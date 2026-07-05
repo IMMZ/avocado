@@ -55,10 +55,10 @@ Buffer& Buffer::operator=(Buffer &&other) {
 }
 
 Buffer::~Buffer() {
-    if (_devMem != VK_NULL_HANDLE)
-        vkFreeMemory(_dev, _devMem, nullptr);
     if (_buf != VK_NULL_HANDLE)
         vkDestroyBuffer(_dev, _buf, nullptr);
+    if (_devMem != VK_NULL_HANDLE)
+        vkFreeMemory(_dev, _devMem, nullptr);
 }
 
 VkBuffer Buffer::getHandle() noexcept {

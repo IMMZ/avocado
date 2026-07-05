@@ -15,6 +15,9 @@ class PhysicalDevice;
 
 class Buffer final {
 public:
+    static constexpr VkIndexType IndexType = VK_INDEX_TYPE_UINT32;
+
+public:
     NON_COPYABLE(Buffer);
 
     explicit Buffer(const VkDeviceSize size, const VkBufferUsageFlagBits usage, const VkSharingMode sharingMode, LogicalDevice &device, const std::vector<QueueFamily> &queueFamilies = {});
@@ -30,10 +33,6 @@ public:
         fill(dataToCopy, _bufSize, 0);
     }
     [[nodiscard]] VkDeviceSize getSizeBytes() const noexcept;
-
-    [[nodiscard]] constexpr VkIndexType getIndexType() const noexcept {
-        return VK_INDEX_TYPE_UINT32;
-    }
 
 private:
     VkDevice _dev = VK_NULL_HANDLE;

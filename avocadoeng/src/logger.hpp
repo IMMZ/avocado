@@ -31,6 +31,9 @@ private:
 #define LOG_INFORMATION(message)\
     avocado::core::Logger::instance(avocado::core::Logger::Type::Console, std::cout).logInformation(message)
 
+#define LOG_WARNING(message)\
+    avocado::core::Logger::instance(avocado::core::Logger::Type::Console, std::cout).logWarning(message)
+
 #define LOG_ERROR(message)\
     avocado::core::Logger::instance(avocado::core::Logger::Type::Console, std::cout).logError(message)
 

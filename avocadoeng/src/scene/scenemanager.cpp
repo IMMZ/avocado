@@ -1,8 +1,10 @@
+#include "vulkan/vulkan_core.h"
 #define TINYGLTF_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "scenemanager.hpp"
 
+#include "../logger.hpp"
 #include "../math/functions.hpp"
 
 #include <functional>
@@ -14,183 +16,15 @@ void SceneManager::load(const std::string &filepath) {
     if (filepath.ends_with(".glb"))
         loadFunction = std::mem_fn(&tinygltf::TinyGLTF::LoadBinaryFromFile);
 
-
     tinygltf::TinyGLTF loader;
     std::string error, warning;
-    const bool loadOk = loadFunction(loader, &model, &error, &warning, filepath, tinygltf::REQUIRE_VERSION);
+    const bool loadOk = loadFunction(loader, &_model, &error, &warning, filepath, tinygltf::REQUIRE_VERSION);
     if (!loadOk) {
-        ; // todo Process error.
+        if (!error.empty())
+            LOG_ERROR(error);
+        else if (!warning.empty())
+            LOG_WARNING(warning);
     }
-
-    std::unique_ptr<float[]> positions = nullptr; size_t positionsCount = 0;
-    std::unique_ptr<float[]> texCoords = nullptr; size_t texCoordsCount = 0;
-    std::unique_ptr<float[]> colors = nullptr; size_t colorCount = 0;
-    uint32_t *indices = nullptr; size_t indicesCount = 0;
-    float *positionData = nullptr;
-    unsigned char *indicesData = nullptr;
-    float *texCoordData = nullptr;
-    float *colorData = nullptr;
-    Vertex *vertices = nullptr;
-    tinygltf::Image *imageToLoad = nullptr;
-    int meshIndex = 0;
-    for (const tinygltf::Mesh &mesh: model.meshes) {
-        Mesh newMesh;
-        for (const tinygltf::Primitive &primitive: mesh.primitives) {
-            const ModelTopology topology = static_cast<ModelTopology>(primitive.mode);
-            const auto &attributes = primitive.attributes;
-            const size_t accessorIndex = attributes.at("POSITION");
-            positionsCount = model.accessors[accessorIndex].count;
-            const size_t accessorOffset = model.accessors[accessorIndex].byteOffset;
-            const size_t bufferViewIndex = model.accessors[accessorIndex].bufferView;
-            const size_t bufferIndex = model.bufferViews[bufferViewIndex].buffer;
-            const size_t length = model.bufferViews[bufferViewIndex].byteLength;
-            const size_t offset = model.bufferViews[bufferViewIndex].byteOffset;
-            const size_t bytesStride = model.bufferViews[bufferViewIndex].byteStride;
-
-            const AccessorType accessorType = static_cast<AccessorType>(model.accessors[accessorIndex].type);
-            const size_t numberOfComponents = getNumberOfComponents(accessorType);
-
-            positions.reset(new float[positionsCount * numberOfComponents]{});
-            positionData = reinterpret_cast<float*>(&model.buffers[bufferIndex].data[offset + accessorOffset]);
-            const size_t elementStride = bytesStride / sizeof(float);
-
-            for (size_t i = 0, j = 0; i < positionsCount * numberOfComponents;) {
-                for (size_t k = 0; k < numberOfComponents; ++k)
-                    positions[i + k] = positionData[j + k];
-                i += numberOfComponents;
-                if (0 == elementStride)
-                    j += numberOfComponents;
-                else
-                    j += elementStride;
-            }
-
-            const size_t indicesAccessorIndex = primitive.indices;
-            const size_t indicesBufferViewIndex = model.accessors[indicesAccessorIndex].bufferView;
-            indicesCount = model.accessors[indicesAccessorIndex].count;
-            const size_t indicesAccessorOffset = model.accessors[indicesAccessorIndex].byteOffset;
-            const size_t indicesBufferIndex = model.bufferViews[indicesBufferViewIndex].buffer;
-            const size_t indicesLength = model.bufferViews[indicesBufferViewIndex].byteLength;
-            const size_t indicesOffset = model.bufferViews[indicesBufferViewIndex].byteOffset;
-            const AccessorType indicesAccessorType = static_cast<AccessorType>(model.accessors[indicesAccessorIndex].type);
-            const ComponentType indicesComponentType = static_cast<ComponentType>(model.accessors[indicesAccessorIndex].componentType);
-            const size_t indicesNumberOfComponents = getNumberOfComponents(indicesAccessorType);
-            const size_t indicesComponentTypeSize = getComponentTypeSize(indicesComponentType);
-            const size_t indicesStride = model.bufferViews[indicesBufferViewIndex].byteStride / indicesComponentTypeSize;
-            indicesData = &model.buffers[indicesBufferIndex].data[indicesAccessorOffset + indicesOffset];
-
-            indices = new uint32_t[indicesCount]{};
-            for (size_t i = 0, j = 0; i < indicesCount;) {
-                for (size_t k = 0; k < indicesNumberOfComponents; ++k)
-                    memcpy(indices + i + k, indicesData + (indicesComponentTypeSize * (j + k)), indicesComponentTypeSize);
-                i += indicesNumberOfComponents;
-                if (indicesStride > 0)
-                    j += indicesStride;
-                else
-                    j++;
-            }
-
-            // Read texture coordinates.
-            constexpr const char * const TEXCOORD = "TEXCOORD";
-            size_t texCoordNumberOfComponents = 0;
-            for (const auto &attrIndexPair: attributes) {
-                if (attrIndexPair.first.starts_with(TEXCOORD)) {
-                    const size_t texCoordAccessorIndex = attributes.at(attrIndexPair.first);
-                    texCoordsCount = model.accessors[texCoordAccessorIndex].count;
-                    const size_t texCoordAccessorOffset = model.accessors[texCoordAccessorIndex].byteOffset;
-                    const size_t texCoordBufferViewIndex = model.accessors[texCoordAccessorIndex].bufferView;
-                    const size_t texCoordBufferIndex = model.bufferViews[texCoordBufferViewIndex].buffer;
-                    const size_t length = model.bufferViews[texCoordBufferViewIndex].byteLength;
-                    const size_t texCoordOffset = model.bufferViews[texCoordBufferViewIndex].byteOffset;
-                    const AccessorType texCoordAccessorType = static_cast<AccessorType>(model.accessors[texCoordAccessorIndex].type);
-                    const ComponentType texCoordComponentType = static_cast<ComponentType>(model.accessors[texCoordAccessorIndex].componentType);
-                    texCoordNumberOfComponents = getNumberOfComponents(texCoordAccessorType);
-                    const size_t texCoordComponentTypeSize = getComponentTypeSize(texCoordComponentType);
-                    texCoords.reset(new float[texCoordsCount * texCoordNumberOfComponents]{});
-                    texCoordData = reinterpret_cast<float*>(&model.buffers[texCoordBufferIndex].data[texCoordAccessorOffset + texCoordOffset]);
-                    const size_t texCoordStride = model.bufferViews[texCoordBufferViewIndex].byteStride / texCoordComponentTypeSize;
-
-                    for (size_t i = 0, j = 0; i < texCoordsCount * texCoordNumberOfComponents;) {
-                        for (size_t k = 0; k < texCoordNumberOfComponents; ++k)
-                            texCoords[i + k] = texCoordData[j + k];
-                        i += texCoordNumberOfComponents;
-                        if (0 == texCoordStride)
-                            j+= texCoordNumberOfComponents;
-                        else
-                            j += texCoordStride;
-                    }
-                }
-            }
-
-            // todo Looks like this code is similar to read texture coordinates. Refactor!
-            // Read colors.
-            constexpr char COLOR[] = "COLOR";
-            size_t colorNumberOfComponents = 0;
-            for (const auto &attrIndexPair: attributes) {
-                if (attrIndexPair.first.starts_with(COLOR)) {
-                    const size_t colorAccessorIndex = attributes.at(attrIndexPair.first);
-                    colorCount = model.accessors[colorAccessorIndex].count;
-                    const size_t colorAccessorOffset = model.accessors[colorAccessorIndex].byteOffset;
-                    const size_t colorBufferViewIndex = model.accessors[colorAccessorIndex].bufferView;
-                    const size_t colorBufferIndex = model.bufferViews[colorBufferViewIndex].buffer;
-                    const size_t length = model.bufferViews[colorBufferViewIndex].byteLength;
-                    const size_t colorOffset = model.bufferViews[colorBufferViewIndex].byteOffset;
-                    const AccessorType colorAccessorType = static_cast<AccessorType>(model.accessors[colorAccessorIndex].type);
-                    const ComponentType colorComponentType = static_cast<ComponentType>(model.accessors[colorAccessorIndex].componentType);
-                    colorNumberOfComponents = getNumberOfComponents(colorAccessorType);
-                    const size_t colorComponentTypeSize = getComponentTypeSize(colorComponentType);
-                    colors.reset(new float[colorCount * colorNumberOfComponents]{});
-                    colorData = reinterpret_cast<float*>(&model.buffers[colorBufferIndex].data[colorAccessorOffset + colorOffset]);
-                    const size_t colorStride = model.bufferViews[colorBufferViewIndex].byteStride / colorComponentTypeSize;
-
-                    for (size_t i = 0, j = 0; i < colorCount * colorNumberOfComponents;) {
-                        for (size_t k = 0; k < colorNumberOfComponents; ++k)
-                            colors[i + k] = colorData[j + k];
-                        i += colorNumberOfComponents;
-                        if (0 == colorStride)
-                            j+= colorNumberOfComponents;
-                        else
-                            j += colorStride;
-                    }
-                }
-            }
-
-            // Form output vertices.
-            vertices = new Vertex[positionsCount];
-            for (size_t i = 0, positionI = 0, colorI = 0, textureCoordinatesI = 0; i < positionsCount; ++i) {
-                vertices[i].position.x = positions[positionI];
-                vertices[i].position.y = positions[positionI + 1];
-                vertices[i].position.z = positions[positionI + 2];
-                if (nullptr != texCoords) {
-                    vertices[i].textureCoordinate.x = texCoords[textureCoordinatesI];
-                    vertices[i].textureCoordinate.y = texCoords[textureCoordinatesI + 1];
-                }
-
-                if (nullptr != colors) {
-                    vertices[i].color.r = colors[colorI];
-                    vertices[i].color.g = colors[colorI + 1];
-                    vertices[i].color.b = colors[colorI + 2];
-                    // todo Decide if we need this 4th alpha component of color.
-                    //if (4 == colorNumberOfComponents)
-                    //    vertices[i].color.a = colors[colorI + 3];
-
-                } else { // Paint as red by default.
-                    vertices[i].color.r = 1.f;
-                    vertices[i].color.g = 0.f;
-                    vertices[i].color.b = 0.f;
-                }
-
-                positionI += numberOfComponents; textureCoordinatesI += texCoordNumberOfComponents;
-            }
-
-            // todo Could we reserve here anything for each primitive?
-            for (size_t i = 0; i < positionsCount; ++i)
-                newMesh.vertices.push_back(std::move(vertices[i]));
-            for (size_t i = 0; i < indicesCount; ++i)
-                newMesh.indices.emplace_back(indices[i]);
-        } // for each primitive.
-        meshes.push_back(std::move(newMesh));
-        meshIndex++;
-    } // for each mesh.
 
     parseSamplers();
     parseImages();
@@ -198,10 +32,15 @@ void SceneManager::load(const std::string &filepath) {
     parseCameras();
     parseNodes();
     parseScenes();
+
+    _primitivesCount = std::accumulate(_model.meshes.cbegin(), _model.meshes.cend(), 0,
+        [](const int32_t init, const tinygltf::Mesh &mesh) {
+            return (init + mesh.primitives.size());
+        });
 }
 
 void SceneManager::parseSamplers() {
-    for (const tinygltf::Sampler &sampler: model.samplers) {
+    for (const tinygltf::Sampler &sampler: _model.samplers) {
         Sampler newSampler;
 
         switch (sampler.magFilter) {
@@ -283,7 +122,7 @@ void SceneManager::parseSamplers() {
 }
 
 void SceneManager::parseImages() {
-    for (tinygltf::Image &image: model.images) {
+    for (tinygltf::Image &image: _model.images) {
         Image newImage;
         if (!image.uri.empty())
             newImage._uri = image.uri;
@@ -306,9 +145,8 @@ void SceneManager::parseImages() {
     }
 }
 
-
 void SceneManager::parseTextures() {
-    for (const tinygltf::Texture &texture: model.textures) {
+    for (const tinygltf::Texture &texture: _model.textures) {
         Texture newTexture;
 
         if (-1 != texture.source)
@@ -320,23 +158,169 @@ void SceneManager::parseTextures() {
     }
 }
 
-// todo Mustn't be as a free function.
-void copyVerticesFromNode(const Node &node, std::vector<Vertex> &totalVertices) {
-    if (node.hasMesh())
-        std::copy(node.mesh->vertices.begin(), node.mesh->vertices.end(), std::back_inserter(totalVertices));
+std::vector<Vertex> SceneManager::copyVerticesFromPrimitive(const tinygltf::Primitive &primitive) {
+    const auto &attributes = primitive.attributes;
+    const size_t accessorIndex = attributes.at("POSITION");
+    size_t positionsCount = _model.accessors[accessorIndex].count;
+    const size_t accessorOffset = _model.accessors[accessorIndex].byteOffset;
+    const size_t bufferViewIndex = _model.accessors[accessorIndex].bufferView;
+    const size_t bufferIndex = _model.bufferViews[bufferViewIndex].buffer;
+    const size_t length = _model.bufferViews[bufferViewIndex].byteLength;
+    const size_t offset = _model.bufferViews[bufferViewIndex].byteOffset;
+    const size_t bytesStride = _model.bufferViews[bufferViewIndex].byteStride;
 
-    for (const Node * const childNode: node._children)
-        copyVerticesFromNode(*childNode, totalVertices);
+    const AccessorType accessorType = static_cast<AccessorType>(_model.accessors[accessorIndex].type);
+    const size_t numberOfComponents = getNumberOfComponents(accessorType);
+
+    std::unique_ptr<float[]> positions(new float[positionsCount * numberOfComponents]);
+    float * const positionData = reinterpret_cast<float*>(&_model.buffers[bufferIndex].data[offset + accessorOffset]);
+    const size_t elementStride = bytesStride / sizeof(float);
+
+    for (size_t i = 0, j = 0; i < positionsCount * numberOfComponents;) {
+        for (size_t k = 0; k < numberOfComponents; ++k)
+            positions[i + k] = positionData[j + k];
+        i += numberOfComponents;
+        if (0 == elementStride)
+            j += numberOfComponents;
+        else
+            j += elementStride;
+    }
+
+    // Read texture coordinates.
+    constexpr const char * const TEXCOORD = "TEXCOORD";
+    size_t texCoordNumberOfComponents = 0;
+    std::unique_ptr<float[]> texCoords = nullptr;
+    for (const auto &attrIndexPair: attributes) {
+        if (attrIndexPair.first.starts_with(TEXCOORD)) {
+            const size_t texCoordAccessorIndex = attributes.at(attrIndexPair.first);
+            size_t texCoordsCount = _model.accessors[texCoordAccessorIndex].count;
+            const size_t texCoordAccessorOffset = _model.accessors[texCoordAccessorIndex].byteOffset;
+            const size_t texCoordBufferViewIndex = _model.accessors[texCoordAccessorIndex].bufferView;
+            const size_t texCoordBufferIndex = _model.bufferViews[texCoordBufferViewIndex].buffer;
+            const size_t length = _model.bufferViews[texCoordBufferViewIndex].byteLength;
+            const size_t texCoordOffset = _model.bufferViews[texCoordBufferViewIndex].byteOffset;
+            const AccessorType texCoordAccessorType = static_cast<AccessorType>(_model.accessors[texCoordAccessorIndex].type);
+            const ComponentType texCoordComponentType = static_cast<ComponentType>(_model.accessors[texCoordAccessorIndex].componentType);
+            texCoordNumberOfComponents = getNumberOfComponents(texCoordAccessorType);
+            const size_t texCoordComponentTypeSize = getComponentTypeSize(texCoordComponentType);
+            texCoords.reset(new float[texCoordsCount * texCoordNumberOfComponents]);
+            float *texCoordData = reinterpret_cast<float*>(&_model.buffers[texCoordBufferIndex].data[texCoordAccessorOffset + texCoordOffset]);
+            const size_t texCoordStride = _model.bufferViews[texCoordBufferViewIndex].byteStride / texCoordComponentTypeSize;
+
+            for (size_t i = 0, j = 0; i < texCoordsCount * texCoordNumberOfComponents;) {
+                for (size_t k = 0; k < texCoordNumberOfComponents; ++k)
+                    texCoords[i + k] = texCoordData[j + k];
+                i += texCoordNumberOfComponents;
+                if (0 == texCoordStride)
+                    j+= texCoordNumberOfComponents;
+                else
+                    j += texCoordStride;
+            }
+        }
+    }
+
+    // todo Looks like this code is similar to read texture coordinates. Refactor!
+    // Read colors.
+    constexpr char COLOR[] = "COLOR";
+    size_t colorNumberOfComponents = 0;
+    std::unique_ptr<float[]> colors = nullptr;
+    for (const auto &attrIndexPair: attributes) {
+        if (attrIndexPair.first.starts_with(COLOR)) {
+            const size_t colorAccessorIndex = attributes.at(attrIndexPair.first);
+            const size_t colorCount = _model.accessors[colorAccessorIndex].count;
+            const size_t colorAccessorOffset = _model.accessors[colorAccessorIndex].byteOffset;
+            const size_t colorBufferViewIndex = _model.accessors[colorAccessorIndex].bufferView;
+            const size_t colorBufferIndex = _model.bufferViews[colorBufferViewIndex].buffer;
+            const size_t length = _model.bufferViews[colorBufferViewIndex].byteLength;
+            const size_t colorOffset = _model.bufferViews[colorBufferViewIndex].byteOffset;
+            const AccessorType colorAccessorType = static_cast<AccessorType>(_model.accessors[colorAccessorIndex].type);
+            const ComponentType colorComponentType = static_cast<ComponentType>(_model.accessors[colorAccessorIndex].componentType);
+            colorNumberOfComponents = getNumberOfComponents(colorAccessorType);
+            const size_t colorComponentTypeSize = getComponentTypeSize(colorComponentType);
+            colors.reset(new float[colorCount * colorNumberOfComponents]);
+            float *colorData = reinterpret_cast<float*>(&_model.buffers[colorBufferIndex].data[colorAccessorOffset + colorOffset]);
+            const size_t colorStride = _model.bufferViews[colorBufferViewIndex].byteStride / colorComponentTypeSize;
+
+            for (size_t i = 0, j = 0; i < colorCount * colorNumberOfComponents;) {
+                for (size_t k = 0; k < colorNumberOfComponents; ++k)
+                    colors[i + k] = colorData[j + k];
+                i += colorNumberOfComponents;
+                if (0 == colorStride)
+                    j+= colorNumberOfComponents;
+                else
+                    j += colorStride;
+            }
+        }
+    }
+
+    // Form output vertices.
+    std::vector<Vertex> vertices(positionsCount);
+    for (size_t i = 0, positionI = 0, colorI = 0, textureCoordinatesI = 0; i < positionsCount; ++i) {
+        vertices[i].position.x = positions[positionI];
+        vertices[i].position.y = positions[positionI + 1];
+        vertices[i].position.z = positions[positionI + 2];
+        if (nullptr != texCoords) {
+            vertices[i].textureCoordinate.x = texCoords[textureCoordinatesI];
+            vertices[i].textureCoordinate.y = texCoords[textureCoordinatesI + 1];
+        }
+
+        if (nullptr != colors) {
+            vertices[i].color.r = colors[colorI];
+            vertices[i].color.g = colors[colorI + 1];
+            vertices[i].color.b = colors[colorI + 2];
+            // todo Decide if we need this 4th alpha component of color.
+            //if (4 == colorNumberOfComponents)
+            //    vertices[i].color.a = colors[colorI + 3];
+
+        } else { // Paint as red by default.
+            vertices[i].color.r = 1.f;
+            vertices[i].color.g = 0.f;
+            vertices[i].color.b = 0.f;
+        }
+
+        positionI += numberOfComponents; textureCoordinatesI += texCoordNumberOfComponents;
+    }
+
+    return vertices;
 }
 
-avocado::vulkan::Buffer SceneManager::formVertexBuffer(avocado::vulkan::PhysicalDevice &physicalDevice, const VkBufferUsageFlagBits usage, const VkSharingMode sharingMode, avocado::vulkan::LogicalDevice &device) {
+tinygltf::Primitive* SceneManager::findPrimitive(const int32_t primitiveIndex) {
+    assert(primitiveIndex < _primitivesCount && "Invalid primitive index");
+
+    int32_t foundPrimitiveIndex = 0;
+    tinygltf::Primitive *foundPrimitive = nullptr;
+
+    if (0 == primitiveIndex) {
+        foundPrimitive = &(*_model.meshes.begin()->primitives.begin());
+    } else {
+        for (tinygltf::Mesh &mesh: _model.meshes) {
+            bool primitiveFound = false;
+            for (tinygltf::Primitive &primitive: mesh.primitives) {
+                if (foundPrimitiveIndex < primitiveIndex) {
+                    foundPrimitiveIndex++;
+                } else {
+                    foundPrimitive = &primitive;
+                    primitiveFound = true;
+                    break;
+                }
+            }
+
+            if (primitiveFound)
+                break;
+        }
+    }
+
+    return foundPrimitive;
+}
+
+avocado::vulkan::Buffer SceneManager::formVertexBuffer(avocado::vulkan::PhysicalDevice &physicalDevice, const VkBufferUsageFlagBits usage, const VkSharingMode sharingMode, avocado::vulkan::LogicalDevice &device, const int32_t primitiveIndex) {
     if (nullptr == _defaultScene)
         return avocado::vulkan::Buffer(0, usage, sharingMode, device);
 
-    std::vector<Vertex> totalVertices;
-    for (const Node * const rootNode: _defaultScene->_rootNodes)
-        copyVerticesFromNode(*rootNode, totalVertices);
+    const tinygltf::Primitive * const targetPrimitive = findPrimitive(primitiveIndex);
+    assert(targetPrimitive != nullptr && "No primitive found by index.");
 
+    const std::vector<Vertex> totalVertices = copyVerticesFromPrimitive(*targetPrimitive);
     const size_t sizeBytes = sizeof(decltype(totalVertices)::value_type) * totalVertices.size();
     avocado::vulkan::Buffer buffer(sizeBytes, usage, sharingMode, device);
     buffer.allocateMemory(physicalDevice, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
@@ -345,32 +329,83 @@ avocado::vulkan::Buffer SceneManager::formVertexBuffer(avocado::vulkan::Physical
     return buffer;
 }
 
-// todo Mustn't be as a free function.
-void copyIndiciesFromNode(const Node &node, std::vector<uint32_t> &totalIndices) {
-    if (node.hasMesh()) {
-        auto max_element = std::max_element(totalIndices.cbegin(), totalIndices.cend());
-        uint32_t offset = 0;
-        if (max_element != totalIndices.cend())
-            offset = *max_element + 1;
-
-        for (size_t j = 0; j < node.mesh->indices.size(); ++j)
-            totalIndices.push_back(node.mesh->indices[j] + offset);
-    }
-
-    for (const Node * const childNode: node._children)
-        copyIndiciesFromNode(*childNode, totalIndices);
+int32_t SceneManager::getMaterialIndex(const int32_t primitiveIndex) {
+    const tinygltf::Primitive * const targetPrimitive = findPrimitive(primitiveIndex);
+    assert(targetPrimitive != nullptr && "No primitive found by index.");
+    return targetPrimitive->material;
 }
 
-avocado::vulkan::Buffer SceneManager::formIndexBuffer(avocado::vulkan::PhysicalDevice &physicalDevice, const VkBufferUsageFlagBits usage, const VkSharingMode sharingMode, avocado::vulkan::LogicalDevice &device) {
+VkPrimitiveTopology SceneManager::getPrimitiveTopology(const int32_t primitiveIndex) noexcept {
+    const tinygltf::Primitive * const targetPrimitive = findPrimitive(primitiveIndex);
+    assert(targetPrimitive != nullptr && "No primitive found by index.");
+
+    switch (targetPrimitive->mode) {
+        case TINYGLTF_MODE_POINTS:
+            return VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
+        case TINYGLTF_MODE_LINE:
+        case TINYGLTF_MODE_LINE_LOOP:
+            return VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+        case TINYGLTF_MODE_LINE_STRIP:
+            return VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
+        case TINYGLTF_MODE_TRIANGLES:
+            return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+        case TINYGLTF_MODE_TRIANGLE_STRIP:
+            return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+        case TINYGLTF_MODE_TRIANGLE_FAN:
+            return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN;
+    }
+
+    assert(false && "INVALID INPUT TOPOLOGY");
+    return VK_PRIMITIVE_TOPOLOGY_MAX_ENUM;
+}
+
+
+VkCullModeFlags SceneManager::getCullMode(const int32_t primitiveIndex) noexcept {
+    const tinygltf::Primitive * const targetPrimitive = findPrimitive(primitiveIndex);
+    assert(targetPrimitive != nullptr && "No primitive found by index.");
+
+    if (_model.materials[targetPrimitive->material].doubleSided)
+        return VK_CULL_MODE_FRONT_BIT;
+
+    return VK_CULL_MODE_BACK_BIT;
+}
+
+std::vector<uint32_t> SceneManager::copyIndiciesFromPrimitive(const tinygltf::Primitive &primitive) {
+    const size_t indicesAccessorIndex = primitive.indices;
+    const size_t indicesBufferViewIndex = _model.accessors[indicesAccessorIndex].bufferView;
+    const size_t indicesAccessorOffset = _model.accessors[indicesAccessorIndex].byteOffset;
+    const size_t indicesBufferIndex = _model.bufferViews[indicesBufferViewIndex].buffer;
+    const size_t indicesOffset = _model.bufferViews[indicesBufferViewIndex].byteOffset;
+    const AccessorType indicesAccessorType = static_cast<AccessorType>(_model.accessors[indicesAccessorIndex].type);
+    const ComponentType indicesComponentType = static_cast<ComponentType>(_model.accessors[indicesAccessorIndex].componentType);
+    const size_t indicesNumberOfComponents = getNumberOfComponents(indicesAccessorType);
+    const size_t indicesComponentTypeSize = getComponentTypeSize(indicesComponentType);
+    const size_t indicesStride = _model.bufferViews[indicesBufferViewIndex].byteStride / indicesComponentTypeSize;
+    unsigned char *indicesData = &_model.buffers[indicesBufferIndex].data[indicesAccessorOffset + indicesOffset];
+
+    const size_t indicesCount = _model.accessors[indicesAccessorIndex].count;
+    std::vector<uint32_t> indices(indicesCount);
+    for (size_t i = 0, j = 0; i < indicesCount;) {
+        for (size_t k = 0; k < indicesNumberOfComponents; ++k)
+            memcpy(indices.data() + i + k, indicesData + (indicesComponentTypeSize * (j + k)), indicesComponentTypeSize);
+        i += indicesNumberOfComponents;
+        if (indicesStride > 0)
+            j += indicesStride;
+        else
+            j++;
+    }
+
+    return indices;
+}
+
+avocado::vulkan::Buffer SceneManager::formIndexBuffer(avocado::vulkan::PhysicalDevice &physicalDevice, const VkBufferUsageFlagBits usage, const VkSharingMode sharingMode, avocado::vulkan::LogicalDevice &device, const int32_t primitiveIndex) {
     if (nullptr == _defaultScene)
         return avocado::vulkan::Buffer(0, usage, sharingMode, device);
 
-    std::vector<uint32_t> totalIndices;
-    for (size_t i = 0; i < _defaultScene->_rootNodes.size(); ++i) {
-        const Node * const rootNode = _defaultScene->_rootNodes[i];
-        copyIndiciesFromNode(*rootNode, totalIndices);
-    }
+    const tinygltf::Primitive * const targetPrimitive = findPrimitive(primitiveIndex);
+    assert(targetPrimitive != nullptr && "No primitive found by index.");
 
+    std::vector<uint32_t> totalIndices = copyIndiciesFromPrimitive(*targetPrimitive);
     const size_t sizeBytes = sizeof(decltype(totalIndices)::value_type) * totalIndices.size();
     avocado::vulkan::Buffer buffer(sizeBytes, usage, sharingMode, device);
     buffer.allocateMemory(physicalDevice, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
@@ -380,16 +415,11 @@ avocado::vulkan::Buffer SceneManager::formIndexBuffer(avocado::vulkan::PhysicalD
 }
 
 void SceneManager::parseNodes() {
-    for (const tinygltf::Node &node: model.nodes) {
+    for (const tinygltf::Node &node: _model.nodes) {
         Node newNode;
         newNode._name = node.name;
         newNode._cameraIndex = node.camera;
-
-
-        if (-1 != node.mesh) {
-            assert(node.mesh < meshes.size());
-            newNode.mesh = &meshes[node.mesh];
-        }
+        newNode._hasMesh = (node.mesh > -1);
 
         if (!node.matrix.empty()) {
             newNode.matrix = new math::Mat4x4;
@@ -421,57 +451,11 @@ void SceneManager::parseNodes() {
             newNode.translation->z = node.translation[2];
         }
 
-
-        using namespace avocado::math;
-        // mesh * vec
-        if (newNode.hasMatrix() && newNode.hasMesh()) {
-            for (avocado::Vertex &vertex: newNode.mesh->vertices) {
-                math::vec4f v(1.f, 1.f, 1.f, 1.f);
-                v.x = vertex.position.x;
-                v.y = vertex.position.y;
-                v.z = vertex.position.z;
-                v = v * (*newNode.matrix);
-                vertex.position.x = v.x;
-                vertex.position.y = v.y;
-                vertex.position.z = v.z;
-
-            }
-        }
-
-        // For row vectors the order is: scale, rotation, translation.
-        if (newNode.hasScale()) {
-            for (avocado::Vertex &vertex: newNode.mesh->vertices) {
-                vertex.position.x *= newNode.scale->x;
-                vertex.position.y *= newNode.scale->y;
-                vertex.position.z *= newNode.scale->z;
-            }
-        }
-
-        if (!newNode.hasCamera() && newNode.hasRotation()) {
-            for (avocado::Vertex &vertex: newNode.mesh->vertices) {
-                vertex.position = newNode.rotation->rotateVector(vertex.position);
-            }
-        }
-
-        if (newNode.hasMesh() && newNode.hasTranslation()) {
-            for (avocado::Vertex &vertex: newNode.mesh->vertices)
-                vertex.position = vertex.position + (*newNode.translation);
-        }
-
-        if (newNode.hasCamera()) {
-            if (newNode.hasTranslation())
-                _cameras[newNode._cameraIndex].position = (*newNode.translation);
-
-            if (newNode.hasRotation()) {
-                _cameras[newNode._cameraIndex].up = newNode.rotation->rotateVector(_cameras[newNode._cameraIndex].up);
-            }
-        }
-
         nodes.push_back(std::move(newNode));
     }
 
-    for (size_t i = 0; i < model.nodes.size(); ++i) {
-        for (const int childIndex: model.nodes[i].children)
+    for (size_t i = 0; i < _model.nodes.size(); ++i) {
+        for (const int childIndex: _model.nodes[i].children)
             nodes[i].addChild(&nodes[childIndex]);
     }
     _nodesAreParsed = true;
@@ -480,7 +464,7 @@ void SceneManager::parseNodes() {
 void SceneManager::parseScenes() {
     assert(_nodesAreParsed);
 
-    for (tinygltf::Scene &scene: model.scenes) {
+    for (tinygltf::Scene &scene: _model.scenes) {
         Scene newScene;
         newScene._name = scene.name;
         for (const int nodeIndex: scene.nodes) {
@@ -490,12 +474,12 @@ void SceneManager::parseScenes() {
         _scenes.push_back(std::move(newScene));
     }
 
-    assert(model.defaultScene < _scenes.size());
-    _defaultScene = &_scenes[model.defaultScene];
+    assert(_model.defaultScene < _scenes.size());
+    _defaultScene = &_scenes[_model.defaultScene];
 }
 
 void SceneManager::parseCameras() {
-    for (const tinygltf::Camera &camera: model.cameras) {
+    for (const tinygltf::Camera &camera: _model.cameras) {
         assert(camera.type == "perspective"); //No support for non-perspective projective on camera.
 
         _cameras.push_back(Camera {
@@ -505,7 +489,6 @@ void SceneManager::parseCameras() {
                 static_cast<float>(camera.perspective.znear),
                 static_cast<float>(camera.perspective.zfar)),
             .up = math::vec3f{0.f, 1.f, 0.f}});
-
     }
 }
 

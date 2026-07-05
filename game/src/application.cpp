@@ -120,6 +120,8 @@ vulkan::GraphicsPipelineBuilder Application::preparePipeline(const VkExtent2D ex
     const std::vector<VkDescriptorSetLayout> &layouts, const std::vector<VkViewport> &viewPorts,
     const std::vector<VkRect2D> &scissors) {
     vulkan::GraphicsPipelineBuilder pipelineBuilder(_logicalDevice);
+
+    // todo Merge 2 functions below into 1.
     pipelineBuilder.setDynamicStates({VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR});
     pipelineBuilder.createDynamicState();
 
@@ -131,7 +133,7 @@ vulkan::GraphicsPipelineBuilder Application::preparePipeline(const VkExtent2D ex
     rastState.rasterizerDiscardEnable = VK_FALSE;
     rastState.depthBiasEnable = VK_FALSE;
     rastState.polygonMode = VK_POLYGON_MODE_FILL;
-    rastState.cullMode = VK_CULL_MODE_NONE; // todo Should be specified using material->doubleSided from GLTF.
+    rastState.cullMode = VK_CULL_MODE_BACK_BIT;
     rastState.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rastState.lineWidth = 1.f;
 
@@ -252,8 +254,6 @@ int Application::run() {
         cameraLookAt = math::lookAt(sceneManager.getCamera().position, math::vec3f{0.f, 0.f, 0.f}, sceneManager.getCamera().up);
     }
 
-    auto vertexBuffer = sceneManager.formVertexBuffer(_physicalDevice, static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT), VK_SHARING_MODE_EXCLUSIVE, _logicalDevice);
-    auto indexBuffer = sceneManager.formIndexBuffer(_physicalDevice, static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT), VK_SHARING_MODE_EXCLUSIVE, _logicalDevice);
 
     struct UniformBufferObject {
         alignas(16) math::Mat4x4 model;
@@ -280,6 +280,7 @@ int Application::run() {
     else
         ubo.proj = cameraProjection;
     ubo.model = math::Mat4x4::createIdentityMatrix();
+
     const VkFormat depthFormat = swapChain.findSupportedFormat(
         {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT},
         _physicalDevice.getHandle(),
@@ -328,7 +329,6 @@ int Application::run() {
 
     swapChain.createFramebuffers(renderPassPtr.get(), extent);
 
-    VkBuffer vertexBufferHandle = vertexBuffer.getHandle();
     VkDeviceSize offset = 0;
     const auto startTime = std::chrono::high_resolution_clock::now();
 
@@ -341,10 +341,21 @@ int Application::run() {
     uint32_t currentFrame = 0;
 
     float x = 0.f;
+    float y = 0.f;
     float z = 10.f;
 
-
     descriptorManager.addBuffer(uniformBuffer, sizeof(UniformBufferObject), 0);
+
+    const int32_t primitivesCount = sceneManager.getPrimitivesCount();
+    std::vector<avocado::vulkan::Buffer> indexBuffers;
+    std::vector<avocado::vulkan::Buffer> vertexBuffers;
+    for (size_t primitiveIndex = 0; primitiveIndex < sceneManager.getPrimitivesCount(); ++primitiveIndex) {
+        indexBuffers.push_back(sceneManager.formIndexBuffer(_physicalDevice, static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT), VK_SHARING_MODE_EXCLUSIVE, _logicalDevice, primitiveIndex));
+        vertexBuffers.push_back(sceneManager.formVertexBuffer(_physicalDevice, static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT), VK_SHARING_MODE_EXCLUSIVE, _logicalDevice, primitiveIndex));
+    }
+
+    float angleX = 0.f;
+    float angleY = 0.f;
 
     // Main loop.
     while (true) {
@@ -360,6 +371,14 @@ int Application::run() {
                     x += 1.f;
                 else if (event.key.keysym.sym == SDLK_LEFT)
                     x -= 1.f;
+                else if (event.key.keysym.sym == SDLK_w)
+                    angleX += 5.f;
+                else if (event.key.keysym.sym == SDLK_s)
+                    angleX -= 5.f;
+                else if (event.key.keysym.sym == SDLK_a)
+                    angleY += 5.f;
+                else if (event.key.keysym.sym == SDLK_d)
+                    angleY -= 5.f;
             }
         }
 
@@ -372,29 +391,35 @@ int Application::run() {
         const auto& currentTime = std::chrono::high_resolution_clock::now();
         const float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
+        ubo.model = math::createRotationMatrix(angleX, math::vec3f{1.f, 0.f, 0.f})
+            * math::createRotationMatrixZ(angleY);
+
         if (sceneManager.hasCameras())
             ubo.view = math::lookAt(sceneManager.getCamera().position, math::vec3f{0.f, 0.f, 0.f}, sceneManager.getCamera().up);
         else
-            ubo.view = math::lookAt(math::vec3f(x, 0.f, z), math::vec3f(0.f, 0.f, 0.f), math::vec3f(0.f, 1.f, 0.f));
+            ubo.view = math::lookAt(math::vec3f(x, y, z), math::vec3f(0.f, 0.f, 0.f), math::vec3f(0.f, 1.f, 0.f));
         uniformBuffers[currentFrame]->fill(&ubo);
-
-
         descriptorManager.update();
 
         int32_t materialId = 0;
         vulkan::CommandBuffer cmdBuf = commandPool.getBuffer(currentFrame);
+
         cmdBuf.reset();
         cmdBuf.begin();
+        cmdBuf.beginRenderPass(swapChain, renderPassPtr.get(), extent, {0, 0}, imageIndex);
+        for (size_t primitiveIndex = 0; primitiveIndex < sceneManager.getPrimitivesCount(); ++primitiveIndex) {
+            materialId = sceneManager.getMaterialIndex(primitiveIndex);
             cmdBuf.pushConstants(pipelineBuilder.getPipelineLayout(), 0, sizeof(materialId), &materialId);
             cmdBuf.setViewports(viewPorts);
             cmdBuf.setScissors(scissors);
-            cmdBuf.bindVertexBuffers(0, 1, &vertexBufferHandle, &offset);
-            cmdBuf.bindIndexBuffer(indexBuffer.getHandle(), 0, VK_INDEX_TYPE_UINT32);
+            VkBuffer vertexBufferHandle = vertexBuffers[primitiveIndex].getHandle();
+            cmdBuf.bindVertexBuffers(0 /* 1st binding */, 1 /* bindingCount */, &vertexBufferHandle, &offset);
+            cmdBuf.bindIndexBuffer(indexBuffers[primitiveIndex].getHandle(), 0, VK_INDEX_TYPE_UINT32);
             cmdBuf.bindPipeline(graphicsPipeline.get(), VK_PIPELINE_BIND_POINT_GRAPHICS);
             cmdBuf.bindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineBuilder.getPipelineLayout(), 0, 2, descriptorManager.getSets().data());
-            cmdBuf.beginRenderPass(swapChain, renderPassPtr.get(), extent, {0, 0}, imageIndex);
-                cmdBuf.drawIndexed(indexBuffer.getSizeBytes() / avocado::vulkan::utils::sizeOf<indexBuffer.getIndexType()>(), 1, 0,0,0);
-            cmdBuf.endRenderPass();
+                cmdBuf.drawIndexed(indexBuffers[primitiveIndex].getSizeBytes() / avocado::vulkan::utils::sizeOf<avocado::vulkan::Buffer::IndexType>(), 1, 0,0,0);
+        }
+        cmdBuf.endRenderPass();
         cmdBuf.end();
 
         auto submitInfo = graphicsQueue.createSubmitInfo(waitSemaphores[currentFrame], signalSemaphores[currentFrame], cmdBuf.getHandle(), flags);
