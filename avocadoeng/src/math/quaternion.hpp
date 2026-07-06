@@ -5,6 +5,8 @@
 
 #include "vecn.hpp"
 
+#include <vector>
+
 namespace avocado::math {
 
 struct Quaternion {
@@ -12,10 +14,9 @@ struct Quaternion {
 
     [[nodiscard]] bool operator==(const Quaternion &other) const {
         return (avocado::core::areFloatsEq(x, other.x)
-                && avocado::core::areFloatsEq(y, other.y)
-                && avocado::core::areFloatsEq(z, other.z)
-                && avocado::core::areFloatsEq(w, other.w)
-                );
+            && avocado::core::areFloatsEq(y, other.y)
+            && avocado::core::areFloatsEq(z, other.z)
+            && avocado::core::areFloatsEq(w, other.w));
     }
 
     [[nodiscard]] constexpr Quaternion operator+(const Quaternion &other) const noexcept {
@@ -75,6 +76,18 @@ struct Quaternion {
     [[nodiscard]] Quaternion fromVec4(const vec4f &vec) const noexcept {
         return Quaternion{vec.x, vec.y, vec.z, vec.w};
     }
+
+    /**
+     * @brief Convienence constructor for tinygltf.
+     */
+    [[nodiscard]] Quaternion fromTinyGltf(const std::vector<float> &rotationQuaternion) {
+        if (!rotationQuaternion.empty())
+            return Quaternion{
+                rotationQuaternion[0], rotationQuaternion[1], rotationQuaternion[2], rotationQuaternion[3]};
+
+        return createUnit();
+    }
+
 
     [[nodiscard]] vec3f toVec3f() const noexcept {
         return vec3f{x, y, z};

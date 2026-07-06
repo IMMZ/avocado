@@ -6,7 +6,9 @@
 #include "../core.hpp"
 
 #include <array>
+#include <cassert>
 #include <iostream>
+#include <vector>
 
 namespace avocado::math {
 
@@ -33,6 +35,57 @@ public:
         _arr(std::move(arr)) {
     }
 
+    /*
+     * @brief Convinience constructor for getting matrix from tinygltf.
+     */
+    [[nodiscard]] Matrix fromTinyGltf(const std::vector<double> matrix) noexcept
+    requires(M == 4 && N == 4) {
+        if (!matrix.empty()) {
+            return {
+                {matrix[0], matrix[1], matrix[2], matrix[3]},
+                {matrix[4], matrix[5], matrix[6], matrix[7]},
+                {matrix[8], matrix[9], matrix[10], matrix[11]},
+                {matrix[12], matrix[13], matrix[14], matrix[15]}};
+        }
+
+        return createIdentityMatrix();
+    }
+
+    /**
+     * @brief Convinience function for getting matrix from tinygltf::Node.
+     */
+    [[nodiscard]] Matrix fromSRT(const std::vector<double> &scale,
+        const std::vector<double> &rotation, const std::vector<double> &translation)
+        requires(M == 4 && N == 4)
+    {
+        assert(!rotation.empty() && !scale.empty() && !translation.empty() && "Vectors mustn't be empty");
+
+        const Matrix scaleMatrix = scale.empty() ? createIdentityMatrix() : createScaleMatrix(scale[0], scale[1], scale[2]);
+        const Matrix translationMatrix = translation.empty() ? createIdentityMatrix() : createTranslationMatrix(
+            translation[0], translation[1], translation[2]);
+        const Matrix rotationMatrix = !rotation.empty() ? fromRotationQuaternion(rotation[0], rotation[1], rotation[2], rotation[3]) : createIdentityMatrix();
+
+        return (scaleMatrix * rotationMatrix * translationMatrix);
+    }
+
+    static constexpr Matrix createTranslationMatrix(const float x, const float y, const float z)
+    requires(M == 4 && N == 4) {
+        return {
+            {1.f, 0.f, 0.f, x},
+            {0.f, 1.f, 0.f, y},
+            {0.f, 0.f, 1.f, z},
+            {0.f, 0.f, 0.f, 1.f}};
+    }
+
+    static constexpr Matrix createScaleMatrix(const float x, const float y, const float z)
+    requires(M == 4 && N == 4) {
+        return {
+            {x, 0.f, 0.f, 0.f},
+            {0.f, y, 0.f, 0.f},
+            {0.f, 0.f, z, 0.f},
+            {0.f, 0.f, 0.f, 1.f}};
+    }
+
     static constexpr Matrix createIdentityMatrix() noexcept {
         Matrix result;
         for (size_t i = 0; i < N; ++i)
@@ -40,7 +93,21 @@ public:
         return result;
     }
 
-    bool operator==(const Matrix &other) const {
+    /**
+     * @brief Converts rotation quaternion to rotation matrix.
+     *
+     * @note Input quaternion must be normalized.
+     */
+    static Matrix fromRotationQuaternion(float x, float y, float z, float w) noexcept
+    requires(M == 4 && N == 4) {
+        return Matrix({{
+            {1 - 2 * y * y - 2 * z * z, 2 * x * y - 2 * w * z,     2 * x * z + 2 * w * y,     0.f},
+            {2 * x * y + 2 * w * z,     1 - 2 * x * x - 2 * z * z, 2 * y * z - 2 * w * x,     0.f},
+            {2 * x * z - 2 * w * y,     2 * y * z + 2 * w * x,     1 - 2 * x * x - 2 * y * y, 0.f},
+            {0.f,                       0.f,                       0.f,                       1.f}}});
+    }
+
+   bool operator==(const Matrix &other) const {
         for (size_t i = 0; i < M; ++i) {
             for (size_t j = 0; j < N; ++j) {
                 if (!avocado::core::areFloatsEq(_arr[i][j], other._arr[i][j])) {

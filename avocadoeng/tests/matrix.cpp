@@ -1,4 +1,5 @@
 #include "../src/math/matrix.hpp"
+#include "../src/math/quaternion.hpp"
 #include "../src/math/vecn.hpp"
 
 #include <catch_amalgamated.hpp>
@@ -159,6 +160,23 @@ TEST_CASE("Matrix operations") {
         REQUIRE((matrix1 + matrix2).transpose() == (matrix1.transpose() + matrix2.transpose()));
         REQUIRE((matrix1 * matrix2).transpose() == (matrix2.transpose() * matrix1.transpose()));
         REQUIRE((matrix1 * 5).transpose() == (matrix1.transpose() * 5));
+    }
+}
+
+TEST_CASE("Matrix and tinygltf")
+{
+    Quaternion q{0.4f, 0.1f, 0.3f, 1.f};
+    q.normalize();
+    const Mat4x4 matrix = Mat4x4::fromRotationQuaternion(q.x, q.y, q.z, q.w);
+    constexpr Mat4x4 expectedResult({{
+        { 0.8412699f, -0.4126984f,  0.3492064f, 0.f },
+        { 0.5396826f,  0.6031746f, -0.5873016f, 0.f },
+        { 0.0317460f,  0.6825397f,  0.7301587f, 0.f },
+        { 0.f,         0.f,         0.f,        1.f }
+    }});
+
+    SECTION("Basic conversions") {
+        REQUIRE(matrix == expectedResult);
     }
 }
 
