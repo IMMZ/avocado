@@ -6,10 +6,52 @@
 
 #include "../logger.hpp"
 #include "../math/functions.hpp"
+#include "../math/matrix.hpp"
 
 #include <functional>
+#include <stack>
+
+namespace {
+    constexpr int NODE_INDEX_FOR_NO_PARENT = -1;
+}
 
 namespace avocado::core {
+
+void SceneManager::calculateMatrixForNode(const int nodeIndex, const int parentNodeIndex) {
+    if (-1 == nodeIndex)
+        return;
+
+    const tinygltf::Node &node = _model.nodes[nodeIndex];
+
+    math::Mat4x4 modelMatrix;
+    if (!node.matrix.empty())
+        modelMatrix = avocado::math::Mat4x4::fromTinyGltf(node.matrix);
+    else if (!node.scale.empty() || !node.rotation.empty() || !node.translation.empty())
+        modelMatrix = avocado::math::Mat4x4::fromSRT(node.scale, node.rotation, node.translation);
+
+    if (parentNodeIndex != NODE_INDEX_FOR_NO_PARENT)
+        modelMatrix *= _nodeMatrices[parentNodeIndex];
+
+    _nodeMatrices[nodeIndex] = std::move(modelMatrix);
+}
+
+void SceneManager::calculateMatricesForNode(const tinygltf::Scene &scene) {
+    _nodeMatrices.resize(scene.nodes.size());
+    using NodeIndexParentIndex = std::pair<int /* node */, int /* parent */>;
+    std::stack<NodeIndexParentIndex> nodeIndexStack;
+    for (const int nodeIndex: scene.nodes)
+        nodeIndexStack.push(NodeIndexParentIndex(nodeIndex, NODE_INDEX_FOR_NO_PARENT));
+
+    while (!nodeIndexStack.empty()) {
+        const NodeIndexParentIndex processedNodeIndex = nodeIndexStack.top();
+        nodeIndexStack.pop();
+        calculateMatrixForNode(processedNodeIndex.first, processedNodeIndex.second);
+        const tinygltf::Node &nodeToProcess = _model.nodes[processedNodeIndex.first];
+        for (const int childIndex: nodeToProcess.children)
+            nodeIndexStack.push(NodeIndexParentIndex(childIndex, processedNodeIndex.second));
+    }
+}
+
 
 void SceneManager::load(const std::string &filepath) {
     auto loadFunction = std::mem_fn(&tinygltf::TinyGLTF::LoadASCIIFromFile);
@@ -32,6 +74,12 @@ void SceneManager::load(const std::string &filepath) {
     parseCameras();
     parseNodes();
     parseScenes();
+
+
+    _modelMatrix = math::Mat4x4::createIdentityMatrix();
+
+    for (const tinygltf::Scene &scene: _model.scenes)
+        calculateMatricesForNode(scene);
 
     _primitivesCount = std::accumulate(_model.meshes.cbegin(), _model.meshes.cend(), 0,
         [](const int32_t init, const tinygltf::Mesh &mesh) {
@@ -285,7 +333,7 @@ std::vector<Vertex> SceneManager::copyVerticesFromPrimitive(const tinygltf::Prim
 }
 
 tinygltf::Primitive* SceneManager::findPrimitive(const int32_t primitiveIndex) {
-    assert(primitiveIndex < _primitivesCount && "Invalid primitive index");
+    assert(primitiveIndex < _primitivesCount && "Invalid primitive index.");
 
     int32_t foundPrimitiveIndex = 0;
     tinygltf::Primitive *foundPrimitive = nullptr;
@@ -293,6 +341,7 @@ tinygltf::Primitive* SceneManager::findPrimitive(const int32_t primitiveIndex) {
     if (0 == primitiveIndex) {
         foundPrimitive = &(*_model.meshes.begin()->primitives.begin());
     } else {
+        int foundMeshIndex = 0;
         for (tinygltf::Mesh &mesh: _model.meshes) {
             bool primitiveFound = false;
             for (tinygltf::Primitive &primitive: mesh.primitives) {
@@ -307,11 +356,24 @@ tinygltf::Primitive* SceneManager::findPrimitive(const int32_t primitiveIndex) {
 
             if (primitiveFound)
                 break;
+
+            foundMeshIndex++;
         }
+
+        int foundNodeIndex = 0;
+        for(const tinygltf::Node &node: _model.nodes) {
+            if (node.mesh == foundMeshIndex) {
+                break;
+            }
+            foundNodeIndex++;
+        }
+
+        _modelMatrix = _nodeMatrices[foundNodeIndex];
     }
 
     return foundPrimitive;
 }
+
 
 avocado::vulkan::Buffer SceneManager::formVertexBuffer(avocado::vulkan::PhysicalDevice &physicalDevice, const VkBufferUsageFlagBits usage, const VkSharingMode sharingMode, avocado::vulkan::LogicalDevice &device, const int32_t primitiveIndex) {
     if (nullptr == _defaultScene)
@@ -355,7 +417,7 @@ VkPrimitiveTopology SceneManager::getPrimitiveTopology(const int32_t primitiveIn
             return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN;
     }
 
-    assert(false && "INVALID INPUT TOPOLOGY");
+    assert(false && "Invalid input topology");
     return VK_PRIMITIVE_TOPOLOGY_MAX_ENUM;
 }
 

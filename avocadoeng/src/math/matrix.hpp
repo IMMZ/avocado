@@ -58,7 +58,7 @@ public:
         const std::vector<double> &rotation, const std::vector<double> &translation)
         requires(M == 4 && N == 4)
     {
-        assert(!rotation.empty() && !scale.empty() && !translation.empty() && "Vectors mustn't be empty");
+        assert((!rotation.empty() || !scale.empty() || !translation.empty()) && "Vectors mustn't be empty");
 
         const Matrix scaleMatrix = scale.empty() ? createIdentityMatrix() : createScaleMatrix(scale[0], scale[1], scale[2]);
         const Matrix translationMatrix = translation.empty() ? createIdentityMatrix() : createTranslationMatrix(

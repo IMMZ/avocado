@@ -95,8 +95,11 @@ struct SceneManager {
     std::vector<Texture> _textures;
     std::vector<Camera> _cameras;
     Scene * _defaultScene = nullptr;
+    math::Mat4x4 _modelMatrix;
 
     void load(const std::string &filepath);
+    void calculateMatrixForNode(const int nodeIndex, const int parentNodeIndex = -1);
+    void calculateMatricesForNode(const tinygltf::Scene &scene);
 
     std::vector<Vertex> copyVerticesFromPrimitive(const tinygltf::Primitive &primitive);
     std::vector<uint32_t> copyIndiciesFromPrimitive(const tinygltf::Primitive &primitive);
@@ -127,7 +130,9 @@ private:
     void parseImages();
     void parseTextures();
 
+    std::vector<math::Mat4x4> _nodeMatrices;
     tinygltf::Model _model;
+
     int32_t _primitivesCount = 0;
     bool _nodesAreParsed = false;
 };
