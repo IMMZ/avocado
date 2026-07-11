@@ -38,14 +38,14 @@ public:
     /*
      * @brief Convinience constructor for getting matrix from tinygltf.
      */
-    [[nodiscard]] Matrix fromTinyGltf(const std::vector<double> matrix) noexcept
+    [[nodiscard]] static Matrix fromTinyGltf(const std::vector<double> matrix) noexcept
     requires(M == 4 && N == 4) {
         if (!matrix.empty()) {
-            return {
-                {matrix[0], matrix[1], matrix[2], matrix[3]},
-                {matrix[4], matrix[5], matrix[6], matrix[7]},
-                {matrix[8], matrix[9], matrix[10], matrix[11]},
-                {matrix[12], matrix[13], matrix[14], matrix[15]}};
+            return Matrix ({{
+                {static_cast<float>(matrix[0]), static_cast<float>(matrix[1]), static_cast<float>(matrix[2]), static_cast<float>(matrix[3])},
+                {static_cast<float>(matrix[4]), static_cast<float>(matrix[5]), static_cast<float>(matrix[6]), static_cast<float>(matrix[7])},
+                {static_cast<float>(matrix[8]), static_cast<float>(matrix[9]), static_cast<float>(matrix[10]), static_cast<float>(matrix[11])},
+                {static_cast<float>(matrix[12]), static_cast<float>(matrix[13]), static_cast<float>(matrix[14]), static_cast<float>(matrix[15])}}});
         }
 
         return createIdentityMatrix();
@@ -54,7 +54,7 @@ public:
     /**
      * @brief Convinience function for getting matrix from tinygltf::Node.
      */
-    [[nodiscard]] Matrix fromSRT(const std::vector<double> &scale,
+    [[nodiscard]] static Matrix fromSRT(const std::vector<double> &scale,
         const std::vector<double> &rotation, const std::vector<double> &translation)
         requires(M == 4 && N == 4)
     {
@@ -70,20 +70,20 @@ public:
 
     static constexpr Matrix createTranslationMatrix(const float x, const float y, const float z)
     requires(M == 4 && N == 4) {
-        return {
+        return Matrix ({{
             {1.f, 0.f, 0.f, x},
             {0.f, 1.f, 0.f, y},
             {0.f, 0.f, 1.f, z},
-            {0.f, 0.f, 0.f, 1.f}};
+            {0.f, 0.f, 0.f, 1.f}}});
     }
 
     static constexpr Matrix createScaleMatrix(const float x, const float y, const float z)
     requires(M == 4 && N == 4) {
-        return {
+        return Matrix ({{
             {x, 0.f, 0.f, 0.f},
             {0.f, y, 0.f, 0.f},
             {0.f, 0.f, z, 0.f},
-            {0.f, 0.f, 0.f, 1.f}};
+            {0.f, 0.f, 0.f, 1.f}}});
     }
 
     static constexpr Matrix createIdentityMatrix() noexcept {
@@ -171,9 +171,8 @@ public:
     }
 
     template <size_t K, size_t L>
-    Matrix<N, K, T> operator*(const Matrix<K, L, T> &other) const {
-        static_assert(N == K, "Only matrices of correct size could be multiplied");
-
+    constexpr Matrix<N, K, T> operator*(const Matrix<K, L, T> &other) const noexcept
+    requires(N == K) {
         Matrix<N, K, T> result;
         for (size_t i = 0; i < M; ++i) {
             for (size_t j = 0; j < N; ++j) {
@@ -183,6 +182,12 @@ public:
         }
 
         return result;
+    }
+
+    template <size_t K, size_t L>
+    constexpr Matrix<N, K, T> operator*=(const Matrix<K, L, T>& other) const noexcept
+    requires (N == K) {
+        return (*this * other);
     }
 
     vec<T, M> operator*(const vec<T, M> &v) const {

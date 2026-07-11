@@ -117,6 +117,7 @@ TEST_CASE("Matrix operations") {
             {271.5f, 116.5f, 118.65f, 0.f}
         }});
         REQUIRE((matrix1 * matrix2) == result);
+        REQUIRE((matrix1 *= matrix2) == result);
         REQUIRE_FALSE((matrix1 * matrix2) == (matrix2 * matrix1));
         REQUIRE((matrix1 * nullMatrix) == nullMatrix);
         REQUIRE((matrix1 * unitMatrix) == matrix1);
