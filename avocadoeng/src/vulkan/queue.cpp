@@ -33,6 +33,7 @@ VkSubmitInfo Queue::createSubmitInfo(VkSemaphore &waitSemaphore, VkSemaphore &si
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &commandBuffer;
 
+    assert(submitInfo.waitSemaphoreCount == flags.size() && "Flags count must be equal to waitSemaphoreCount.");
     if (!flags.empty())
         submitInfo.pWaitDstStageMask = flags.data();
 

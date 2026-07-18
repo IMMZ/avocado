@@ -29,7 +29,6 @@ private:
     bool createDepthImage(const uint32_t imageW, const uint32_t imageH, avocado::vulkan::Swapchain &swapchain, avocado::vulkan::CommandPoolPtr &commandPool, avocado::vulkan::Queue &graphicsQueue);
     void createInstance(SDL_Window &window, const std::vector<std::string> &instanceLayers);
     void createPhysicalDevice();
-    avocado::vulkan::SamplerPtr createSampler();
     avocado::vulkan::Swapchain createSwapchain(avocado::vulkan::Surface &surface, const VkSurfaceFormatKHR surfaceFormat, const VkExtent2D extent,
         const std::vector<avocado::vulkan::QueueFamily> &queueFamilies);
     std::unique_ptr<SDL_Window, void(*)(SDL_Window*)> createWindow();

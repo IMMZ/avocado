@@ -21,6 +21,18 @@ add_executable(${PROJECT_NAME}_tests
     ${AVOCADO_SRC_DIR}/utils.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../third_party/Catch2-3.3.2/catch_amalgamated.cpp)
 
+if (ASAN_ENABLED)
+	target_compile_options(${PROJECT_NAME} PRIVATE
+	    -fsanitize=address
+	    -fno-omit-frame-pointer
+	    -g
+	    -O0)
+
+	target_link_options(${PROJECT_NAME}
+	PRIVATE -fsanitize=address)
+endif()
+
+
 target_link_libraries(${PROJECT_NAME}
     avocadoengine
     SDL2

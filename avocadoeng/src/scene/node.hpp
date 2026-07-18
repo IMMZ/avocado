@@ -23,6 +23,11 @@ struct Node {
     int _cameraIndex = -1;
     bool _hasMesh = false;
 
+    Node() = default;
+    ~Node();
+    Node(Node &&other);
+    Node& operator=(Node &&other);
+
     [[nodiscard]] inline bool hasTranslation() noexcept {
         return (nullptr != translation);
     }

@@ -1,6 +1,6 @@
 #include "descriptormanager.hpp"
 
-#include <iostream>
+#include "debugutils.hpp"
 #include "logicaldevice.hpp"
 #include "structuretypes.hpp"
 
@@ -72,7 +72,7 @@ void DescriptorManager::addBuffer(Buffer &buffer, const uint32_t range, const ui
     _bufferInfos.push_back(VkDescriptorBufferInfo{buffer.getHandle(), offset, range});
 }
 
-void DescriptorManager::addImage(ImageViewPtr &view, SamplerPtr &sampler, const VkImageLayout layout) {
+void DescriptorManager::addImage(ImageViewPtr &view, SamplerSharedPtr &sampler, const VkImageLayout layout) {
     assert(!_sets.empty() && "No sets available. Are they allocated?");
 
     _imageInfos.push_back(VkDescriptorImageInfo{sampler.get(), view.get(), layout});
@@ -124,7 +124,6 @@ void DescriptorManager::createLayouts() {
 
     CALL_VULKAN(vkCreateDescriptorSetLayout, _device.getHandle(), &layoutCI, nullptr, &_matricesSetLayout);
 
-
     // Create materials layout.
     constexpr VkDescriptorSetLayoutBinding bindingForBaseColorTextures {
         1 /* binding */, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
@@ -161,6 +160,10 @@ void DescriptorManager::allocateSets() {
     descriptorCount = avocado::core::Config::MAX_BINDLESS_RESOURCES - 1;
 
     CALL_VULKAN_AND_DEFINE_VARIABLE(allocationResult, vkAllocateDescriptorSets, _device.getHandle(), &allocInfo, &_sets[avocado::utils::enumToInteger(SetIndex::Materials)]);
+
+    auto debugUtilsPtr = _device.createDebugUtils();
+    debugUtilsPtr->setObjectName(_sets[0], "Set with UBO");
+    debugUtilsPtr->setObjectName(_sets[1], "Set with image sample array");
 }
 
 const std::vector<VkDescriptorSetLayout>& DescriptorManager::getLayouts() const {

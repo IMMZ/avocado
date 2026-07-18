@@ -70,6 +70,9 @@ template <typename T>
 using ObjectPtr = std::unique_ptr<std::remove_pointer_t<T>, ObjectDeleter<T>>;
 
 template <typename T>
+using ObjectSharedPtr = std::shared_ptr<std::remove_pointer_t<T>>;
+
+template <typename T>
 using FundamentalObjectPtr = std::unique_ptr<std::remove_pointer_t<T>, FundamentalObjectDeleter<T>>;
 
 template <typename T>

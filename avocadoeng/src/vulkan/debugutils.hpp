@@ -24,8 +24,9 @@ public:
         objNameInfo.objectHandle = reinterpret_cast<uint64_t>(object);
         objNameInfo.pObjectName = objectName;
         auto fnPointer = reinterpret_cast<PFN_vkSetDebugUtilsObjectNameEXT>(vkGetDeviceProcAddr(_dev.getHandle(), "vkSetDebugUtilsObjectNameEXT"));
-        assert(fnPointer != nullptr && "Can't get device process address for vkSetDebugUtilsObjectNameEXT");
-        CALL_VULKAN(fnPointer, _dev.getHandle(), &objNameInfo);
+        if (fnPointer) {
+            CALL_VULKAN(fnPointer, _dev.getHandle(), &objNameInfo);
+        }
     }
 
     template <typename T, typename Tag>
@@ -37,8 +38,9 @@ public:
         tagInfo.tagSize = tagSize;
         tagInfo.pTag = tag;
         auto fnPointer = reinterpret_cast<PFN_vkSetDebugUtilsObjectTagEXT>(vkGetDeviceProcAddr(_dev.getHandle(), "vkSetDebugUtilsObjectTagEXT"));
-        assert(fnPointer != nullptr && "Can't get device process address for vkSetDebugUtilsObjectTagEXT");
-        CALL_VULKAN(fnPointer, _dev.getHandle(), &tagInfo);
+        if (fnPointer) {
+            CALL_VULKAN(fnPointer, _dev.getHandle(), &tagInfo);
+        }
     }
 
 private:

@@ -3,30 +3,32 @@
 
 #include "objectdeleter.hpp"
 
-#define DECLARE_POINTER_TYPE(Type) using Type##Ptr = ObjectPtr<Vk##Type>;
+#define DECLARE_POINTER_TYPES(Type)\
+    using Type##Ptr = ObjectPtr<Vk##Type>;\
+    using Type##SharedPtr = ObjectSharedPtr<Vk##Type>;
 #define DECLARE_POINTER_FUNDAMENTAL_TYPE(Type) using Type##Ptr = FundamentalObjectPtr<Vk##Type>;
 #define DECLARE_POINTER_ALLOCATED_TYPE(Type) using Type##Ptr = AllocatedObjectPtr<Vk##Type>;
 
 namespace avocado::vulkan
 {
 
-DECLARE_POINTER_TYPE(CommandPool)
-DECLARE_POINTER_TYPE(DescriptorPool)
-DECLARE_POINTER_TYPE(DescriptorSetLayout)
+DECLARE_POINTER_TYPES(CommandPool)
+DECLARE_POINTER_TYPES(DescriptorPool)
+DECLARE_POINTER_TYPES(DescriptorSetLayout)
 DECLARE_POINTER_FUNDAMENTAL_TYPE(Device)
 DECLARE_POINTER_ALLOCATED_TYPE(DeviceMemory)
-DECLARE_POINTER_TYPE(Fence)
-DECLARE_POINTER_TYPE(Image)
-DECLARE_POINTER_TYPE(ImageView)
+DECLARE_POINTER_TYPES(Fence)
+DECLARE_POINTER_TYPES(Image)
+DECLARE_POINTER_TYPES(ImageView)
 DECLARE_POINTER_FUNDAMENTAL_TYPE(Instance)
-DECLARE_POINTER_TYPE(PhysicalDevice)
-DECLARE_POINTER_TYPE(Pipeline)
-DECLARE_POINTER_TYPE(PipelineLayout)
-DECLARE_POINTER_TYPE(RenderPass)
-DECLARE_POINTER_TYPE(Sampler)
-DECLARE_POINTER_TYPE(Semaphore)
-DECLARE_POINTER_TYPE(ShaderModule)
-DECLARE_POINTER_TYPE(SwapchainKHR)
+DECLARE_POINTER_TYPES(PhysicalDevice)
+DECLARE_POINTER_TYPES(Pipeline)
+DECLARE_POINTER_TYPES(PipelineLayout)
+DECLARE_POINTER_TYPES(RenderPass)
+DECLARE_POINTER_TYPES(Sampler)
+DECLARE_POINTER_TYPES(Semaphore)
+DECLARE_POINTER_TYPES(ShaderModule)
+DECLARE_POINTER_TYPES(SwapchainKHR)
 
 } // namespace avocado::vulkan.
 

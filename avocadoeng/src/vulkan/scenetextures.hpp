@@ -42,7 +42,7 @@ private:
     std::vector<Image> _images;
     std::vector<Buffer> _buffers;
     std::vector<ImageViewPtr> _imageViews;
-    std::vector<SamplerPtr> _samplers;
+    std::vector<SamplerSharedPtr> _samplers;
     PhysicalDevice &_physicalDevice;
     LogicalDevice &_logicalDevice;
 };

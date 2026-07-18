@@ -276,7 +276,7 @@ int Application::run() {
         ubo.view = cameraLookAt;
 
     if (!sceneManager.hasCameras())
-        ubo.proj = math::perspectiveProjection(60.f, static_cast<float>(GameConfig::RESOLUTION_WIDTH) / static_cast<float>(GameConfig::RESOLUTION_HEIGHT), 0.1f, 100.f);
+        ubo.proj = math::perspectiveProjection(60.f, static_cast<float>(GameConfig::RESOLUTION_WIDTH) / static_cast<float>(GameConfig::RESOLUTION_HEIGHT), 0.1f, 1000.f);
     else
         ubo.proj = cameraProjection;
     ubo.model = math::Mat4x4::createIdentityMatrix();
@@ -332,7 +332,7 @@ int Application::run() {
     VkDeviceSize offset = 0;
     const auto startTime = std::chrono::high_resolution_clock::now();
 
-    std::vector<VkPipelineStageFlags> flags = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+    const std::vector<VkPipelineStageFlags> flags = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
     std::vector<VkSemaphore> waitSemaphores {imageAvailableSemaphores[0].get(), imageAvailableSemaphores[1].get()};
     std::vector<VkSemaphore> signalSemaphores {renderFinishedSemaphores[0].get(), renderFinishedSemaphores[1].get()};
 
@@ -342,7 +342,7 @@ int Application::run() {
 
     float x = 0.f;
     float y = 0.f;
-    float z = 10.f;
+    float z = 450.f;
 
     descriptorManager.addBuffer(uniformBuffer, sizeof(UniformBufferObject), 0);
 
@@ -416,7 +416,7 @@ int Application::run() {
             cmdBuf.bindVertexBuffers(0 /* 1st binding */, 1 /* bindingCount */, &vertexBufferHandle, &offset);
             cmdBuf.bindIndexBuffer(indexBuffers[primitiveIndex].getHandle(), 0, VK_INDEX_TYPE_UINT32);
             cmdBuf.bindPipeline(graphicsPipeline.get(), VK_PIPELINE_BIND_POINT_GRAPHICS);
-            cmdBuf.bindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineBuilder.getPipelineLayout(), 0, 2, descriptorManager.getSets().data());
+            cmdBuf.bindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineBuilder.getPipelineLayout(), 0 /* firstSet */, 2 /* setsCount */, descriptorManager.getSets().data());
                 cmdBuf.drawIndexed(indexBuffers[primitiveIndex].getSizeBytes() / avocado::vulkan::utils::sizeOf<avocado::vulkan::Buffer::IndexType>(), 1, 0,0,0);
         }
         cmdBuf.endRenderPass();

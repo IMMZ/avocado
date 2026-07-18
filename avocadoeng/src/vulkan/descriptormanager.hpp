@@ -20,7 +20,7 @@ public:
     ~DescriptorManager();
 
     void addBuffer(Buffer &buffer, const uint32_t range, const uint32_t offset);
-    void addImage(ImageViewPtr &view, SamplerPtr &sampler, const VkImageLayout layout);
+    void addImage(ImageViewPtr &view, SamplerSharedPtr &sampler, const VkImageLayout layout);
     void update();
     const std::vector<VkDescriptorSetLayout>& getLayouts() const;
     const std::vector<VkDescriptorSet>& getSets() const;

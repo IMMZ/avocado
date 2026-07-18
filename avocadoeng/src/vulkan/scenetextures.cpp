@@ -68,8 +68,6 @@ void SceneTextures::loadImage(const core::Texture &texture, Swapchain &swapchain
         textureImage.setArrayLayerCount(1);
         textureImage.setSharingMode(VK_SHARING_MODE_EXCLUSIVE);
         textureImage.create();
-        // todo process error
-        //if (textureImage.hasError()) {
         textureImage.allocateMemory(_physicalDevice, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
         textureImage.bindMemory();
 
@@ -92,7 +90,7 @@ void SceneTextures::loadSampler(const core::Texture &texture) {
         VkSampler textureSampler = VK_NULL_HANDLE;
         // todo process error!
         [[maybe_unused]] const VkResult samplerCreateResult = vkCreateSampler(_logicalDevice.getHandle(), &createInfo, nullptr, &textureSampler);
-        _samplers.push_back(_logicalDevice.createObjectPointer(textureSampler));
+        _samplers.push_back(_logicalDevice.createObjectSharedPointer(textureSampler));
     }
 }
 

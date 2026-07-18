@@ -118,40 +118,6 @@ SemaphorePtr LogicalDevice::createSemaphore() noexcept {
     return createObjectPointer(semaphore);
 }
 
-SamplerPtr LogicalDevice::createSampler(PhysicalDevice &physicalDevice) {
-    DEFINE_VK_STRUCTURE(VkSamplerCreateInfo, samplerInfo);
-    samplerInfo.magFilter = VK_FILTER_LINEAR;
-    samplerInfo.minFilter = VK_FILTER_LINEAR;
-    samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerInfo.anisotropyEnable = VK_FALSE;
-
-    VkPhysicalDeviceProperties properties{}; vkGetPhysicalDeviceProperties(physicalDevice.getHandle(), &properties);
-
-    samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
-    samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-    samplerInfo.unnormalizedCoordinates = VK_FALSE;
-    samplerInfo.compareEnable = VK_FALSE;
-    samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-    samplerInfo.mipLodBias = 0.0f;
-    samplerInfo.minLod = 0.0f;
-    samplerInfo.maxLod = 0.0f;
-
-    return createSampler(physicalDevice, samplerInfo);
-}
-
-SamplerPtr LogicalDevice::createSampler(PhysicalDevice &physicalDevice, const VkSamplerCreateInfo &createInfo) {
-    VkPhysicalDeviceProperties properties{};
-    vkGetPhysicalDeviceProperties(physicalDevice.getHandle(), &properties);
-
-    VkSampler textureSampler;
-    CALL_VULKAN(vkCreateSampler, _dev.get(), &createInfo, nullptr, &textureSampler);
-
-    return createObjectPointer(textureSampler);
-}
-
 void LogicalDevice::waitIdle() noexcept {
     CALL_VULKAN(vkDeviceWaitIdle, _dev.get());
 }

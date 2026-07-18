@@ -78,8 +78,8 @@ void SceneManager::load(const std::string &filepath) {
 
     _modelMatrix = math::Mat4x4::createIdentityMatrix();
 
-    for (const tinygltf::Scene &scene: _model.scenes)
-        calculateMatricesForNode(scene);
+    //for (const tinygltf::Scene &scene: _model.scenes)
+    //    calculateMatricesForNode(scene);
 
     _primitivesCount = std::accumulate(_model.meshes.cbegin(), _model.meshes.cend(), 0,
         [](const int32_t init, const tinygltf::Mesh &mesh) {
@@ -368,7 +368,7 @@ tinygltf::Primitive* SceneManager::findPrimitive(const int32_t primitiveIndex) {
             foundNodeIndex++;
         }
 
-        _modelMatrix = _nodeMatrices[foundNodeIndex];
+        //_modelMatrix = _nodeMatrices[foundNodeIndex];
     }
 
     return foundPrimitive;

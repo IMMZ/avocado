@@ -9,6 +9,7 @@ set(CMAKE_CXX_EXTENSIONS OFF CACHE STRING "cpp standard extensions")
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 find_package(VulkanSDK REQUIRED)
 
+set (ASAN_ENABLED OFF) # Variable for enabling/disabling ASAN.
 add_subdirectory(avocadoeng)
 add_subdirectory(game)
 
