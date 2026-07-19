@@ -174,9 +174,8 @@ vulkan::GraphicsPipelineBuilder Application::preparePipeline(const VkExtent2D ex
     return pipelineBuilder;
 }
 
-int Application::run() {
-    // Check resources.
-    const std::string modelFile = avocado::utils::os::getExecutablePath() + "/assets/models/cube.glb";
+int Application::run(const std::string_view &pathToGltf) {
+    const std::string modelFile(pathToGltf.data(), pathToGltf.size());
     if (!std::filesystem::exists(modelFile)) {
         std::cout << "File " << modelFile << " doesn't exist" << std::endl;
         return 1;

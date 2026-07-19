@@ -16,7 +16,7 @@
 
 class Application {
 public:
-    int run();
+    int run(const std::string_view &pathToGltf);
 
     enum class CommandBufferIndex: size_t {
         CopyImageToBuffer = 2
