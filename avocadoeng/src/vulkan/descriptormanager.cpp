@@ -79,13 +79,18 @@ void DescriptorManager::addImage(ImageViewPtr &view, SamplerSharedPtr &sampler, 
 }
 
 void DescriptorManager::update() {
-    DEFINE_VK_STRUCTURE(VkWriteDescriptorSet, imageDescriptorWrite);
-    imageDescriptorWrite.dstSet = _sets[avocado::utils::enumToInteger(SetIndex::Materials)];
-    imageDescriptorWrite.dstBinding = avocado::utils::enumToInteger(MaterialBindingIndex::BaseColorTextures);
-    imageDescriptorWrite.dstArrayElement = 0;
-    imageDescriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    imageDescriptorWrite.descriptorCount = _imageInfos.size();
-    imageDescriptorWrite.pImageInfo = _imageInfos.data();
+    std::vector<VkWriteDescriptorSet> writes;
+
+    if (!_imageInfos.empty()) {
+        DEFINE_VK_STRUCTURE(VkWriteDescriptorSet, imageDescriptorWrite);
+        imageDescriptorWrite.dstSet = _sets[avocado::utils::enumToInteger(SetIndex::Materials)];
+        imageDescriptorWrite.dstBinding = avocado::utils::enumToInteger(MaterialBindingIndex::BaseColorTextures);
+        imageDescriptorWrite.dstArrayElement = 0;
+        imageDescriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        imageDescriptorWrite.descriptorCount = _imageInfos.size();
+        imageDescriptorWrite.pImageInfo = _imageInfos.data();
+        writes.push_back(std::move(imageDescriptorWrite));
+    }
 
     DEFINE_VK_STRUCTURE(VkWriteDescriptorSet, bufferDescriptorWrite);
     bufferDescriptorWrite.dstSet = _sets[avocado::utils::enumToInteger(SetIndex::Matrices)];
@@ -94,8 +99,8 @@ void DescriptorManager::update() {
     bufferDescriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     bufferDescriptorWrite.descriptorCount = _bufferInfos.size();
     bufferDescriptorWrite.pBufferInfo = _bufferInfos.data();
+    writes.push_back(std::move(bufferDescriptorWrite));
 
-    const std::array<VkWriteDescriptorSet, 2> writes { imageDescriptorWrite, bufferDescriptorWrite };
     vkUpdateDescriptorSets(_device.getHandle(), writes.size(), writes.data(), 0, nullptr);
 }
 
