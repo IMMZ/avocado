@@ -1,6 +1,5 @@
 #include "descriptormanager.hpp"
 
-#include "debugutils.hpp"
 #include "logicaldevice.hpp"
 #include "structuretypes.hpp"
 
@@ -161,9 +160,8 @@ void DescriptorManager::allocateSets() {
 
     CALL_VULKAN_AND_DEFINE_VARIABLE(allocationResult, vkAllocateDescriptorSets, _device.getHandle(), &allocInfo, &_sets[avocado::utils::enumToInteger(SetIndex::Materials)]);
 
-    auto debugUtilsPtr = _device.createDebugUtils();
-    debugUtilsPtr->setObjectName(_sets[0], "Set with UBO");
-    debugUtilsPtr->setObjectName(_sets[1], "Set with image sample array");
+    _device.setObjectName(_sets[0], "Set with UBO");
+    _device.setObjectName(_sets[1], "Set with image sample array");
 }
 
 const std::vector<VkDescriptorSetLayout>& DescriptorManager::getLayouts() const {

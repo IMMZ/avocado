@@ -3,6 +3,7 @@
 #include "../utils.hpp"
 #include "vkutils.hpp"
 
+#include <array>
 #include <filesystem>
 
 using namespace std::string_literals;

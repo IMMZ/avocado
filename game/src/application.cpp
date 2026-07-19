@@ -18,7 +18,6 @@
 #include <vulkan/clipping.hpp>
 #include <vulkan/commandbuffer.hpp>
 #include <vulkan/commandpool.hpp>
-#include <vulkan/debugutils.hpp>
 #include <vulkan/descriptormanager.hpp>
 #include <vulkan/graphicspipeline.hpp>
 #include <vulkan/image.hpp>
@@ -217,8 +216,6 @@ int Application::run(const std::string_view &pathToGltf) {
     utils::makeUniqueContainer(queueFamilies);
 
     _logicalDevice = _physicalDevice.createLogicalDevice(queueFamilies, physExtensions, instanceLayers, 1, 1.0f);
-    auto debugUtilsPtr = _logicalDevice.createDebugUtils();
-
     vulkan::QueueManager queueManager(_logicalDevice, graphicsQueueFamily);
 
     vulkan::Queue presentQueue = _logicalDevice.getPresentQueue(0);
@@ -237,7 +234,7 @@ int Application::run(const std::string_view &pathToGltf) {
     commandPool.allocateBuffers(FRAMES_IN_FLIGHT + 3, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
 
     vulkan::Queue graphicsQueue(_logicalDevice.getGraphicsQueue(0));
-    debugUtilsPtr->setObjectName(graphicsQueue.getHandle(), "Graphics queue");
+    _logicalDevice.setObjectName(graphicsQueue.getHandle(), "Graphics queue");
 
     core::SceneManager sceneManager;
     sceneManager.load(modelFile);
@@ -315,7 +312,7 @@ int Application::run(const std::string_view &pathToGltf) {
 
     vulkan::PipelinePtr graphicsPipeline = pipelineBuilder.createPipeline(renderPassPtr.get());
     swapChain.createDepthImage(extent.width, extent.height, _physicalDevice, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    debugUtilsPtr->setObjectName(swapChain.getDepthImage(), "Depth image");
+    _logicalDevice.setObjectName(swapChain.getDepthImage(), "Depth image");
 
     // Synchronization objects.
     const std::array<vulkan::SemaphorePtr, FRAMES_IN_FLIGHT> imageAvailableSemaphores = {_logicalDevice.createSemaphore(), _logicalDevice.createSemaphore()};

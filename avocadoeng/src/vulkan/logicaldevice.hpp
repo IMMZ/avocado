@@ -3,13 +3,11 @@
 
 #include "queue.hpp"
 #include "pointertypes.hpp"
+#include "structuretypes.hpp"
 #include "types.hpp"
 
-#include <vulkan/vulkan.h>
-#include <vulkan/vulkan_core.h>
+#include "../callvulkan.hpp"
 
-#include <limits>
-#include <functional>
 #include <memory>
 #include <vector>
 
@@ -18,7 +16,6 @@ using namespace std::string_literals;
 namespace avocado::vulkan {
 
 class Buffer;
-class DebugUtils;
 class PhysicalDevice;
 
 class LogicalDevice {
@@ -33,8 +30,6 @@ public:
     Queue getGraphicsQueue(const uint32_t index) noexcept;
     Queue getPresentQueue(const uint32_t index) noexcept;
     Queue getTransferQueue(const uint32_t index) noexcept;
-
-    std::unique_ptr<DebugUtils> createDebugUtils();
 
     FencePtr createFence() noexcept;
     void waitForFences(const std::vector<VkFence> &fences, const bool waitAll, uint64_t timeout = std::numeric_limits<uint64_t>::max()) noexcept;
@@ -61,6 +56,9 @@ public:
     [[nodiscard]] static inline LogicalDevice createNullDevice() {
         return LogicalDevice(VK_NULL_HANDLE);
     }
+
+    // Debug features are extracted to separate file.
+    #include "devicedebugutils.hpp"
 
 private:
     friend class PhysicalDevice;

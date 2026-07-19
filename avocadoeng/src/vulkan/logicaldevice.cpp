@@ -1,7 +1,6 @@
 #include "logicaldevice.hpp"
 
 #include "buffer.hpp"
-#include "debugutils.hpp"
 #include "objectdeleter.hpp"
 #include "physicaldevice.hpp"
 #include "vulkan/pointertypes.hpp"
@@ -9,6 +8,7 @@
 
 #include "../config.hpp"
 
+#include <array>
 #include <cstdint>
 #include <memory>
 
@@ -79,11 +79,6 @@ Queue LogicalDevice::getTransferQueue(const uint32_t index) noexcept {
     VkQueue queue = VK_NULL_HANDLE;
     vkGetDeviceQueue(_dev.get(), _presentQueueFamily, index, &queue);
     return Queue(queue);
-}
-
-std::unique_ptr<DebugUtils> LogicalDevice::createDebugUtils() {
-    auto *debugUtils = new DebugUtils(*this);
-    return std::unique_ptr<DebugUtils>(debugUtils);
 }
 
 void LogicalDevice::setQueueFamilies(const QueueFamily graphicsQueueFamily, const QueueFamily presentQueueFamily, const QueueFamily transferQueueFamily) noexcept {

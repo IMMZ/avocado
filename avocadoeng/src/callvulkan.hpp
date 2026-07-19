@@ -1,6 +1,9 @@
 #ifndef CALLVULKAN_HPP
 #define CALLVULKAN_HPP
 
+#include "logger.hpp"
+#include "vulkan/vkutils.hpp"
+
 /*
  * @brief Calls Vulkan API function and logs error if it hasn't returned VK_SUCCESS.
  *
