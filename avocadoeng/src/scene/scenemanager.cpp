@@ -7,6 +7,7 @@
 #include "../logger.hpp"
 #include "../math/functions.hpp"
 #include "../math/matrix.hpp"
+#include "../math/quaternion.hpp"
 
 #include <functional>
 #include <stack>
@@ -541,17 +542,54 @@ void SceneManager::parseScenes() {
 }
 
 void SceneManager::parseCameras() {
-    for (const tinygltf::Camera &camera: _model.cameras) {
-        assert(camera.type == "perspective"); //No support for non-perspective projective on camera.
-
-        _cameras.push_back(Camera {
-            .perspective = math::perspectiveProjection(
-                static_cast<float>(math::toDegrees(camera.perspective.yfov)),
-                static_cast<float>(camera.perspective.aspectRatio),
-                static_cast<float>(camera.perspective.znear),
-                static_cast<float>(camera.perspective.zfar)),
-            .up = math::vec3f{0.f, 1.f, 0.f}});
+    const tinygltf::Node * cameraNode = nullptr;
+    const tinygltf::Camera *camera = nullptr;
+    for (const tinygltf::Node &node: _model.nodes) {
+        if (node.camera > -1) {
+            cameraNode = &node;
+            camera = &_model.cameras[node.camera];
+            break;
+        }
     }
+
+    if (nullptr == camera) {
+        LOG_INFORMATION("No camera in a model.");
+        return;
+    }
+
+    _cameras.push_back(Camera {
+        .perspective = math::perspectiveProjection(
+            static_cast<float>(math::toDegrees(camera->perspective.yfov)),
+            static_cast<float>(camera->perspective.aspectRatio),
+            static_cast<float>(camera->perspective.znear),
+            static_cast<float>(camera->perspective.zfar)),
+        .position = math::vec3f{
+            static_cast<float>(cameraNode->translation[0]),
+            static_cast<float>(cameraNode->translation[1]),
+            static_cast<float>(cameraNode->translation[2])},
+        .up = math::vec3f{0.f, 1.f, 0.f}});
+
+    math::vec3f forward(0.f, 0.f, -1.f);
+    Camera &addedCamera = _cameras.back();
+    if (cameraNode->matrix.empty()) {
+        const std::vector<double> scale = cameraNode->scale.empty() ?
+            std::vector<double>{1., 1., 1.} : cameraNode->scale;
+        const std::vector<double> rotation = cameraNode->rotation.empty() ?
+            std::vector<double>{0., 0., 0., 1.} : cameraNode->rotation;
+        const std::vector<double> translation = cameraNode->translation.empty() ?
+            std::vector<double>{0., 0., 0., 0.} : cameraNode->translation;
+        math::Quaternion rotationQuat = math::Quaternion::fromTinyGltf(rotation);
+        rotationQuat.normalize();
+        addedCamera.localMatrix = math::Mat4x4::fromSRT(scale,
+            {rotationQuat.x,rotationQuat.y,rotationQuat.z,rotationQuat.w},
+            translation);
+        addedCamera.up = rotationQuat.rotateVector(addedCamera.up);
+        forward = rotationQuat.rotateVector(forward);
+    } else {
+        addedCamera.localMatrix = math::Mat4x4::fromTinyGltf(cameraNode->matrix);
+    }
+
+    addedCamera.targetPosition = addedCamera.position + forward;
 }
 
 }

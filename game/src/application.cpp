@@ -231,7 +231,7 @@ int Application::run(const std::string_view &pathToGltf) {
     vulkan::Swapchain swapChain = createSwapchain(surface, surfaceFormat, extent, queueFamilies);
 
     vulkan::CommandPool commandPool(_logicalDevice, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, graphicsQueueFamily);
-    commandPool.allocateBuffers(FRAMES_IN_FLIGHT + 3, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+    commandPool.allocateBuffers(FRAMES_IN_FLIGHT + 3 /* todo why 3? */, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
 
     vulkan::Queue graphicsQueue(_logicalDevice.getGraphicsQueue(0));
     _logicalDevice.setObjectName(graphicsQueue.getHandle(), "Graphics queue");
@@ -246,8 +246,9 @@ int Application::run(const std::string_view &pathToGltf) {
     math::Mat4x4 cameraProjection {};
 
     if (sceneManager.hasCameras()) {
-        cameraProjection = sceneManager.getCamera().perspective;
-        cameraLookAt = math::lookAt(sceneManager.getCamera().position, math::vec3f{0.f, 0.f, 0.f}, sceneManager.getCamera().up);
+        const avocado::core::Camera &camera = sceneManager.getCamera();
+        cameraProjection = camera.perspective;
+        cameraLookAt = math::lookAt(camera.position, camera.targetPosition, camera.up);
     }
 
 
@@ -266,15 +267,14 @@ int Application::run(const std::string_view &pathToGltf) {
     uniformBufferForFrame2.bindMemory();
 
     UniformBufferObject ubo{};
-    if (!sceneManager.hasCameras())
-        ubo.view = math::lookAt(math::vec3f(0.f, 0.f, 10.f), math::vec3f(0.f, 0.f, 0.f), math::vec3f(0.f, 1.f, 0.f));
-    else
+    if (sceneManager.hasCameras()) {
         ubo.view = cameraLookAt;
-
-    if (!sceneManager.hasCameras())
-        ubo.proj = math::perspectiveProjection(60.f, static_cast<float>(GameConfig::RESOLUTION_WIDTH) / static_cast<float>(GameConfig::RESOLUTION_HEIGHT), 0.1f, 1000.f);
-    else
         ubo.proj = cameraProjection;
+    } else {
+        ubo.view = math::lookAt(math::vec3f(0.f, 0.f, 10.f), math::vec3f(0.f, 0.f, 0.f), math::vec3f(0.f, 1.f, 0.f));
+        ubo.proj = math::perspectiveProjection(60.f, static_cast<float>(GameConfig::RESOLUTION_WIDTH) / static_cast<float>(GameConfig::RESOLUTION_HEIGHT), 0.1f, 1000.f);
+    }
+
     ubo.model = math::Mat4x4::createIdentityMatrix();
 
     const VkFormat depthFormat = swapChain.findSupportedFormat(
@@ -338,7 +338,7 @@ int Application::run(const std::string_view &pathToGltf) {
 
     float x = 0.f;
     float y = 0.f;
-    float z = 450.f;
+    float z = 40.f;
 
     descriptorManager.addBuffer(uniformBuffer, sizeof(UniformBufferObject), 0);
 
@@ -390,10 +390,12 @@ int Application::run(const std::string_view &pathToGltf) {
         ubo.model = math::createRotationMatrix(angleX, math::vec3f{1.f, 0.f, 0.f})
             * math::createRotationMatrixZ(angleY);
 
-        if (sceneManager.hasCameras())
-            ubo.view = math::lookAt(sceneManager.getCamera().position, math::vec3f{0.f, 0.f, 0.f}, sceneManager.getCamera().up);
-        else
+        if (sceneManager.hasCameras()) {
+            ubo.view = math::lookAt(sceneManager.getCamera().position, sceneManager.getCamera().targetPosition, sceneManager.getCamera().up);
+        } else {
             ubo.view = math::lookAt(math::vec3f(x, y, z), math::vec3f(0.f, 0.f, 0.f), math::vec3f(0.f, 1.f, 0.f));
+        }
+
         uniformBuffers[currentFrame]->fill(&ubo);
         descriptorManager.update();
 
@@ -410,7 +412,7 @@ int Application::run(const std::string_view &pathToGltf) {
             cmdBuf.setScissors(scissors);
             VkBuffer vertexBufferHandle = vertexBuffers[primitiveIndex].getHandle();
             cmdBuf.bindVertexBuffers(0 /* 1st binding */, 1 /* bindingCount */, &vertexBufferHandle, &offset);
-            cmdBuf.bindIndexBuffer(indexBuffers[primitiveIndex].getHandle(), 0, VK_INDEX_TYPE_UINT32);
+            cmdBuf.bindIndexBuffer(indexBuffers[primitiveIndex].getHandle(), 0 /* offset */, VK_INDEX_TYPE_UINT32);
             cmdBuf.bindPipeline(graphicsPipeline.get(), VK_PIPELINE_BIND_POINT_GRAPHICS);
             cmdBuf.bindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineBuilder.getPipelineLayout(), 0 /* firstSet */, 2 /* setsCount */, descriptorManager.getSets().data());
                 cmdBuf.drawIndexed(indexBuffers[primitiveIndex].getSizeBytes() / avocado::vulkan::utils::sizeOf<avocado::vulkan::Buffer::IndexType>(), 1, 0,0,0);

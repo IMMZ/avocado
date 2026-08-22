@@ -80,10 +80,11 @@ struct Quaternion {
     /**
      * @brief Convienence constructor for tinygltf.
      */
-    [[nodiscard]] Quaternion fromTinyGltf(const std::vector<float> &rotationQuaternion) {
+    [[nodiscard]] static Quaternion fromTinyGltf(const std::vector<double> &rotationQuaternion) {
         if (!rotationQuaternion.empty())
             return Quaternion{
-                rotationQuaternion[0], rotationQuaternion[1], rotationQuaternion[2], rotationQuaternion[3]};
+                static_cast<float>(rotationQuaternion[0]), static_cast<float>(rotationQuaternion[1]),
+                static_cast<float>(rotationQuaternion[2]), static_cast<float>(rotationQuaternion[3])};
 
         return createUnit();
     }

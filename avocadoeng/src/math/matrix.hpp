@@ -71,18 +71,18 @@ public:
     static constexpr Matrix createTranslationMatrix(const float x, const float y, const float z)
     requires(M == 4 && N == 4) {
         return Matrix ({{
-            {1.f, 0.f, 0.f, x},
-            {0.f, 1.f, 0.f, y},
-            {0.f, 0.f, 1.f, z},
-            {0.f, 0.f, 0.f, 1.f}}});
+            {1.f, 0.f, 0.f, 0.f},
+            {0.f, 1.f, 0.f, 0.f},
+            {0.f, 0.f, 1.f, 0.f},
+            { x,   y,   z,  1.f}}});
     }
 
     static constexpr Matrix createScaleMatrix(const float x, const float y, const float z)
     requires(M == 4 && N == 4) {
         return Matrix ({{
-            {x, 0.f, 0.f, 0.f},
-            {0.f, y, 0.f, 0.f},
-            {0.f, 0.f, z, 0.f},
+            { x,  0.f, 0.f, 0.f},
+            {0.f,  y,  0.f, 0.f},
+            {0.f, 0.f,  z,  0.f},
             {0.f, 0.f, 0.f, 1.f}}});
     }
 
@@ -285,6 +285,7 @@ inline std::ostream& operator<<(std::ostream &stream, const internal::Matrix<M, 
 }
 
 // todo Do we really need other types except float?
+// todo Check for usage of any other types beside Mat4x4 and remove unused ones.
 using Mat2x2 = internal::QuadMatrix<2, float>;
 using Mat4x4 = internal::QuadMatrix<4, float>;
 
